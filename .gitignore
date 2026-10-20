@@ -10,3 +10,10 @@ packages/
 calendar-app/scripts/preview.html
 calendar-app/scripts/preview-single.html
 calendar-app/scripts/defaults-preview.html
+
+# 凭据与密钥（绝不入库）
+.env
+.env.*
+*.pem
+*.key
+.credentials*
