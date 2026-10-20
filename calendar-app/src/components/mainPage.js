@@ -4,6 +4,7 @@
  */
 import { SunPanelPageElement } from '@sun-panel/micro-app';
 import { html, css } from 'lit';
+import { CARD_MODE_CSS } from '../core/card-mode-styles.js';
 import { setLocale } from '@sun-panel/micro-app';
 import appConfig from '../../config/app.config.js';
 import { ensureAppState, getHolidayService, getUserStore, subscribeAppState } from '../core/app-state.js';
@@ -288,30 +289,30 @@ export class MainPage extends SunPanelPageElement {
       <div class="card year-card">
         <div class="year-grid">
           ${months.map((m) => {
-            const offset = (firstDayWeekday(this.viewYear, m) - ws + 7) % 7;
-            const total = daysInMonth(this.viewYear, m);
-            const title = this._isZh() ? `${m}月` : EN_MONTH_LONG[m - 1].slice(0, 3);
-            return html`
+    const offset = (firstDayWeekday(this.viewYear, m) - ws + 7) % 7;
+    const total = daysInMonth(this.viewYear, m);
+    const title = this._isZh() ? `${m}月` : EN_MONTH_LONG[m - 1].slice(0, 3);
+    return html`
               <button class="year-month" key="ym${m}" @click=${() => { this.viewMonth = m; this.viewMode = 'month'; this.requestUpdate(); }}>
                 <div class="ym-title">${title}</div>
                 <div class="ym-grid">
                   ${Array.from({ length: offset }, (_, k) => html`<span class="ym-cell empty" key="e${k}"></span>`)}
                   ${Array.from({ length: total }, (_, k) => {
-                    const day = k + 1;
-                    const ds = `${this.viewYear}-${pad2(m)}-${pad2(day)}`;
-                    const isToday = ds === today;
-                    const hasEvent = (map.get(ds) || []).length > 0;
-                    return html`
+    const day = k + 1;
+    const ds = `${this.viewYear}-${pad2(m)}-${pad2(day)}`;
+    const isToday = ds === today;
+    const hasEvent = (map.get(ds) || []).length > 0;
+    return html`
                       <span class="ym-cell ${isToday ? 'today' : ''}" key="c${day}" style="${isToday ? `background:${this._theme()}` : ''}">
                         ${hasEvent ? html`<span class="ym-dot" style="${isToday ? 'background:#fff' : `background:${this._theme()}`}"></span>` : ''}
                         <span class="ym-num">${day}</span>
                       </span>
                     `;
-                  })}
+  })}
                 </div>
               </button>
             `;
-          })}
+  })}
         </div>
       </div>
     `;
@@ -344,15 +345,15 @@ export class MainPage extends SunPanelPageElement {
         ${this._renderWeekdayHeader()}
         <div class="month-grid grow">
           ${cells.map((cell, i) => {
-            const ds = formatDate(cell.date);
-            const info = getDayInfo(ds);
-            const holiday = this._holidayInfo(ds);
-            const isToday = ds === today;
-            const isSelected = ds === this.selected;
-            const dayItems = map.get(ds) || [];
-            const lunarText = info.solarTerm?.zh || info.festivals[0]?.zh
+    const ds = formatDate(cell.date);
+    const info = getDayInfo(ds);
+    const holiday = this._holidayInfo(ds);
+    const isToday = ds === today;
+    const isSelected = ds === this.selected;
+    const dayItems = map.get(ds) || [];
+    const lunarText = info.solarTerm?.zh || info.festivals[0]?.zh
               || (info.lunar.day === 1 ? info.lunar.monthCN : info.lunar.dayCN);
-            return html`
+    return html`
               <button
                 class="day-cell ${cell.inMonth ? '' : 'out'} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}"
                 key="d${i}"
@@ -363,7 +364,7 @@ export class MainPage extends SunPanelPageElement {
                 ${dayItems.length ? html`<span class="dots">${dayItems.slice(0, 3).map((s) => html`<span class="dot" style="background:${APPLE_COLORS[s.item.color] || APPLE_COLORS.red}"></span>`)}</span>` : ''}
               </button>
             `;
-          })}
+  })}
         </div>
       </div>
       ${this._renderDayDetail()}
@@ -406,16 +407,16 @@ export class MainPage extends SunPanelPageElement {
         <div class="week-head">
           <div class="wk-gutter"></div>
           ${days.map((d, i) => {
-            const ds = dayStrs[i];
-            const isToday = ds === todayStrV;
-            const isSel = ds === this.selected;
-            return html`
+    const ds = dayStrs[i];
+    const isToday = ds === todayStrV;
+    const isSel = ds === this.selected;
+    return html`
               <button class="wk-head-cell ${isToday ? 'today' : ''} ${isSel ? 'sel' : ''}" key="wh${i}" @click=${() => { this.selected = ds; this.requestUpdate(); }}>
                 <span class="wk-hd-wd" style="${isToday ? `color:${this._theme()}` : ''}">${this._isZh() ? headers[i].full : headers[i].min}</span>
                 <span class="wk-hd-day" style="${isToday ? `background:${this._theme()};color:#fff` : ''}">${d.getDate()}</span>
               </button>
             `;
-          })}
+  })}
         </div>
 
         <div class="wk-allday-row">
@@ -434,12 +435,12 @@ export class MainPage extends SunPanelPageElement {
             <div class="wk-row" key="hr${h}">
               <div class="wk-gutter hour">${pad2(h)}:00</div>
               ${dayStrs.map((ds, i) => {
-                const rows = hourly[i].byHour.get(h) || [];
-                return html`
+    const rows = hourly[i].byHour.get(h) || [];
+    return html`
                   <div class="wk-cell" key="c${h}-${i}" @click=${(e) => {
-                    if (e.target.closest('.wk-chip')) return;
-                    this._openEditor('create', null, ds, `${pad2(h)}:00`);
-                  }}>
+  if (e.target.closest('.wk-chip')) return;
+  this._openEditor('create', null, ds, `${pad2(h)}:00`);
+}}>
                     ${rows.map(({ item }) => html`
                       <div class="wk-block" style="background:${APPLE_COLORS[item.color] || APPLE_COLORS.red}1F;border-left:2.5px solid ${APPLE_COLORS[item.color] || APPLE_COLORS.red}">
                         <span class="wk-block-title">${item.title}</span>
@@ -448,7 +449,7 @@ export class MainPage extends SunPanelPageElement {
                     `)}
                   </div>
                 `;
-              })}
+  })}
             </div>
           `)}
         </div>
@@ -497,8 +498,8 @@ export class MainPage extends SunPanelPageElement {
         <div class="list-head">
           <div class="detail-title">
             <span class="detail-date">${this._isZh()
-              ? `${parseDate(this.selected).getMonth() + 1}月${parseDate(this.selected).getDate()}日`
-              : parseDate(this.selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+    ? `${parseDate(this.selected).getMonth() + 1}月${parseDate(this.selected).getDate()}日`
+    : parseDate(this.selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
             ${isToday ? html`<span class="today-badge" style="background:${this._theme()}">${this.t('MAIN_TODAY')}</span>` : ''}
           </div>
           <div class="list-actions">
@@ -524,15 +525,15 @@ export class MainPage extends SunPanelPageElement {
         <div class="tl-list">
         ${timeline.length === 0 ? html`<div class="agenda-empty">${this.t('MAIN_SCHEDULE_LIST_EMPTY')}</div>` : ''}
         ${(() => {
-          let firstUpMarked = false;
-          return timeline.map(({ item, occurrence, days }) => {
-            const ds = occurrence.dateStr;
-            const d = parseDate(ds);
-            const wd = this._isZh() ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()];
-            const past = days < 0;
-            const firstUp = !past && !firstUpMarked;
-            if (firstUp) firstUpMarked = true;
-            return html`
+    let firstUpMarked = false;
+    return timeline.map(({ item, occurrence, days }) => {
+      const ds = occurrence.dateStr;
+      const d = parseDate(ds);
+      const wd = this._isZh() ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()];
+      const past = days < 0;
+      const firstUp = !past && !firstUpMarked;
+      if (firstUp) firstUpMarked = true;
+      return html`
             <div class="tl-row ${past ? 'past' : ''} ${ds === todayStrV ? 'today-row' : ''}" key="${item.id}-${ds}" data-today-row=${ds === todayStrV ? '1' : ''} data-first-up=${firstUp ? '1' : ''} @click=${() => { this.selected = ds; this._openEditor('edit', item); }}>
               <div class="tl-date">
                 <span class="tl-d">${this._isZh() ? `${d.getMonth() + 1}月${d.getDate()}日` : `${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getDate()}`}</span>
@@ -549,8 +550,8 @@ export class MainPage extends SunPanelPageElement {
               </div>
             </div>
           `;
-          });
-        })()}
+    });
+  })()}
         </div>
       </div>
     `;
@@ -599,8 +600,8 @@ export class MainPage extends SunPanelPageElement {
         <div class="agenda">
           ${items.length === 0 ? html`<div class="agenda-empty">${this.t('MAIN_NO_SCHEDULE')}</div>` : ''}
           ${items.map(({ item, occurrence }) => {
-            const desc = describeSchedule(item, occurrence, this.now, this._lang());
-            return html`
+    const desc = describeSchedule(item, occurrence, this.now, this._lang());
+    return html`
               <div class="agenda-item" key="${item.id}" @click=${() => this._openEditor('edit', item)}>
                 <span class="agenda-bar" style="background:${APPLE_COLORS[item.color] || APPLE_COLORS.red}"></span>
                 <div class="agenda-main">
@@ -619,7 +620,7 @@ export class MainPage extends SunPanelPageElement {
                 <svg class="agenda-chevron" viewBox="0 0 8 13" width="7" height="11"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
             `;
-          })}
+  })}
         </div>
       </div>
     `;
@@ -1008,22 +1009,22 @@ export class MainPage extends SunPanelPageElement {
 
           ${!isEvent ? html`
             ${appleGroup(
-              this._isZh() ? '年循环' : 'YEARLY RECURRENCE',
-              [
-                appleRow({
-                  label: this.t('MAIN_FIELD_LUNAR'),
-                  sub: this.t('MAIN_FIELD_LUNAR_SUB'),
-                  right: appleSwitch(draft.lunar, () => this._toggleLunar(), theme),
-                }),
-                ...(isCountdown ? [appleRow({
-                  label: this.t('MAIN_FIELD_YEARLY'),
-                  sub: this.t('MAIN_FIELD_YEARLY_SUB'),
-                  last: true,
-                  right: appleSwitch(draft.yearly !== false, () => this._setDraft({ yearly: draft.yearly === false }), theme),
-                })] : []),
-              ],
-              this.t('MAIN_FIELD_LUNAR_FOOTER'),
-            )}
+    this._isZh() ? '年循环' : 'YEARLY RECURRENCE',
+    [
+      appleRow({
+        label: this.t('MAIN_FIELD_LUNAR'),
+        sub: this.t('MAIN_FIELD_LUNAR_SUB'),
+        right: appleSwitch(draft.lunar, () => this._toggleLunar(), theme),
+      }),
+      ...(isCountdown ? [appleRow({
+        label: this.t('MAIN_FIELD_YEARLY'),
+        sub: this.t('MAIN_FIELD_YEARLY_SUB'),
+        last: true,
+        right: appleSwitch(draft.yearly !== false, () => this._setDraft({ yearly: draft.yearly === false }), theme),
+      })] : []),
+    ],
+    this.t('MAIN_FIELD_LUNAR_FOOTER'),
+  )}
           ` : ''}
 
           <div class="field">
@@ -1110,112 +1111,112 @@ export class MainPage extends SunPanelPageElement {
         </div>
         <div class="fs-body">
           ${appleGroup(
-            this.t('MAIN_GROUP_GENERAL'),
-            [
-              appleRow({
-                label: this.t('MAIN_SETTING_LANGUAGE'),
-                right: appleSegmented(langOptions, s.language, (v) => this._setSetting({ language: v }), theme),
-              }),
-              appleRow({
-                label: this.t('MAIN_SETTING_WEEK_START'),
-                right: appleSegmented(
-                  [
-                    { label: this._isZh() ? '周日' : 'Sun', value: 0 },
-                    { label: this._isZh() ? '周一' : 'Mon', value: 1 },
-                  ],
-                  s.weekStart ?? 0,
-                  (v) => this._setSetting({ weekStart: v }),
-                  theme,
-                ),
-              }),
-              appleRow({
-                label: this.t('MAIN_SETTING_HOUR12'),
-                right: appleSwitch(s.hour12, () => this._setSetting({ hour12: !s.hour12 }), theme),
-              }),
-              appleRow({
-                label: this.t('MAIN_SETTING_SHOW_SECONDS'),
-                last: true,
-                right: appleSwitch(s.showSeconds !== false, () => this._setSetting({ showSeconds: s.showSeconds === false }), theme),
-              }),
-            ],
-          )}
+    this.t('MAIN_GROUP_GENERAL'),
+    [
+      appleRow({
+        label: this.t('MAIN_SETTING_LANGUAGE'),
+        right: appleSegmented(langOptions, s.language, (v) => this._setSetting({ language: v }), theme),
+      }),
+      appleRow({
+        label: this.t('MAIN_SETTING_WEEK_START'),
+        right: appleSegmented(
+          [
+            { label: this._isZh() ? '周日' : 'Sun', value: 0 },
+            { label: this._isZh() ? '周一' : 'Mon', value: 1 },
+          ],
+          s.weekStart ?? 0,
+          (v) => this._setSetting({ weekStart: v }),
+          theme,
+        ),
+      }),
+      appleRow({
+        label: this.t('MAIN_SETTING_HOUR12'),
+        right: appleSwitch(s.hour12, () => this._setSetting({ hour12: !s.hour12 }), theme),
+      }),
+      appleRow({
+        label: this.t('MAIN_SETTING_SHOW_SECONDS'),
+        last: true,
+        right: appleSwitch(s.showSeconds !== false, () => this._setSetting({ showSeconds: s.showSeconds === false }), theme),
+      }),
+    ],
+  )}
 
           ${appleGroup(
-            this.t('MAIN_GROUP_APPEARANCE'),
-            [
-              appleRow({
-                label: this.t('MAIN_SETTING_THEME'),
-                sub: s.themeColor,
-                last: true,
-                right: html`
+    this.t('MAIN_GROUP_APPEARANCE'),
+    [
+      appleRow({
+        label: this.t('MAIN_SETTING_THEME'),
+        sub: s.themeColor,
+        last: true,
+        right: html`
                   <div class="theme-dots">
                     ${Object.entries(APPLE_COLORS).filter(([k]) => k !== 'gray').map(([key, color]) => html`
                       <button class="theme-dot ${s.themeColor === key ? 'selected' : ''}" style="background:${color}" key="${key}" aria-label="${key}" @click=${() => this._setSetting({ themeColor: key })}></button>
                     `)}
                   </div>
                 `,
-              }),
-            ],
-            this.t('MAIN_GROUP_APPEARANCE_FOOTER'),
-          )}
+      }),
+    ],
+    this.t('MAIN_GROUP_APPEARANCE_FOOTER'),
+  )}
 
           ${appleGroup(
-            this.t('MAIN_GROUP_HOLIDAY_DATA'),
-            [
-              appleRow({ label: this.t('MAIN_SETTING_HOLIDAY_SOURCE'), sub: sourceText }),
-              appleRow({ label: this.t('MAIN_SETTING_HOLIDAY_UPDATED'), sub: status ? fmtTime(status.updatedAt) : '-' }),
-              appleRow({
-                label: this.t('MAIN_SETTING_HOLIDAY_REFRESH'),
-                sub: this.t('MAIN_SETTING_HOLIDAY_REFRESH_SUB'),
-                last: true,
-                chevron: true,
-                onClick: () => this._refreshHoliday(),
-              }),
-            ],
-            this.t('MAIN_GROUP_HOLIDAY_DATA_FOOTER'),
-          )}
+    this.t('MAIN_GROUP_HOLIDAY_DATA'),
+    [
+      appleRow({ label: this.t('MAIN_SETTING_HOLIDAY_SOURCE'), sub: sourceText }),
+      appleRow({ label: this.t('MAIN_SETTING_HOLIDAY_UPDATED'), sub: status ? fmtTime(status.updatedAt) : '-' }),
+      appleRow({
+        label: this.t('MAIN_SETTING_HOLIDAY_REFRESH'),
+        sub: this.t('MAIN_SETTING_HOLIDAY_REFRESH_SUB'),
+        last: true,
+        chevron: true,
+        onClick: () => this._refreshHoliday(),
+      }),
+    ],
+    this.t('MAIN_GROUP_HOLIDAY_DATA_FOOTER'),
+  )}
 
           ${appleGroup(
-            this.t('MAIN_GROUP_DATA'),
-            [
-              appleRow({
-                label: this.t('MAIN_SETTING_IMPORT_EXPORT'),
-                sub: this.t('MAIN_SETTING_IMPORT_EXPORT_SUB'),
-                chevron: true,
-                first: true,
-                onClick: () => this._openIO('settings'),
-              }),
-              appleRow({
-                label: this.t('MAIN_SETTING_SCHEDULE_MGR'),
-                sub: this.t('MAIN_SETTING_SCHEDULE_MGR_SUB'),
-                chevron: true,
-                last: true,
-                onClick: () => this._openScheduleMgr(),
-              }),
-            ],
-          )}
+    this.t('MAIN_GROUP_DATA'),
+    [
+      appleRow({
+        label: this.t('MAIN_SETTING_IMPORT_EXPORT'),
+        sub: this.t('MAIN_SETTING_IMPORT_EXPORT_SUB'),
+        chevron: true,
+        first: true,
+        onClick: () => this._openIO('settings'),
+      }),
+      appleRow({
+        label: this.t('MAIN_SETTING_SCHEDULE_MGR'),
+        sub: this.t('MAIN_SETTING_SCHEDULE_MGR_SUB'),
+        chevron: true,
+        last: true,
+        onClick: () => this._openScheduleMgr(),
+      }),
+    ],
+  )}
 
           ${appleGroup(
-            this.t('MAIN_GROUP_WEATHER'),
-            [
-              appleRow({
-                label: this.t('MAIN_SETTING_WEATHER'),
-                sub: this.t('MAIN_SETTING_WEATHER_SUB'),
-                last: true,
-              }),
-            ],
-            this.t('MAIN_GROUP_WEATHER_FOOTER'),
-          )}
+    this.t('MAIN_GROUP_WEATHER'),
+    [
+      appleRow({
+        label: this.t('MAIN_SETTING_WEATHER'),
+        sub: this.t('MAIN_SETTING_WEATHER_SUB'),
+        last: true,
+      }),
+    ],
+    this.t('MAIN_GROUP_WEATHER_FOOTER'),
+  )}
 
           ${appleGroup(
-            this.t('MAIN_GROUP_ABOUT'),
-            [
-              appleRow({ label: this.t('MAIN_SETTING_VERSION'), sub: appConfig.version }),
-              appleRow({ label: this.t('MAIN_SETTING_AUTHOR'), sub: appConfig.author }),
-              appleRow({ label: this.t('MAIN_SETTING_APP_ID'), sub: appConfig.microAppId }),
-              appleRow({ label: this.t('MAIN_SETTING_DATA_SOURCE'), sub: 'chinese-days (MIT)', last: true }),
-            ],
-          )}
+    this.t('MAIN_GROUP_ABOUT'),
+    [
+      appleRow({ label: this.t('MAIN_SETTING_VERSION'), sub: appConfig.version }),
+      appleRow({ label: this.t('MAIN_SETTING_AUTHOR'), sub: appConfig.author }),
+      appleRow({ label: this.t('MAIN_SETTING_APP_ID'), sub: appConfig.microAppId }),
+      appleRow({ label: this.t('MAIN_SETTING_DATA_SOURCE'), sub: 'chinese-days (MIT)', last: true }),
+    ],
+  )}
         </div>
       </div>
     `;
@@ -1793,7 +1794,9 @@ export class MainPage extends SunPanelPageElement {
         cellH,
         size,
       })
-      : renderInfoBlock({ ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true, size });
+      : renderInfoBlock({
+        ...common, content: blocks[0].c, style: blocks[0].s, opts: blocks[0].opts, singleRow: true, size, singleScale: pvScale,
+      });
 
     return html`
       <div class="card-preview" style="${visual.bg};filter:brightness(${bright});width:${pvW}px;height:${pvH}px">
@@ -1802,6 +1805,7 @@ export class MainPage extends SunPanelPageElement {
         </div>
       </div>
       <style>
+${CARD_MODE_CSS}
         .card-preview {
           border-radius: 16px;
           padding: 6%;
@@ -1815,122 +1819,57 @@ export class MainPage extends SunPanelPageElement {
         }
         .pv-inner { width: 100%; height: 100%; display: flex; flex-direction: column; min-width: 0; }
         /* 字号一律用 em：拼接块由 JS 按单元格像素内联根字号，实现等比缩放 */
-        .card-mode-wrap { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; }
-        .pv-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.375em; width: 100%; text-align: center; }
+        /* v1.46：overflow:hidden —— 块内容越界时只在本卡片内裁切，不外溢压到页面其它元素 */
+        .card-mode-wrap { flex: 1; min-height: 0; width: 100%; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; }
+
         /* v1.41：text-align 居中换行文字（「今天」折行场景，同 widget.js 注释） */
         /* v1.40 需求 2：宽扁块（像素比 ≥2:1）倒数型双栏布局（数字列 + 文字列） */
-        .pv-center.pv-flat { flex-direction: row; align-items: center; justify-content: center; gap: 0.5em; }
-        .pv-fnum { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 1 auto; }
-        .pv-ftext { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1875em; flex: 0 1 auto; min-width: 0; text-align: center; }
-        .pv-col { display: flex; flex-direction: column; gap: 0.3125em; width: 100%; }
-        .pv-gap { height: 0.5em; }
-        .pv-big { font-size: 1.875em; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
-        .pv-mid { font-size: 1em; font-weight: 700; line-height: 1.25; }
+
         /* v1.44：日期段不可断行 */
-        .pv-seg { white-space: nowrap; }
+
         /* v1.35：简约显示的间隔圆点（方案 B 自绘，实测单点占位 0.84em） */
-        .pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
-        .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0,0,0,0.38); }
-        .pv-led { text-shadow: 0 0 12px currentColor, 0 0 3px currentColor; }
-        .pv-row2 { font-size: 0.75em; font-weight: 600; }
-        .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; width: 100%; }
-        .pv-sch-name { font-size: 0.75em; font-weight: 600; line-height: 1.2; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pv-sch-meta { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; font-size: 0.5em; line-height: 1.2; white-space: nowrap; }
-        .pv-sch-line { line-height: 1.25; }
-        .pv-sch-date { opacity: 0.95; }
-        .pv-sch-time { opacity: 0.8; }
-        .pv-sub { font-size: 0.5625em; line-height: 1.3; }
+
         /* v1.43：块根字号 <10px 时隐藏说明级小字 */
-        .pv-tight .pv-sub { display: none; }
-        .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }
-        .pv-fill { height: 100%; border-radius: 0.125em; }
-        .pv-chip2 { font-size: 0.6875em; padding: 0.25em 0.625em; border-radius: 0.5em; font-weight: 600; display: inline-flex; gap: 0.375em; align-items: center; }
-        .pv-flip { display: inline-flex; gap: 0.25em; align-items: center; }
-        .pv-flip-box { font-size: 1.375em; font-weight: 800; padding: 0.25em 0.5em; border-radius: 0.375em; font-variant-numeric: tabular-nums; }
-        .pv-ap { font-size: 0.6875em; font-weight: 600; }
-        .pv-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; }
-        .pv-wk-cell { display: flex; flex-direction: column; align-items: center; border-radius: 0.375em; padding: 0.1875em 0; }
-        .pv-wk-d { font-size: 0.75em; font-weight: 600; }
-        .pv-wk-w { font-size: 0.5em; }
+
         /* v1.31：间距统一由 .pv-col 的 gap(.3125em) 提供，不再叠加 margin-top */
-        .pv-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; margin-top: 0; }
+
         /* ---- v1.31 新增：窄高块竖排容器 ---- */
-        .pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; }
-        .pv-vstack.t { gap: 0.125em; }
-        .pv-vline { font-size: 1.25em; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
         /* v1.35 反馈 1：竖排简约的星期行降为说明级字号，使数字行与无星期样式字号相等 */
-        .pv-vline.wk { font-size: 0.7em; }
-        .pv-vbig { font-size: 1.875em; font-weight: 800; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .pv-vrow { display: flex; align-items: baseline; justify-content: center; gap: 0.25em; width: 100%; }
+
         /* ---- v1.31 新增：日历日期标题 ---- */
-        .pv-cal-head { text-align: center; color: inherit; line-height: 1.2; }
-        .pv-cal-wd { font-size: 0.5625em; font-weight: 600; margin-left: 0.3125em; }
+
         /* ---- v1.31 新增：周日历竖排（7 天改 7 行） ---- */
-        .pv-wkv { display: grid; grid-template-rows: repeat(7, 1fr); grid-template-columns: 1fr; gap: 0.0625em; width: 100%; }
-        .pv-wkv-cell { display: flex; align-items: center; justify-content: space-between; padding: 0.125em 0.375em; border-radius: 0.375em; }
-        .pv-wkv-d { font-size: 0.75em; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
-        .pv-wkv-w { font-size: 0.5625em; line-height: 1.3; text-align: right; }
+
         /* ---- v1.31 新增：1×1 占格的小卡星期（字号减半） ---- */
-        .pv-wd-sm { font-size: 0.9375em; font-weight: 700; line-height: 1.1; }
-        .pv-sub-sm { font-size: 0.5em; }
+
         /* 拼接块内的竖排内容填满块高；月历行高按剩余高度均分，避免 7 行溢出块外 */
-        .pv-block > .pv-col { align-self: stretch; flex: 1 1 auto; min-height: 0; }
-        .pv-block > .pv-col > .pv-mini-grid { flex: 1 1 auto; min-height: 0; grid-auto-rows: 1fr; }
-        .pv-mini-grid > .pv-c { aspect-ratio: auto; min-height: 0; line-height: 1; }
-        .pv-c { aspect-ratio: 1; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; font-size: 0.5625em; font-weight: 500; }
-        .pv-c.out { opacity: 0.35; }
-        .pv-yearcal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3125em; }
-        .pv-yearcal-m { display: flex; flex-direction: column; gap: 0.125em; }
-        .pv-yearcal-t { font-size: 0.5em; font-weight: 700; text-align: center; }
+
         /* 拼接模式：网格布局（绝对定位，坐标/尺寸由 JS 按 span 百分比内联） */
-        .pv-blocks { position: relative; flex: 1; min-height: 0; width: 100%; }
-        .pv-block {
-          position: absolute;
-          box-sizing: border-box;
-          padding: 0.1875em;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-        @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
-        .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
+
+
         /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
            与 widget / widgetConfig / make-preview / measure.html 五处镜像，改规则必须同步） */
         .pv-single-1x1 .pv-big,
         .pv-single-1x1 .pv-mid,
-        .pv-single-1x1 .pv-vbig { font-size: 1.25em; }
-        .pv-single-1x1 .pv-sub { display: none; }
-        .pv-single-1x2 .pv-center { gap: 0.75em; }
+
         .pv-single-1x2 .pv-big,
         .pv-single-1x2 .pv-mid,
-        .pv-single-1x2 .pv-vbig { font-size: 1.15em; }
-        .pv-single-2x1 .pv-center { flex-direction: column; gap: 0.375em; }
+
         .pv-single-2x1 .pv-big,
         .pv-single-2x1 .pv-mid,
-        .pv-single-2x1 .pv-vbig { font-size: 1.1em; }
-        .pv-single-2x2 .pv-center { gap: 0.5em; }
-        .pv-single-2x4 .pv-center { gap: 0.875em; }
+
         .pv-single-2x4 .pv-big,
         .pv-single-2x4 .pv-mid,
-        .pv-single-2x4 .pv-vbig { font-size: 1.2em; }
+
         .pv-single-4x4 .pv-big,
         .pv-single-4x4 .pv-mid,
-        .pv-single-4x4 .pv-vbig { font-size: 1.25em; }
-        .pv-single-4x4 .pv-sub { font-size: 0.6875em; }
-        .pv-single-1xfull .pv-center { align-items: center; gap: 1em; }
+
         .pv-single-1xfull .pv-big,
         .pv-single-1xfull .pv-mid,
-        .pv-single-1xfull .pv-vbig { font-size: 1.3em; }
+
         /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
-        .pv-single-1x1 { font-size: 16px; }
-        .pv-single-1x2 { font-size: 17px; }
-        .pv-single-2x1 { font-size: 17px; }
-        .pv-single-2x2 { font-size: 22px; }
-        .pv-single-2x4 { font-size: 26px; }
-        .pv-single-4x4 { font-size: 34px; }
-        .pv-single-1xfull { font-size: 18px; }
+
       </style>
     `;
   }
@@ -1972,8 +1911,8 @@ export class MainPage extends SunPanelPageElement {
         key="chip-${i}"
         draggable="true"
         title="${over
-          ? (zh ? '当前尺寸放不下此单元，请缩小占格或换更大的卡片尺寸' : 'Does not fit this card size — shrink it or pick a bigger size')
-          : (zh ? '点击调整占格；拖动排序；点击 × 取消显示' : 'Tap to resize; drag to reorder; tap × to remove')}"
+    ? (zh ? '当前尺寸放不下此单元，请缩小占格或换更大的卡片尺寸' : 'Does not fit this card size — shrink it or pick a bigger size')
+    : (zh ? '点击调整占格；拖动排序；点击 × 取消显示' : 'Tap to resize; drag to reorder; tap × to remove')}"
         @dragstart=${(e) => this._onCardBlockDragStart(e, i)}
         @dragover=${(e) => this._onCardBlockDragOver(e)}
         @dragleave=${(e) => this._onCardBlockDragLeave(e)}
@@ -2003,6 +1942,7 @@ export class MainPage extends SunPanelPageElement {
     const frameInner = curStyle ? renderInfoBlock({
       content: cd.key,
       style: curStyle.key,
+      opts: (blocks.find((b) => b.c === cd.key && b.s === curStyle.key) || {}).opts,
       visual: frameVisual,
       theme,
       now: this.now,
@@ -2043,9 +1983,9 @@ export class MainPage extends SunPanelPageElement {
           </button>
         </div>
         <div class="style-counter">${styleList.length
-          ? html`${styleIdx + 1}/${styleList.length}${zh ? ` · ${curStyle.zh}` : ` · ${curStyle.en}`}
+    ? html`${styleIdx + 1}/${styleList.length}${zh ? ` · ${curStyle.zh}` : ` · ${curStyle.en}`}
             <span class="counter-size">${zh ? '尺寸' : 'size'} ${curSpan.rows}×${curSpan.cols}</span>`
-          : ''}</div>
+    : ''}</div>
       </div>
     `;
 
@@ -2609,14 +2549,14 @@ export class MainPage extends SunPanelPageElement {
           ${list.length ? html`
             <div class="mgr-list ${confirmOpen ? 'pad-confirm' : ''}">
               ${list.map((item) => {
-                const sel = this._mgrSel.has(item.id);
-                const armed = confirmOpen && this._armedId === item.id;
-                const color = APPLE_COLORS[item.color] || APPLE_COLORS.red;
-                const d = parseDate(item.date);
-                const dateTxt = zh
-                  ? `${d.getMonth() + 1}月${d.getDate()}日`
-                  : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                return html`
+    const sel = this._mgrSel.has(item.id);
+    const armed = confirmOpen && this._armedId === item.id;
+    const color = APPLE_COLORS[item.color] || APPLE_COLORS.red;
+    const d = parseDate(item.date);
+    const dateTxt = zh
+      ? `${d.getMonth() + 1}月${d.getDate()}日`
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return html`
                 <div class="mgr-row ${sel ? 'sel' : ''} ${armed ? 'armed' : ''}" key="mgr-${item.id}" data-mgr-id="${item.id}" @click=${() => this._toggleMgrItem(item.id)}>
                   <span class="mgr-check ${sel ? 'on' : ''}" style="${sel ? `background:${theme};border-color:${theme}` : ''}">
                     ${sel ? html`<svg viewBox="0 0 10 8" width="9" height="7"><path d="M1 4l2.6 2.6L9 1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
@@ -2631,7 +2571,7 @@ export class MainPage extends SunPanelPageElement {
                   </button>
                 </div>
               `;
-              })}
+  })}
             </div>
           ` : html`<div class="mgr-empty">${this.t('MAIN_MGR_EMPTY')}</div>`}
         </div>
@@ -3887,15 +3827,15 @@ export class MainPage extends SunPanelPageElement {
           <div class="card upcoming-card">
             <div class="upcoming-title">${this.t('MAIN_UPCOMING')}</div>
             ${upcoming.map(({ item, next }) => {
-              const days = diffDays(next.date, this.now);
-              return html`
+    const days = diffDays(next.date, this.now);
+    return html`
                 <div class="upcoming-row" key="${item.id}">
                   <span style="width:7px;height:7px;border-radius:50%;background:${APPLE_COLORS[item.color] || APPLE_COLORS.red};flex-shrink:0"></span>
                   <span class="u-title">${SCHEDULE_TYPES[item.type]?.icon || SCHEDULE_TYPES.event.icon} ${item.title}</span>
                   <span class="u-days">${days === 0 ? this.t('MAIN_TODAY') : `${days} ${this.t('MAIN_DAYS')}`}</span>
                 </div>
               `;
-            })}
+  })}
           </div>
         ` : ''}
         </div>

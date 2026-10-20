@@ -1,0 +1,8 @@
+# 统一行尾，避免 core.autocrlf 造成的伪改动
+* text=auto eol=lf
+
+# 二进制文件不参与文本转换
+*.png binary
+*.jpg binary
+*.zip binary
+*.ico binary

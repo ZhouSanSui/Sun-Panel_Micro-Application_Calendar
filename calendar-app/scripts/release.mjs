@@ -265,8 +265,11 @@ if (isRelease) {
 }
 
 console.log('\n[3/6] 提交…');
+// app.json 虽由 build/build.js 生成，但仍是跟踪文件，且版本字段必须与
+// config/app.config.js、package.json 同步（check-version.mjs 三处比对），
+// 故 bump 后一并提交，否则仓库快照会停在旧版本号。
 const addPaths = [
-  'calendar-app/config/app.config.js', 'calendar-app/package.json',
+  'calendar-app/config/app.config.js', 'calendar-app/package.json', 'calendar-app/app.json',
   ...(isRelease ? ['calendar-app/docs/VERSIONS.md'] : []),
 ].join(' ');
 sh(`git add ${addPaths}`, { cwd: REPO_DIR });

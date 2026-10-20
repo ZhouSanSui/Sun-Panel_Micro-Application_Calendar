@@ -3,7 +3,8 @@
  * 支持 1x1 / 1x2 / 2x1 / 2x2 / 2x4 / 4x4 六种尺寸，每种尺寸多种显示模块可配置
  */
 import { SunPanelWidgetElement } from '@sun-panel/micro-app';
-import { html, css } from 'lit';
+import { html, css, unsafeCSS } from 'lit';
+import { CARD_MODE_CSS } from '../core/card-mode-styles.js';
 import { ensureAppState, getHolidayService, getUserStore, subscribeAppState } from '../core/app-state.js';
 import { getSnapshot } from '../core/highlights.js';
 import { formatTime, formatDate, todayStr, getMonthGrid, parseDate, addDays, yearProgress, weekOfYear, dayOfYear, diffDays } from '../core/date-utils.js';
@@ -451,21 +452,21 @@ export class Widget extends SunPanelWidgetElement {
         <div class="mini-grid">
           ${WEEK_EN.map((w, i) => html`<div class="mini-wd" key="wd${i}" style="color:${this._label3}">${this._isZh ? WEEK_SHORT[i] : w}</div>`)}
           ${cells.map((cell, i) => {
-            const ds = formatDate(cell.date);
-            const dayInfo = getDayInfo(ds);
-            const isToday = ds === todayStrV;
-            const dayItems = getSchedulesOfDay(schedules, ds);
-            const hasEvent = dayItems.length > 0;
-            const isHoliday = this._holidayInfo(ds)?.isOffDay;
-            const showLunar = cell.inMonth && (dayInfo.lunar.day === 1 || dayInfo.solarTerm || dayInfo.festivals.length > 0);
-            return html`
+    const ds = formatDate(cell.date);
+    const dayInfo = getDayInfo(ds);
+    const isToday = ds === todayStrV;
+    const dayItems = getSchedulesOfDay(schedules, ds);
+    const hasEvent = dayItems.length > 0;
+    const isHoliday = this._holidayInfo(ds)?.isOffDay;
+    const showLunar = cell.inMonth && (dayInfo.lunar.day === 1 || dayInfo.solarTerm || dayInfo.festivals.length > 0);
+    return html`
               <div class="mini-cell ${cell.inMonth ? '' : 'out'} ${isToday ? 'today' : ''}" key="c${i}" style="${isToday ? `background:${this._theme}` : ''}">
                 <span class="mini-num" style="color:${isToday ? '#fff' : cell.inMonth ? this._label : this._label3}">${cell.date.getDate()}</span>
                 ${showLunar ? html`<span class="mini-lunar" style="color:${isToday ? 'rgba(255,255,255,0.85)' : this._theme}">${dayInfo.solarTerm ? dayInfo.solarTerm.zh : dayInfo.festivals[0]?.zh || dayInfo.lunar.display.slice(0, 2)}</span>` : ''}
                 ${hasEvent && !isToday ? html`<span class="mini-dot" style="background:${this._theme}"></span>` : ''}
               </div>
             `;
-          })}
+  })}
         </div>
       </div>
     `;
@@ -493,8 +494,8 @@ export class Widget extends SunPanelWidgetElement {
     return html`
       <div class="cd-box">
         ${days === 0
-          ? html`<div class="cd-days today-flag" style="color:${color}">${this.t('WIDGET_TODAY')}</div>`
-          : html`
+    ? html`<div class="cd-days today-flag" style="color:${color}">${this.t('WIDGET_TODAY')}</div>`
+    : html`
             <div class="cd-days" style="color:${this._label}">${days}</div>
             <div class="cd-unit" style="color:${this._label2}">${this.t('WIDGET_DAYS')}</div>
           `}
@@ -633,7 +634,7 @@ export class Widget extends SunPanelWidgetElement {
     // 信息块模型：拼接=一卡多块（网格布局）；单独=整卡渲染唯一信息块（一行排列）
     const inner = this._displayMode === 'combo'
       ? renderBlocksHTML({ ...common, blocks, grid: this._comboGrid, cellW: this._cellW, cellH: this._cellH, size: this._cardSize })
-      : renderInfoBlock({ ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true, size: this._cardSize });
+      : renderInfoBlock({ ...common, content: blocks[0].c, style: blocks[0].s, opts: blocks[0].opts, singleRow: true, size: this._cardSize });
     return html`
       <div class="widget ${this._themeTextMode === 'light' ? 'text-light' : 'text-dark'}" style="${bgStyle}" @click=${this._openMain}>
         <div class="card-mode-wrap">${inner}</div>
@@ -642,6 +643,7 @@ export class Widget extends SunPanelWidgetElement {
   }
 
   static styles = css`
+  ${unsafeCSS(CARD_MODE_CSS)}
       :host {
         display: block;
         height: 100%;
@@ -803,127 +805,61 @@ export class Widget extends SunPanelWidgetElement {
       .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
 
       /* 卡片显示模式（非「一般模式」） */
-      .card-mode-wrap { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 16px; }
+      /* v1.46：overflow:hidden —— 块内容再高也不许画出卡片边界（此前会压到卡片外/相邻卡片） */
+      .card-mode-wrap { flex: 1; min-height: 0; width: 100%; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 16px; }
 
       /* 显示模式通用样式（与卡片预览共享渲染逻辑，类名保持一致）。
          字号一律用 em：以 16px 为基准，拼接块由 JS 按单元格像素内联设置根字号，实现等比缩放 */
-      .pv-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.375em; width: 100%; text-align: center; }
+
       /* v1.41：text-align 居中换行文字——倒数事件为「今天」时主文字（两个汉字）超出窄块宽度折行，
          fit-content 溢出后盒子占满整行，折行行默认起点对齐致左贴边；单字符（如 4）收缩不受影响 */
       /* v1.40 需求 2：宽扁块（像素比 ≥2:1）倒数型双栏布局（数字列 + 文字列） */
-      .pv-center.pv-flat { flex-direction: row; align-items: center; justify-content: center; gap: 0.5em; }
-      .pv-fnum { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 1 auto; }
-      .pv-ftext { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1875em; flex: 0 1 auto; min-width: 0; text-align: center; }
-      .pv-col { display: flex; flex-direction: column; gap: 0.3125em; width: 100%; }
-      .pv-gap { height: 0.5em; }
-      .pv-big { font-size: 1.875em; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
-      .pv-mid { font-size: 1em; font-weight: 700; line-height: 1.25; }
+
       /* v1.44：日期段（数值+单位）不可断行，只允许段间换行 */
-      .pv-seg { white-space: nowrap; }
+
       /* v1.35：简约显示的间隔圆点（方案 B 自绘，实测单点占位 0.84em；text-shadow 由 .text-light 继承不到背景圆，用 box-shadow 补） */
-      .pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
-      .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.38); }
-      .pv-led { text-shadow: 0 0 12px currentColor, 0 0 3px currentColor; }
-      .pv-row2 { font-size: 0.75em; font-weight: 600; }
-      .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; width: 100%; }
-      .pv-sch-name { font-size: 0.75em; font-weight: 600; line-height: 1.2; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .pv-sch-meta { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; font-size: 0.5em; line-height: 1.2; white-space: nowrap; }
-        .pv-sch-line { line-height: 1.25; }
-      .pv-sch-date { opacity: 0.95; }
-      .pv-sch-time { opacity: 0.8; }
-      .pv-sub { font-size: 0.5625em; line-height: 1.3; }
+
       /* v1.43：块根字号 <10px（48px 小块）时隐藏说明级小字，避免 5px 不可读副标题 */
-      .pv-tight .pv-sub { display: none; }
-      .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }
-      .pv-fill { height: 100%; border-radius: 0.125em; }
-      .pv-chip2 { font-size: 0.6875em; padding: 0.25em 0.625em; border-radius: 0.5em; font-weight: 600; display: inline-flex; gap: 0.375em; align-items: center; }
-      .pv-flip { display: inline-flex; gap: 0.25em; align-items: center; }
-      .pv-flip-box { font-size: 1.375em; font-weight: 800; padding: 0.25em 0.5em; border-radius: 0.375em; font-variant-numeric: tabular-nums; }
-      .pv-ap { font-size: 0.6875em; font-weight: 600; }
-      .pv-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; }
-      .pv-wk-cell { display: flex; flex-direction: column; align-items: center; border-radius: 0.375em; padding: 0.1875em 0; }
-      .pv-wk-d { font-size: 0.75em; font-weight: 600; }
-      .pv-wk-w { font-size: 0.5em; }
+
       /* v1.31：间距统一由 .pv-col 的 gap(.3125em) 提供，不再叠加 margin-top */
-      .pv-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; margin-top: 0; }
+
       /* ---- v1.31 新增：窄高块竖排容器 ---- */
-      .pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; }
-      .pv-vstack.t { gap: 0.125em; }
-      .pv-vline { font-size: 1.25em; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
       /* v1.35 反馈 1：竖排简约的星期行降为说明级字号，使数字行与无星期样式字号相等 */
-      .pv-vline.wk { font-size: 0.7em; }
-      .pv-vbig { font-size: 1.875em; font-weight: 800; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; }
-      .pv-vrow { display: flex; align-items: baseline; justify-content: center; gap: 0.25em; width: 100%; }
+
       /* ---- v1.31 新增：日历日期标题 ---- */
-      .pv-cal-head { text-align: center; color: inherit; line-height: 1.2; }
-      .pv-cal-wd { font-size: 0.5625em; font-weight: 600; margin-left: 0.3125em; }
+
       /* ---- v1.31 新增：周日历竖排（7 天改 7 行） ---- */
-      .pv-wkv { display: grid; grid-template-rows: repeat(7, 1fr); grid-template-columns: 1fr; gap: 0.0625em; width: 100%; }
-      .pv-wkv-cell { display: flex; align-items: center; justify-content: space-between; padding: 0.125em 0.375em; border-radius: 0.375em; }
-      .pv-wkv-d { font-size: 0.75em; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
-      .pv-wkv-w { font-size: 0.5625em; line-height: 1.3; text-align: right; }
+
       /* ---- v1.31 新增：1×1 占格的小卡星期（字号减半） ---- */
-      .pv-wd-sm { font-size: 0.9375em; font-weight: 700; line-height: 1.1; }
-      .pv-sub-sm { font-size: 0.5em; }
+
       /* 拼接块内的竖排内容填满块高；月历行高按剩余高度均分，避免 7 行溢出块外 */
-      .pv-block > .pv-col { align-self: stretch; flex: 1 1 auto; min-height: 0; }
-      .pv-block > .pv-col > .pv-mini-grid { flex: 1 1 auto; min-height: 0; grid-auto-rows: 1fr; }
-      .pv-mini-grid > .pv-c { aspect-ratio: auto; min-height: 0; line-height: 1; }
-      .pv-c { aspect-ratio: 1; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; font-size: 0.5625em; font-weight: 500; }
-      .pv-c.out { opacity: 0.35; }
-      .pv-yearcal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3125em; }
-      .pv-yearcal-m { display: flex; flex-direction: column; gap: 0.125em; }
-      .pv-yearcal-t { font-size: 0.5em; font-weight: 700; text-align: center; }
 
       /* 拼接模式：网格布局（绝对定位，坐标/尺寸由 JS 按 span 百分比内联） */
-      .pv-blocks { position: relative; flex: 1; min-height: 0; width: 100%; }
-      .pv-block {
-        position: absolute;
-        box-sizing: border-box;
-        padding: 0.1875em;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-      }
-      @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
+
       /* 单独模式：整卡内容一行排列 */
-      .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
+
       /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
          与 mainPage / widgetConfig / make-preview / measure.html 五处镜像，改规则必须同步） */
       .pv-single-1x1 .pv-big,
       .pv-single-1x1 .pv-mid,
-      .pv-single-1x1 .pv-vbig { font-size: 1.25em; }
-      .pv-single-1x1 .pv-sub { display: none; }
-      .pv-single-1x2 .pv-center { gap: 0.75em; }
+
       .pv-single-1x2 .pv-big,
       .pv-single-1x2 .pv-mid,
-      .pv-single-1x2 .pv-vbig { font-size: 1.15em; }
-      .pv-single-2x1 .pv-center { flex-direction: column; gap: 0.375em; }
+
       .pv-single-2x1 .pv-big,
       .pv-single-2x1 .pv-mid,
-      .pv-single-2x1 .pv-vbig { font-size: 1.1em; }
-      .pv-single-2x2 .pv-center { gap: 0.5em; }
-      .pv-single-2x4 .pv-center { gap: 0.875em; }
+
       .pv-single-2x4 .pv-big,
       .pv-single-2x4 .pv-mid,
-      .pv-single-2x4 .pv-vbig { font-size: 1.2em; }
+
       .pv-single-4x4 .pv-big,
       .pv-single-4x4 .pv-mid,
-      .pv-single-4x4 .pv-vbig { font-size: 1.25em; }
-      .pv-single-4x4 .pv-sub { font-size: 0.6875em; }
-      .pv-single-1xfull .pv-center { align-items: center; gap: 1em; }
+
       .pv-single-1xfull .pv-big,
       .pv-single-1xfull .pv-mid,
-      .pv-single-1xfull .pv-vbig { font-size: 1.3em; }
+
       /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
-      .pv-single-1x1 { font-size: 16px; }
-      .pv-single-1x2 { font-size: 17px; }
-      .pv-single-2x1 { font-size: 17px; }
-      .pv-single-2x2 { font-size: 22px; }
-      .pv-single-2x4 { font-size: 26px; }
-      .pv-single-4x4 { font-size: 34px; }
-      .pv-single-1xfull { font-size: 18px; }
+
     `;
 }

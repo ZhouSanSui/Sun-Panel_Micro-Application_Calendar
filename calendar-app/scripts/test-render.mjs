@@ -6,15 +6,22 @@
  *  4) 单独模式仍走 renderInfoBlock（不产生 .pv-block）
  */
 import { readFileSync } from 'node:fs';
+
+// CSS 单一真源：`.pv-*` 基础规则已抽到 src/core/card-mode-styles.js，三个组件通过
+// ${CARD_MODE_CSS} 插值引用。断言「某文件含某条 CSS 规则」时，必须把真源拼进来，
+// 否则规则明明在（只是搬了家）却判定缺失。
+const SHARED_CSS = readFileSync(new URL('../src/core/card-mode-styles.js', import.meta.url), 'utf8');
+const cssOf = (f) => readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8') + '\n' + SHARED_CSS;
 import { html, render } from '../node_modules/lit/index.js';
 import {
   renderBlocksHTML, renderInfoBlock, fitFor, fitFontU, renderSpanEditor,
-  isTallBlock, isSmallUnit, vertFitKey, singleLineDays, TALL_RATIO,
+  isTallBlock, isSmallUnit, vertFitKey, singleLineDays, TALL_RATIO, SINGLE_BASE_PX,
 } from '../src/core/card-mode-render.js';
 import {
   gridForSize, layoutBlocks, spanBounds, effectiveSpan, styleSpanDef,
   singleLineOn, prefSpan, COMBO_CONTENTS,
   unitOpts, normalizeOpts, sanitizeBlocks, noUnitsOn, NO_UNITS_DATE_STYLES,
+  SINGLE_CONTENTS, STYLE_OPT_FIELDS, stylesForSize, styleSizesOf, styleFitsSize, styleDef,
 } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
@@ -171,12 +178,38 @@ for (const w of [520, 760, 1080, 1440]) {
   const combo = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'led' })).join('');
   ok(!combo.includes('pv-single'), '非 singleRow 不输出 pv-single');
 }
+// v1.46：单独模式根字号基准 JS 表必须与共享 CSS 的 px 基准同源（防两处漂移）
+{
+  for (const [size, px] of Object.entries(SINGLE_BASE_PX)) {
+    const re = new RegExp(`\\.pv-single-${size} \\{ font-size: ${px}px; \\}`);
+    ok(re.test(SHARED_CSS), `CSS .pv-single-${size} 应为 font-size: ${px}px`);
+  }
+  // 预览等比缩放：singleScale 必须成比例改写根字号，缺省时不内联（交给 CSS 兜底）
+  const half = flatten(renderInfoBlock({
+    ...base, content: 'timeDate', style: 'led', singleRow: true, size: '4x4', singleScale: 0.5,
+  })).join('');
+  ok(half.includes('font-size:17.00px'), 'singleScale=0.5 时 4x4 根字号应为 34×0.5=17.00px');
+  const plain = flatten(renderInfoBlock({
+    ...base, content: 'timeDate', style: 'led', singleRow: true, size: '4x4',
+  })).join('');
+  ok(!plain.includes('font-size:'), '不传 singleScale 时不内联 font-size（沿用 CSS 基准）');
+  const one = flatten(renderInfoBlock({
+    ...base, content: 'timeDate', style: 'led', singleRow: true, size: '4x4', singleScale: 1,
+  })).join('');
+  ok(!one.includes('font-size:'), 'singleScale=1 时不内联 font-size');
+}
 // v1.40：三组件 CSS 镜像含按尺寸版式规则
 for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
   const src = readFileSync(new URL('../src/components/' + f, import.meta.url), 'utf8');
   ok(src.includes('.pv-single-1x1'), `${f} CSS 应含 .pv-single-1x1`);
   ok(src.includes('.pv-single-1xfull'), `${f} CSS 应含 .pv-single-1xfull`);
-  ok(src.includes('.pv-single-1x1 .pv-sub { display: none; }'), `${f} CSS 1x1 应隐藏 .pv-sub`);
+  ok((src + SHARED_CSS).includes('.pv-single-1x1 .pv-sub { display: none; }'), `${f} CSS 1x1 应隐藏 .pv-sub`);
+}
+// v1.46：卡片渲染容器必须在四处（三组件 + 预览生成器）都裁切，否则内容外溢压到卡片外
+for (const f of ['src/components/widget.js', 'src/components/mainPage.js', 'src/components/widgetConfig.js', 'scripts/make-preview.mjs']) {
+  const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+  const m = src.match(/\.card-mode-wrap\s*\{[^}]*\}/);
+  ok(!!m && /overflow:\s*hidden/.test(m[0]), `${f} 的 .card-mode-wrap 应声明 overflow:hidden`);
 }
 
 // 每种样式的单块都能在受支持尺寸下渲染出非空内容
@@ -583,7 +616,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
   // v1.41：.pv-center 带 text-align:center（「今天」两个汉字在窄块内折行后仍水平归中）
   {
     for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
-      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      const cssSrc = cssOf(f);
       ok(/\.pv-center \{[^}]*text-align:\s*center/.test(cssSrc),
         `${f} .pv-center 带 text-align:center（折行文字归中）`);
     }
@@ -616,7 +649,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     const strBig = flatten(renderBlocksHTML({ ...base, blocks: laidBig, grid: gridT, cellW: 48, cellH: 48 })).join('');
     ok(!strBig.includes('pv-tight'), '全卡大块不应附加 pv-tight');
     for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
-      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      const cssSrc = cssOf(f);
       ok(/\.pv-tight \.pv-sub \{ display:\s*none; \}/.test(cssSrc), `${f} 含 .pv-tight 隐藏副标题规则`);
     }
   }
@@ -647,7 +680,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     const md = mk({ content: 'time', style: 'dateMonthDay', shortYear: false });
     ok((md.match(/pv-seg/g) || []).length === 2, 'dateMonthDay 应为 2 个不可断段');
     for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
-      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      const cssSrc = cssOf(f);
       ok(/\.pv-seg \{ white-space: nowrap; \}/.test(cssSrc), `${f} 含 .pv-seg nowrap 规则`);
     }
   }
@@ -663,7 +696,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     const wc = readFileSync(new URL('../src/components/widgetConfig.js', import.meta.url), 'utf8');
     ok(!/alignLocked: \{ h: this\._alignGov\.h === 'card'/.test(wc), 'widgetConfig 同样不再锁定单元级开关');
     for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
-      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      const cssSrc = cssOf(f);
       ok(/@media \(prefers-reduced-motion: no-preference\) \{ \.pv-block \{ transition: left 0\.16s ease, top 0\.16s ease; \} \}/.test(cssSrc),
         `${f} 仅在允许动效时给 .pv-block 加位移过渡`);
       ok(!/@media \(prefers-reduced-motion: reduce\)[^}]*\.pv-block/.test(cssSrc),
@@ -954,6 +987,193 @@ console.log('');
   // (12) 空 opts 不写字段（避免持久化膨胀）
   const bare = sanitizeBlocks([{ c: 'time', s: 'dateFull' }], 'combo', '2x2');
   ok(bare[0].opts === undefined, '无 opts 时 sanitizeBlocks 不应写空 opts 字段');
+}
+
+// v2.7：单独模式新增「显示样式」—— 渲染标记与格数守卫
+{
+  const cases = [
+    ['progress', 'yearGrid', 'pv-yg-grid'],
+    ['progress', 'yearBars', 'pv-yb-bars'],
+    ['progress', 'weekGrid', 'pv-wg2-row'],
+    ['timeDate', 'dualZone', 'pv-dz-time'],
+  ];
+  for (const [content, style, needle] of cases) {
+    const h = flatten(renderInfoBlock({ ...base, content, style, singleRow: true, size: '2x2' })).join('');
+    ok(h.includes(needle), `单独 ${content}:${style} 应渲染 .${needle}`);
+    ok(h.includes('pv-single-2x2'), `单独 ${content}:${style} 应带尺寸类名 pv-single-2x2`);
+  }
+  // 年进度格阵：格数=当年天数（2026 平年 365），且只有 1 格 today 标记
+  const gridHTML = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'yearGrid', singleRow: true, size: '2x2' })).join('');
+  ok((gridHTML.match(/<i /g) || []).length === 365, `年进度格阵应有 365 格，实际 ${(gridHTML.match(/<i /g) || []).length}`);
+  ok((gridHTML.match(/class="now"/g) || []).length === 1, '年进度格阵应有且仅有 1 个 today 格');
+  // 年月条阵：12 根条
+  const barsHTML = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'yearBars', singleRow: true, size: '2x2' })).join('');
+  ok((barsHTML.match(/<b class="/g) || []).length === 12, `年月条阵应有 12 根条，实际 ${(barsHTML.match(/<b class="/g) || []).length}`);
+}
+
+// v2.9：单独模式 6 款图像化样式 + 样式设置（颜色/文案/目标日）+ 尺寸门控
+{
+  const cases = [
+    ['timeDate', 'ringClock', 'pv-rc-ring', '2x4'],
+    ['timeDate', 'dotClock', 'pv-dc-time', '2x4'],
+    ['timeDate', 'boldClock', 'pv-bc-nums', '2x2'],
+    ['schedule', 'capsule', 'pv-cp-pill', '2x4'],
+    ['schedule', 'targetDay', 'pv-tg-title', '2x2'],
+    ['progress', 'multiBars', 'pv-mb-row', '2x4'],
+  ];
+  for (const [content, style, needle, size] of cases) {
+    const h = flatten(renderInfoBlock({ ...base, content, style, singleRow: true, size })).join('');
+    ok(h.includes(needle), `单独 ${content}:${style} 应渲染 .${needle}`);
+  }
+  // 环形刻度钟：60 根刻度 + 进度弧
+  const ringHTML = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'ringClock', singleRow: true, size: '2x4' })).join('');
+  ok((ringHTML.match(/<line /g) || []).length === 60, `环形钟应有 60 根刻度，实际 ${(ringHTML.match(/<line /g) || []).length}`);
+  ok(ringHTML.includes('stroke-dasharray'), '环形钟应有进度弧 stroke-dasharray');
+  // 多进度条：4 行（年/月/周/日）
+  const mbHTML = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'multiBars', singleRow: true, size: '2x4' })).join('');
+  ok((mbHTML.match(/pv-mb-row/g) || []).length === 4, `多进度条应有 4 行，实际 ${(mbHTML.match(/pv-mb-row/g) || []).length}`);
+  // 胶囊倒计时：天/时/分/秒 4 个数值格
+  const cpHTML = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'capsule', singleRow: true, size: '2x4' })).join('');
+  ok((cpHTML.match(/pv-cp-cell/g) || []).length === 4, `胶囊倒计时应有 4 个数值格，实际 ${(cpHTML.match(/pv-cp-cell/g) || []).length}`);
+
+  // 样式设置：颜色 / 文案 / 目标日
+  const tinted = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'ringClock', singleRow: true, size: '2x4', opts: { color: '#FF9F0A' } })).join('');
+  ok(tinted.includes('#FF9F0A'), '样式设置 color 应作用到渲染（主色）');
+  const titled = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'targetDay', singleRow: true, size: '2x2', opts: { text: '项目上线', date: '2026-11-11' } })).join('');
+  ok(titled.includes('项目上线'), '样式设置 text 应作为标题渲染');
+  ok(titled.includes('2026-11-11'), '样式设置 date 应渲染目标日期');
+
+  // 尺寸门控：不同样式只对部分卡片尺寸开放
+  const bold2x2 = stylesForSize('single', 'timeDate', '2x2').map((s) => s.key);
+  const bold1xfull = stylesForSize('single', 'timeDate', '1xfull').map((s) => s.key);
+  ok(bold2x2.includes('boldClock'), '2x2 时间应可用 boldClock');
+  ok(!bold1xfull.includes('boldClock'), '1xfull 时间不应开放 boldClock（尺寸门控）');
+  ok(styleFitsSize('single', 'timeDate', 'boldClock', '1xfull') === false, 'styleFitsSize 应对未开放尺寸返回 false');
+  ok(styleSizesOf('single', 'schedule', 'capsule').includes('2x4'), 'capsule 应声明 2x4 尺寸');
+  // 只声明了部分尺寸的样式，不应出现在其它尺寸里
+  for (const [content, style] of [['schedule', 'capsule'], ['timeDate', 'boldClock']]) {
+    for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+      const has = stylesForSize('single', content, size).some((s) => s.key === style);
+      const fits = styleFitsSize('single', content, style, size);
+      ok(has === fits, `${content}:${style} 在 ${size} 的 chip 可见性与 styleFitsSize 必须一致`);
+    }
+  }
+  // 样式设置字段表：6 款新样式都要声明可用字段，且 normalizeOpts 会保留/过滤
+  for (const [content, style] of [['timeDate', 'ringClock'], ['timeDate', 'dotClock'], ['timeDate', 'boldClock'], ['schedule', 'capsule'], ['schedule', 'targetDay'], ['progress', 'multiBars']]) {
+    const def = styleDef('single', content, style);
+    ok(def && Array.isArray(def.opts) && def.opts.every((k) => STYLE_OPT_FIELDS[k]),
+      `${content}:${style} 必须声明样式设置字段，且字段须已在 STYLE_OPT_FIELDS 注册`);
+  }
+  const norm = normalizeOpts({ color: '#ff9f0a', text: '  项目上线  ', date: '2026-11-11', bogus: 'x' });
+  ok(norm.color === '#ff9f0a', 'normalizeOpts 应保留合法 color');
+  ok(norm.text === '项目上线', 'normalizeOpts 应 trim text');
+  ok(norm.date === '2026-11-11', 'normalizeOpts 应保留合法 date');
+  ok(norm.bogus === undefined, 'normalizeOpts 应丢弃白名单外字段');
+  ok((normalizeOpts({ color: 'red' }) || {}).color === undefined, 'normalizeOpts 应丢弃非法 color');
+  ok((normalizeOpts({ date: '2026-13-99' }) || {}).date === undefined, 'normalizeOpts 应丢弃非法 date');
+  ok(((normalizeOpts({ text: 'x'.repeat(40) }) || {}).text || '').length <= 24, 'normalizeOpts 应截断过长 text');
+  // 单独模式的日程样式不能被拼接模式的分支吞掉（回归守卫）
+  ok(SINGLE_CONTENTS.some((c) => c.key === 'schedule' && c.styles.some((s) => s.key === 'capsule')),
+    'SINGLE_CONTENTS 的 schedule 应含 capsule 样式');
+}
+
+// v2.10：移除旧文字样式 + 新增 5 款（极简条钟 / 文字时钟 / 巨型天数 / 四环进度 / 年热力图）
+{
+  const REMOVED = ['led', 'analog', 'flip', 'yearCal', 'weekCal', 'flipMonthDay',
+    'holidayCountdown', 'recentEvent', 'year', 'month', 'week', 'day', 'recentSchedule'];
+  const allKeys = SINGLE_CONTENTS.flatMap((c) => c.styles.map((x) => x.key));
+  for (const k of REMOVED) {
+    ok(!allKeys.includes(k), `单独模式不应再提供旧样式 ${k}（需求：只保留今天新增的图形化样式）`);
+  }
+  ok(SINGLE_CONTENTS.every((c) => c.styles.length > 0), '每个单独内容都必须至少剩 1 个可用样式');
+
+  const cases = [
+    ['timeDate', 'stripeClock', 'pv-st-time', '2x2'],
+    ['timeDate', 'wordClock', 'pv-wc-main', '2x4'],
+    ['schedule', 'bigDays', 'pv-bd-num', '2x2'],
+    ['progress', 'ringProgress', 'pv-rp-ring', '2x4'],
+    ['progress', 'heatYear', 'pv-hy', '2x4'],
+  ];
+  for (const [content, style, needle, size] of cases) {
+    const h = flatten(renderInfoBlock({ ...base, content, style, singleRow: true, size })).join('');
+    ok(h.includes(needle), `单独 ${content}:${style} 应渲染 .${needle}`);
+  }
+  // 四环进度：4 条弧
+  const rpHtml = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'ringProgress', singleRow: true, size: '2x4' })).join('');
+  ok((rpHtml.match(/stroke-dasharray/g) || []).length === 4, `四环进度应有 4 条弧，实际 ${(rpHtml.match(/stroke-dasharray/g) || []).length}`);
+  // 年热力图：格数 = 当年天数
+  const hyHtml = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'heatYear', singleRow: true, size: '2x4' })).join('');
+  ok((hyHtml.match(/<i /g) || []).length === 365, `年热力图应有 365 格，实际 ${(hyHtml.match(/<i /g) || []).length}`);
+  ok((hyHtml.match(/class="[^"]*now/g) || []).length === 1, '年热力图应有且仅有 1 个今天格');
+  // 文字时钟：中文数字时间 + 年份数字转换
+  const wcHtml = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'wordClock', singleRow: true, size: '2x4' })).join('');
+  ok(/[〇一二三四五六七八九十]+时/.test(wcHtml), '文字时钟中文模式应输出「…时」的中文数字时间');
+  ok(wcHtml.includes('二〇二六年'), '文字时钟年份应逐位转中文数字（二〇二六年）');
+  // 巨型天数：文案与目标日生效，且末行不重复日期
+  const bdHtml = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'bigDays', singleRow: true, size: '2x2', opts: { text: '项目上线', date: '2026-11-11' } })).join('');
+  ok(bdHtml.includes('项目上线'), '巨型天数应显示自定义文案');
+  ok((bdHtml.match(/2026-11-11/g) || []).length === 1, '巨型天数末行只出现一次目标日期（不得重复）');
+
+  // 迁移：历史配置里被移除的样式应自动落到现存样式，不产生空白卡
+  const mig = sanitizeBlocks([{ c: 'timeDate', s: 'led' }], 'single', '2x2');
+  ok(mig.length === 1 && mig[0].c === 'timeDate', '历史 led 配置应保留 timeDate 内容');
+  ok(SINGLE_CONTENTS.find((x) => x.key === 'timeDate').styles.some((x) => x.key === mig[0].s),
+    `历史 led 配置应迁移到现存样式，实际 ${mig[0].s}`);
+
+  // 新样式的尺寸门控声明必须与 stylesForSize 一致
+  for (const [content, style] of [['timeDate', 'wordClock'], ['schedule', 'bigDays'], ['progress', 'heatYear']]) {
+    for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+      const has = stylesForSize('single', content, size).some((x) => x.key === style);
+      ok(has === styleFitsSize('single', content, style, size), `${content}:${style} 在 ${size} 的可见性须与 styleFitsSize 一致`);
+    }
+  }
+}
+
+
+// ---------- v2.11：仪图 / 时光倒计时 / 格阵粒度与形状 / 生命周期进度 ----------
+{
+  const b0 = { ...base, singleRow: true, singleScale: 1, availW: 99, availH: 99 };
+  const dial = flatten(renderInfoBlock({ ...b0, content: 'gauge', style: 'dial', size: '2x2' })).join('');
+  ok(dial.includes('pv-gl-dial'), '仪图:dial 应渲染 .pv-gl-dial');
+  ok(/今年已过|Year/.test(dial), '仪图:dial 应带底部说明');
+  const semi = flatten(renderInfoBlock({ ...b0, content: 'gauge', style: 'semiGauge', size: '1x2' })).join('');
+  ok(semi.includes('pv-sg-wrap'), '仪图:semiGauge 应渲染 .pv-sg-wrap');
+
+  const ygW = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'yearGrid', size: '2x2', opts: { unit: 'week' } })).join('');
+  ok((ygW.match(/<i /g) || []).length === 7, `格阵 unit=week 应 7 格，实际 ${(ygW.match(/<i /g) || []).length}`);
+  const ygD = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'yearGrid', size: '2x4', opts: { unit: 'day' } })).join('');
+  ok((ygD.match(/<i /g) || []).length === 24, `格阵 unit=day 应 24 格，实际 ${(ygD.match(/<i /g) || []).length}`);
+  const ygDot = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'yearGrid', size: '4x4', opts: { shape: 'dot' } })).join('');
+  ok(ygDot.includes('pv-yg-grid dot'), '格阵 shape=dot 应加 dot 类');
+
+  const mbLife = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'multiBars', size: '2x2', opts: { bars: 'life', age: 30, life: 85 } })).join('');
+  ok(mbLife.includes('生命') || mbLife.includes('Life'), 'multiBars 勾选 life 时应出现生命进度');
+  ok((mbLife.match(/pv-mb-row/g) || []).length === 1, `multiBars 只勾 life 时应仅 1 行，实际 ${(mbLife.match(/pv-mb-row/g) || []).length}`);
+  const mbNoAge = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'multiBars', size: '2x2', opts: { bars: 'life' } })).join('');
+  ok(!mbNoAge.includes('生命'), '未填年龄时不应出现生命进度');
+
+  const listEmpty = flatten(renderInfoBlock({ ...b0, content: 'schedule', style: 'list', size: '2x2' })).join('');
+
+  ok(stylesForSize('single', 'progress', '2x2').length >= 1, 'stylesForSize 应返回可用样式');
+  const n1 = normalizeOpts({ unit: 'week', shape: 'dot', bars: 'y,life', age: 30, life: 85, ids: ['a', 'b'] });
+  ok(n1.unit === 'week' && n1.shape === 'dot' && n1.bars === 'y,life', 'normalizeOpts 应接受 unit / shape / bars');
+  ok(n1.age === 30 && n1.life === 85, 'normalizeOpts 应接受 age / life');
+  ok(normalizeOpts({ sched: 's_abc' }).sched === 's_abc', 'normalizeOpts 应接受关联日程 id');
+  {
+    // v2.16 回归点：写入口自我调用会无限递归，导致点「确定」后整个组件更新抛栈溢出
+    const cfgSrc = readFileSync(new URL('../src/components/widgetConfig.js', import.meta.url), 'utf8');
+    const seg = cfgSrc.slice(cfgSrc.indexOf('_writeBlocks(next) {'), cfgSrc.indexOf('_writeBlocks(next) {') + 220);
+    ok(seg.includes('this.cardBlocks = next;'), '写入口 _writeBlocks 必须直接赋值 cardBlocks');
+    ok(!seg.includes('this._writeBlocks('), '写入口 _writeBlocks 不得自我调用（栈溢出回归点）');
+  }
+  {
+    const kept = sanitizeBlocks([{ c: 'schedule', s: 'bigDays', opts: { color: '#ff3b30', sched: 's_1' } }], 'single', '2x2');
+    ok(kept.length === 1 && kept[0].opts && kept[0].opts.color === '#ff3b30' && kept[0].opts.sched === 's_1',
+      '单独模式保存必须保留 opts（设置不生效的回归点）');
+    ok(kept[0].c === 'schedule' && kept[0].s === 'bigDays', '单独模式块的内容与样式键应保持');
+  }
+  ok(!(normalizeOpts({ sched: 'x'.repeat(60) }) || {}).sched, 'normalizeOpts 应丢弃过长日程 id');
+  ok(Object.keys(normalizeOpts({ unit: 'x', shape: 'y', bars: 'zz' }) || {}).length === 0, 'normalizeOpts 应丢弃非法枚举值');
 }
 
 if (fails.length) {

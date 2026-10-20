@@ -14,6 +14,7 @@
  */
 import { SunPanelPageElement } from '@sun-panel/micro-app';
 import { html, css } from 'lit';
+import { CARD_MODE_CSS } from '../core/card-mode-styles.js';
 import {
   APPLE_COLORS, appleStyles, appleUiStyles, appleThemeVars, appleSwitch, appleSegmented,
   appleGroup, appleRow, appleSelect,
@@ -21,6 +22,7 @@ import {
 import {
   CARD_THEMES, cardThemeVisual,
   DISPLAY_MODES, displayContents, contentDef, styleDef, defaultStyleFor,
+  stylesForSize, STYLE_OPT_FIELDS,
   sanitizeBlocks, migrateToBlocks,
   gridForSize, comboGridFor, layoutBlocks, blocksFit, styleSpanDef, autoLayout,
   blockSpanDef, effectiveSpan, spanBounds, shiftFlatStyle,
@@ -29,6 +31,10 @@ import {
 } from '../core/user-store.js';
 import { renderInfoBlock, renderBlocksHTML, renderSpanEditor } from '../core/card-mode-render.js';
 import { getUserStore } from '../core/app-state.js';
+import appConfig from '../../config/app.config.js';
+
+/** 当前运行版本，显示在配置页底部，便于确认页面跑的是哪一版 */
+const APP_VERSION = appConfig.version;
 
 export class WidgetConfig extends SunPanelPageElement {
   static properties = {
@@ -222,6 +228,186 @@ export class WidgetConfig extends SunPanelPageElement {
   }
 
   /** 样式列表：选中一个显示样式（待确认） */
+  /** v2.9：当前待确认的样式 opts（未改过就取卡片上该样式已存的值） */
+  _pendingOptsOf(contentKey, styleKey) {
+    if (this._pendingOpts && this._pendingOptsKey === `${contentKey}:${styleKey}`) return this._pendingOpts;
+    const st = styleDef(this.displayMode, contentKey, styleKey);
+    const need = (st && st.opts) || null;
+    if (!need) return undefined;
+    const b = (this.cardBlocks || []).find((x) => x.c === contentKey && x.s === styleKey);
+    const saved = (b && b.opts) || {};
+    const out = {};
+    for (const k of need) if (saved[k] !== undefined) out[k] = saved[k];
+    return out;
+  }
+
+  /**
+   * v2.15：卡片块的唯一写入口。
+   * 为什么需要：模式页的改动会先进入临时区 this._draft，而保存时用的是 _draft.cardBlocks；
+   * 若只写 this.cardBlocks，保存会取旧临时区，改动被静默丢弃（表现为「改了设置没生效」）。
+   */
+  _writeBlocks(next) {
+    this.cardBlocks = next;
+    if (this._draft) {
+      this._draft = { ...this._draft, cardBlocks: next.map((b) => ({ ...b })) };
+    }
+    this.requestUpdate();
+    return next;
+  }
+
+  /** v2.9：改一项样式设置（写进待确认 opts，点「确定」才落盘） */
+  _setPendingOpt(key, value) {
+    const cd = contentDef(this.displayMode, this.pendingContent);
+    const cur = cd && cd.styles.find((x) => x.key === this.pendingStyle);
+    if (!cur) return;
+    const k2 = `${cd.key}:${cur.key}`;
+    const base = this._pendingOpts && this._pendingOptsKey === k2
+      ? { ...this._pendingOpts }
+      : { ...(this._pendingOptsOf(cd.key, cur.key) || {}) };
+    if (value === '' || value === undefined) delete base[key];
+    else base[key] = value;
+    this._pendingOpts = base;
+    this._pendingOptsKey = k2;
+    // v2.14：该样式已经在卡片上时，改一项就立刻落到 cardBlocks，避免「改了没反应」
+    const applied = (this.cardBlocks || [])[0];
+    if (applied && applied.c === cd.key && applied.s === cur.key) {
+      const next = { ...applied };
+      if (Object.keys(base).length) next.opts = { ...base };
+      else delete next.opts;
+      this._writeBlocks([next]);
+    }
+    this.requestUpdate();
+  }
+
+  /** v2.9：「样式设置」面板（主色 / 文案 / 目标日），仅当样式声明了 opts 时出现 */
+  _renderStyleOpts(theme, cur) {
+    const need = (cur && cur.opts) || null;
+    if (!need || !need.length) return '';
+    const isZh = this._isZh();
+    const vals = this._pendingOptsOf(this.pendingContent, cur.key) || {};
+    return html`
+      <div class="style-opts-panel">
+        <div class="style-opts-head">${this._t('t', '样式设置', 'Style options')}</div>
+        ${need.map((k) => {
+    const meta = STYLE_OPT_FIELDS[k];
+    if (!meta) return '';
+    const v = vals[k] ?? '';
+    const label = isZh ? meta.zh : meta.en;
+    if (meta.type === 'color') {
+      return html`<label class="style-opt-row">
+            <span class="style-opt-label">${label}</span>
+            <input class="style-opt-color" type="color" .value=${v || '#0A84FF'}
+              @input=${(e) => this._setPendingOpt(k, e.target.value)} />
+            <button class="style-opt-reset" @click=${() => this._setPendingOpt(k, '')}>${this._t('t', '默认', 'Reset')}</button>
+          </label>`;
+    }
+    if (meta.type === 'select' || meta.type === 'multi') {
+      const picked = meta.type === 'multi'
+        ? String(v || meta.def || '').split(',').filter(Boolean)
+        : [String(v || meta.def || '')];
+      return html`<div class="style-opt-row">
+            <span class="style-opt-label">${label}</span>
+            <div class="style-opt-chips">
+              ${(meta.choices || []).map(([val, txt]) => html`<button
+                class="style-opt-chip ${picked.includes(val) ? 'active' : ''}"
+                @click=${() => {
+    if (meta.type === 'select') { this._setPendingOpt(k, val); return; }
+    const next = picked.includes(val) ? picked.filter((x) => x !== val) : [...picked, val];
+    const order = (meta.choices || []).map(([x]) => x).filter((x) => next.includes(x));
+    this._setPendingOpt(k, order.join(','));
+  }}>${txt}</button>`)}
+            </div>
+          </div>`;
+    }
+    if (meta.type === 'number') {
+      return html`<div class="style-opt-row">
+            <span class="style-opt-label">${label}</span>
+            <input class="style-opt-input" type="number" min=${meta.min ?? 0} max=${meta.max ?? 999}
+              .value=${v === '' || v == null ? (meta.def ?? '') : v}
+              @change=${(e) => this._setPendingOpt(k, e.target.value)} />
+          </div>`;
+    }
+    if (meta.type === 'multi-ids') {
+      const picked = Array.isArray(v) ? v : String(v || '').split(',').filter(Boolean);
+      const items = (getUserStore()?.getSchedules() || []).slice(0, 12);
+      return html`<div class="style-opt-row style-opt-row-wrap">
+            <span class="style-opt-label">${label}</span>
+            <div class="style-opt-chips">
+              ${items.length === 0 ? html`<span class="style-opt-empty">${isZh ? '日历里还没有日程' : 'No schedules yet'}</span>` : items.map((it) => {
+    const id = String(it.id ?? it.date ?? '');
+    const on = picked.includes(id) || picked.includes(String(it.date ?? ''));
+    return html`<button class="style-opt-chip ${on ? 'active' : ''}"
+                @click=${() => {
+    const next = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id];
+    this._setPendingOpt(k, next);
+  }}>${it.title || it.name || it.date}</button>`;
+  })}
+            </div>
+          </div>`;
+    }
+    if (meta.type === 'schedule') {
+      // v2.12：从日历里挑一条日程；也可在这里自定义一条 —— 保存时自动写回日历
+      const list = (getUserStore()?.getSchedules() || []).slice(0, 40);
+      const cur2 = typeof v === 'string' ? v : '';
+      const draft = this._optDraft || {};
+      return html`<div class="style-opt-row style-opt-row-wrap">
+            <span class="style-opt-label">${label}</span>
+            <div class="style-opt-col">
+              <select class="style-opt-input" @change=${(e) => this._setPendingOpt(k, e.target.value)}>
+                <option value="" ?selected=${!cur2}>${isZh ? '不指定（用下面的目标日）' : 'None'}</option>
+                ${list.map((it) => html`<option value=${String(it.id)}
+                  ?selected=${String(it.id) === cur2}>${it.title || it.name || it.date} · ${it.date}</option>`)}
+              </select>
+              <div class="style-opt-custom">
+                <input class="style-opt-input" type="text" maxlength="24"
+                  placeholder=${isZh ? '新日程名称' : 'New schedule title'}
+                  .value=${draft.title || ''}
+                  @input=${(e) => { this._optDraft = { ...(this._optDraft || {}), title: e.target.value }; }} />
+                <input class="style-opt-input" type="date"
+                  .value=${draft.date || ''}
+                  @change=${(e) => { this._optDraft = { ...(this._optDraft || {}), date: e.target.value }; }} />
+                <button class="style-opt-reset" @click=${() => this._addOptSchedule(k)}>
+                  ${isZh ? '加入日历并选用' : 'Add & use'}
+                </button>
+              </div>
+            </div>
+          </div>`;
+    }
+    if (meta.type === 'date') {
+      return html`<label class="style-opt-row">
+            <span class="style-opt-label">${label}</span>
+            <input class="style-opt-input" type="date" .value=${v}
+              @change=${(e) => this._setPendingOpt(k, e.target.value)} />
+          </label>`;
+    }
+    return html`<label class="style-opt-row">
+          <span class="style-opt-label">${label}</span>
+          <input class="style-opt-input" type="text" maxlength=${meta.max || 24}
+            placeholder=${isZh ? '留空用默认文案' : 'Empty = default'}
+            .value=${v}
+            @input=${(e) => this._setPendingOpt(k, e.target.value)} />
+        </label>`;
+  })}
+      </div>`;
+  }
+
+  /** v2.12：把「样式设置」里自定义的日程写回日历，并选中它 */
+  async _addOptSchedule(k) {
+    const d = this._optDraft || {};
+    if (!d.title || !d.date) {
+      this._showHint(this._t('t', '请填写名称和日期', 'Title and date required'));
+      return;
+    }
+    const store = getUserStore();
+    if (!store) return;
+    const rec = await store.addSchedule({ title: d.title, date: d.date });
+    if (!rec) return;
+    this._optDraft = null;
+    this._setPendingOpt(k, String(rec.id));
+    this._showHint(this._t('t', '已加入日历并选用', 'Added to calendar'));
+    this.requestUpdate();
+  }
+
   _setPendingStyle(key) {
     this.pendingStyle = key;
     this.capHint = null;
@@ -359,7 +545,7 @@ export class WidgetConfig extends SunPanelPageElement {
       ));
       return;
     }
-    this.cardBlocks = next;
+    this._writeBlocks(next);
     this.capHint = null;
     this.requestUpdate();
   }
@@ -373,7 +559,7 @@ export class WidgetConfig extends SunPanelPageElement {
       this._showHint(this._t('t', '空间不足，无法恢复默认占格', 'Not enough room to restore the default size'));
       return;
     }
-    this.cardBlocks = next;
+    this._writeBlocks(next);
     this.capHint = null;
     this.requestUpdate();
   }
@@ -384,7 +570,12 @@ export class WidgetConfig extends SunPanelPageElement {
     const s = this.pendingStyle;
     if (!c || !s) return;
     if (this.displayMode === 'single') {
-      this.cardBlocks = [{ c, s }];
+      const st = styleDef('single', c, s);
+      const need = (st && st.opts) || [];
+      const pend = this._pendingOptsOf(c, s) || {};
+      const opts = {};
+      for (const k of need) if (pend[k] !== undefined && pend[k] !== '') opts[k] = pend[k];
+      this._writeBlocks([Object.keys(opts).length ? { c, s, opts } : { c, s }]);
       this._showHint(this._t('t', '已应用该显示样式', 'Style applied'));
       this.requestUpdate();
       return;
@@ -410,14 +601,13 @@ export class WidgetConfig extends SunPanelPageElement {
       return;
     }
     this.capHint = null;
-    this.cardBlocks = next;
-    this.requestUpdate();
+    this._writeBlocks(next);
   }
 
   /** 拼接模式：点击 × 取消某个样式在卡片上显示（可全部移除，卡片即不显示内容） */
   _removeBlock(idx) {
     if (this.displayMode !== 'combo') return;
-    this.cardBlocks = this.cardBlocks.filter((_, i) => i !== idx);
+    this._writeBlocks(this.cardBlocks.filter((_, i) => i !== idx));
     this._spanEdit = null;
     this.requestUpdate();
   }
@@ -437,7 +627,7 @@ export class WidgetConfig extends SunPanelPageElement {
       this._showHint(this._t('t', '空间不足：先缩小其他单元再添加空白', 'Not enough room: shrink others before adding a blank'));
       return;
     }
-    this.cardBlocks = next;
+    this._writeBlocks(next);
     this.capHint = null;
     this.requestUpdate();
   }
@@ -560,7 +750,7 @@ export class WidgetConfig extends SunPanelPageElement {
   /** 写入单元的附加字段（align/opts），保留 c/s/span/n */
   _setBlockField(idx, patch) {
     const next = this.cardBlocks.map((x, i) => (i === idx ? { ...x, ...patch } : x));
-    this.cardBlocks = next;
+    this._writeBlocks(next);
     this.requestUpdate();
   }
 
@@ -591,7 +781,7 @@ export class WidgetConfig extends SunPanelPageElement {
     const next = [...this.cardBlocks];
     const [moved] = next.splice(from, 1);
     next.splice(idx, 0, moved);
-    this.cardBlocks = next;
+    this._writeBlocks(next);
     this.requestUpdate();
   }
 
@@ -679,7 +869,9 @@ export class WidgetConfig extends SunPanelPageElement {
         cellH,
         size: this._size,
       })
-      : renderInfoBlock({ ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true, size: this._size });
+      : renderInfoBlock({
+        ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true, size: this._size, singleScale: pvScale,
+      });
     return html`
       <div class="pv-size-box mode-pv ${textMode}" style="${visual.bg};width:${w}px;height:${h}px;">
         <div class="card-mode-wrap">${inner}</div>
@@ -708,17 +900,17 @@ export class WidgetConfig extends SunPanelPageElement {
     return html`
       <div class="block-chips">
         ${this.cardBlocks.map((b, i) => {
-      const hit = laid.get(unitId(b));
-      const span = hit ? hit.span : effectiveSpan('combo', this._size, b);
-      const over = !hit;
-      return html`
+    const hit = laid.get(unitId(b));
+    const span = hit ? hit.span : effectiveSpan('combo', this._size, b);
+    const over = !hit;
+    return html`
           <div
             class="block-chip ${over ? 'overflow' : ''} ${editIdx === i ? 'editing' : ''}"
             key="chip-${i}"
             draggable="true"
             title="${over
-          ? this._t('t', '当前尺寸放不下此单元，请缩小占格或换更大的卡片尺寸', 'Does not fit this card size — shrink it or pick a bigger size')
-          : this._t('t', '点击调整占格；拖动排序；点击 × 取消显示', 'Tap to resize; drag to reorder; tap × to remove')}"
+    ? this._t('t', '当前尺寸放不下此单元，请缩小占格或换更大的卡片尺寸', 'Does not fit this card size — shrink it or pick a bigger size')
+    : this._t('t', '点击调整占格；拖动排序；点击 × 取消显示', 'Tap to resize; drag to reorder; tap × to remove')}"
             @dragstart=${(e) => this._onBlockDragStart(e, i)}
             @dragover=${(e) => this._onBlockDragOver(e)}
             @dragleave=${(e) => this._onBlockDragLeave(e)}
@@ -738,7 +930,7 @@ export class WidgetConfig extends SunPanelPageElement {
             </button>
           </div>
         `;
-    })}
+  })}
         ${this.cardBlocks.length ? '' : html`<div class="chips-empty">${this._t('t', '卡片当前不显示任何内容', 'The card shows nothing right now')}</div>`}
       </div>
       <div class="chip-tools">
@@ -812,7 +1004,8 @@ export class WidgetConfig extends SunPanelPageElement {
     const isZh = this._isZh();
     const cd = contentDef(this.displayMode, this.pendingContent);
     if (!cd) return '';
-    const list = cd.styles;
+    // v2.9：某样式可只适配部分卡片尺寸 —— 按当前卡片尺寸过滤 chip（至少保留 1 个）
+    const list = stylesForSize(this.displayMode, cd.key, this._size);
     const idx = Math.max(0, list.findIndex((s) => s.key === this.pendingStyle));
     const cur = list[idx];
     const dark = this.spCtx?.darkMode ?? false;
@@ -821,6 +1014,7 @@ export class WidgetConfig extends SunPanelPageElement {
     const frameInner = renderInfoBlock({
       content: cd.key,
       style: cur.key,
+      opts: this._pendingOptsOf(cd.key, cur.key),
       visual,
       theme,
       now: this._now,
@@ -841,11 +1035,11 @@ export class WidgetConfig extends SunPanelPageElement {
         <div class="style-content-row">
           <span class="style-content-label">${this._t('t', '显示内容', 'Content')}</span>
           ${appleSelect(
-      displayContents(this.displayMode).map((c) => ({ value: c.key, label: `${c.icon} ${isZh ? c.zh : c.en}` })),
-      this.pendingContent,
-      (v) => this._setPendingContent(v),
-      theme,
-    )}
+    displayContents(this.displayMode).map((c) => ({ value: c.key, label: `${c.icon} ${isZh ? c.zh : c.en}` })),
+    this.pendingContent,
+    (v) => this._setPendingContent(v),
+    theme,
+  )}
         </div>
         <div class="style-strip-wrap">
           <div class="style-opts">
@@ -859,6 +1053,7 @@ export class WidgetConfig extends SunPanelPageElement {
             `)}
           </div>
         </div>
+        ${this._renderStyleOpts(theme, cur)}
         <div class="style-stage">
           <button class="style-nav" aria-label="prev" @click=${() => this._shiftPendingStyle(-1)}>
             <svg viewBox="0 0 8 13" width="8" height="13"><path d="M7 1L1 6.5 7 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -953,77 +1148,77 @@ export class WidgetConfig extends SunPanelPageElement {
       <div class="subtitle">${this._t('t', '以下设置仅对该小部件生效，可与其他小部件（含同尺寸）互不相同。', 'Settings apply to this widget only and can differ from other widgets (even of the same size).')}</div>
 
       ${appleGroup(
-        this._t('t', '显示模式', 'DISPLAY MODE'),
-        [
-          appleRow({
-            label: this._t('t', '模式', 'Mode'),
-            sub: this._t('t', `${modeDef.zh} · ${this._blockNames()}`, `${modeDef.en} · ${this._blockNames()}`),
-            first: true,
-            last: true,
-            chevron: true,
-            onClick: () => { this.modePageOpen = true; this.requestUpdate(); },
-            right: html`<span class="row-mode-tag" style="color:${theme}">${isZh ? modeDef.zh : modeDef.en}</span>`,
-          }),
-        ],
-        this._t('t', '拼接模式：一卡多个显示样式（数量随尺寸而定）；单独模式：一卡仅一个。点击进入「显示模式」页面调整。', 'Combo: multiple styles per card (count depends on size). Single: one per card. Tap to open the Display Mode page.'),
-      )}
+    this._t('t', '显示模式', 'DISPLAY MODE'),
+    [
+      appleRow({
+        label: this._t('t', '模式', 'Mode'),
+        sub: this._t('t', `${modeDef.zh} · ${this._blockNames()}`, `${modeDef.en} · ${this._blockNames()}`),
+        first: true,
+        last: true,
+        chevron: true,
+        onClick: () => { this.modePageOpen = true; this.requestUpdate(); },
+        right: html`<span class="row-mode-tag" style="color:${theme}">${isZh ? modeDef.zh : modeDef.en}</span>`,
+      }),
+    ],
+    this._t('t', '拼接模式：一卡多个显示样式（数量随尺寸而定）；单独模式：一卡仅一个。点击进入「显示模式」页面调整。', 'Combo: multiple styles per card (count depends on size). Single: one per card. Tap to open the Display Mode page.'),
+  )}
 
       ${appleGroup(
-        this._t('t', '卡片外观', 'CARD APPEARANCE'),
-        [
-          appleRow({
-            label: this._t('t', '卡片主题', 'Card Theme'),
-            sub: isZh ? CARD_THEMES[this.cardTheme]?.zh : CARD_THEMES[this.cardTheme]?.en,
-            first: true,
-            right: appleSelect(themeOptions, this.cardTheme, (v) => { this.cardTheme = v; this.requestUpdate(); }, theme),
-          }),
-          appleRow({
-            label: this._t('t', '卡片亮度', 'Card Brightness'),
-            sub: `${this.cardBrightness}%`,
-            right: html`<input type="range" class="bright-slider" min="30" max="100" value="${this.cardBrightness}" @input=${(e) => { this.cardBrightness = Number(e.target.value); this.requestUpdate(); }} />`,
-          }),
-          appleRow({
-            label: this._t('t', '主题色', 'Theme Color'),
-            sub: isZh ? colorNamesZh[this.themeColor] : colorNamesEn[this.themeColor],
-            chevron: !this.colorPickerOpen,
-            onClick: () => { this.colorPickerOpen = !this.colorPickerOpen; this.requestUpdate(); },
-            right: html`<span style="width:18px;height:18px;border-radius:50%;background:${theme};display:inline-block"></span>`,
-          }),
-          this.colorPickerOpen ? html`<div style="padding:4px 14px 14px">${this._renderColorPicker()}</div>` : '',
-        ],
-      )}
+    this._t('t', '卡片外观', 'CARD APPEARANCE'),
+    [
+      appleRow({
+        label: this._t('t', '卡片主题', 'Card Theme'),
+        sub: isZh ? CARD_THEMES[this.cardTheme]?.zh : CARD_THEMES[this.cardTheme]?.en,
+        first: true,
+        right: appleSelect(themeOptions, this.cardTheme, (v) => { this.cardTheme = v; this.requestUpdate(); }, theme),
+      }),
+      appleRow({
+        label: this._t('t', '卡片亮度', 'Card Brightness'),
+        sub: `${this.cardBrightness}%`,
+        right: html`<input type="range" class="bright-slider" min="30" max="100" value="${this.cardBrightness}" @input=${(e) => { this.cardBrightness = Number(e.target.value); this.requestUpdate(); }} />`,
+      }),
+      appleRow({
+        label: this._t('t', '主题色', 'Theme Color'),
+        sub: isZh ? colorNamesZh[this.themeColor] : colorNamesEn[this.themeColor],
+        chevron: !this.colorPickerOpen,
+        onClick: () => { this.colorPickerOpen = !this.colorPickerOpen; this.requestUpdate(); },
+        right: html`<span style="width:18px;height:18px;border-radius:50%;background:${theme};display:inline-block"></span>`,
+      }),
+      this.colorPickerOpen ? html`<div style="padding:4px 14px 14px">${this._renderColorPicker()}</div>` : '',
+    ],
+  )}
 
       ${appleGroup(
-        this._t('t', '时间', 'TIME'),
-        [
-          appleRow({
-            label: this._t('t', '一周起始日', 'Week Starts On'),
-            first: true,
-            right: appleSelect(weekOptions, this.weekStart, (v) => { this.weekStart = Number(v); this.requestUpdate(); }, theme),
-          }),
-          appleRow({
-            label: this._t('t', '时间格式', 'Time Format'),
-            right: appleSegmented(
-              [
-                { label: '24h', value: false },
-                { label: '12h', value: true },
-              ],
-              this.hour12,
-              (v) => { this.hour12 = v; this.requestUpdate(); },
-              theme,
-            ),
-          }),
-          appleRow({
-            label: this._t('t', '显示秒', 'Show Seconds'),
-            last: true,
-            right: appleSwitch(
-              this.showSeconds,
-              () => { this.showSeconds = !this.showSeconds; this.requestUpdate(); },
-              theme,
-            ),
-          }),
-        ],
-      )}
+    this._t('t', '时间', 'TIME'),
+    [
+      appleRow({
+        label: this._t('t', '一周起始日', 'Week Starts On'),
+        first: true,
+        right: appleSelect(weekOptions, this.weekStart, (v) => { this.weekStart = Number(v); this.requestUpdate(); }, theme),
+      }),
+      appleRow({
+        label: this._t('t', '时间格式', 'Time Format'),
+        right: appleSegmented(
+          [
+            { label: '24h', value: false },
+            { label: '12h', value: true },
+          ],
+          this.hour12,
+          (v) => { this.hour12 = v; this.requestUpdate(); },
+          theme,
+        ),
+      }),
+      appleRow({
+        label: this._t('t', '显示秒', 'Show Seconds'),
+        last: true,
+        right: appleSwitch(
+          this.showSeconds,
+          () => { this.showSeconds = !this.showSeconds; this.requestUpdate(); },
+          theme,
+        ),
+      }),
+    ],
+  )}
 
       <div class="size-hint">
         ${this._t('t', '支持尺寸：1×1 / 1×2 / 2×1 / 2×2 / 2×4 / 4×4 / 1×FULL。卡片主题与显示模式也可在「主页面 → 设置」中设为全局默认，新卡片将自动继承。', 'Sizes: 1×1 / 1×2 / 2×1 / 2×2 / 2×4 / 4×4 / 1×FULL. Card theme & display mode can also be set as global defaults in Main Page → Settings; new widgets inherit them.')}
@@ -1085,8 +1280,12 @@ export class WidgetConfig extends SunPanelPageElement {
 
       <div class="mode-note">
         ${isCombo
-          ? this._t('t', '拼接模式：选择内容与样式后点「确定」加入卡片；点击预览后方的样式名称可调整占格与置中；「空白填充」可添加只占位不显示的空白单元；卡片可清空全部内容。', 'Combo: pick a content & style, then tap Done. Tap a style name after the preview to resize or center it. "Add blank" inserts a spacer that shows nothing. A card can be emptied completely.')
-          : this._t('t', '单独模式：整卡仅显示一个显示样式，选择后点击「确定」应用。', 'Single: the whole card shows one style only. Pick one and tap Done to apply.')}
+    ? this._t('t', '拼接模式：选择内容与样式后点「确定」加入卡片；点击预览后方的样式名称可调整占格与置中；「空白填充」可添加只占位不显示的空白单元；卡片可清空全部内容。', 'Combo: pick a content & style, then tap Done. Tap a style name after the preview to resize or center it. "Add blank" inserts a spacer that shows nothing. A card can be emptied completely.')
+    : this._t('t', '单独模式：整卡仅显示一个显示样式，选择后点击「确定」应用。', 'Single: the whole card shows one style only. Pick one and tap Done to apply.')}
+      </div>
+
+      <div class="mode-ver" title="${this._t('t', '当前运行的微应用版本（用于排查问题）', 'Running micro-app version (for troubleshooting)')}">
+        v${APP_VERSION}
       </div>
     `;
   }
@@ -1096,6 +1295,7 @@ export class WidgetConfig extends SunPanelPageElement {
     const theme = APPLE_COLORS[this.themeColor] || APPLE_COLORS.red;
     return html`
       <style>
+${CARD_MODE_CSS}
         ${appleStyles.cssText}
         ${appleUiStyles.cssText}
         :host { display: block; height: 100%; }
@@ -1457,6 +1657,12 @@ export class WidgetConfig extends SunPanelPageElement {
           font-size: 12px; color: var(--apple-label-3);
           padding: 4px 24px 28px; line-height: 1.55;
         }
+        /* 运行版本号（排查「改了没生效」时先看这里） */
+        .mode-ver {
+          font-size: 11px; color: var(--apple-label-3); opacity: 0.7;
+          text-align: center; padding: 0 24px 22px;
+          font-variant-numeric: tabular-nums;
+        }
         /* 卡片级置中开关下方的说明（v1.31 需求 1） */
         .tool-note {
           font-size: 11px; font-weight: 500; color: var(--apple-label-3);
@@ -1479,7 +1685,7 @@ export class WidgetConfig extends SunPanelPageElement {
         .mode-preview-wrap { display: flex; justify-content: center; padding: 6px 16px 10px; }
         .pv-size-box.text-light { text-shadow: 0 1px 2px rgba(0,0,0,0.38); }
         /* 单独模式根字号：拼接模式下块级根字号由 JS 按单元格像素内联覆盖 */
-        .pv-size-box .card-mode-wrap { width: 100%; height: 100%; font-size: 12px; }
+        .pv-size-box .card-mode-wrap { width: 100%; height: 100%; overflow: hidden; font-size: 12px; }
 
         /* 显示样式区：首栏标题 + 最右「确定」 */
         .style-sec { margin: 0 12px 6px; }
@@ -1528,6 +1734,59 @@ export class WidgetConfig extends SunPanelPageElement {
         .confirm-btn:active { transform: scale(0.95); opacity: 0.85; }
         /* v1.29：显示样式名称只占一排，多余的横向滚动（配合左右按钮切换） */
         .style-strip-wrap { margin: 0 0 2px; }
+        /* v2.9「样式设置」：主色 / 文案 / 目标日 */
+        .style-opts-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin: 8px 0 2px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: rgba(120, 120, 128, 0.08);
+        }
+        .style-opts-head { font-size: 12px; font-weight: 600; opacity: 0.6; }
+        .style-opt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .style-opt-label { flex: 0 0 auto; min-width: 3.4em; opacity: 0.72; }
+        .style-opt-color {
+          width: 34px;
+          height: 26px;
+          padding: 0;
+          border: 1px solid rgba(120, 120, 128, 0.28);
+          border-radius: 7px;
+          background: transparent;
+          cursor: pointer;
+        }
+        .style-opt-input {
+          flex: 1 1 auto;
+          min-width: 0;
+          height: 28px;
+          padding: 0 9px;
+          border: 1px solid rgba(120, 120, 128, 0.28);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.72);
+          color: inherit;
+          font-size: 13px;
+          font-family: inherit;
+        }
+        .style-opt-reset {
+          flex: 0 0 auto;
+          height: 26px;
+          padding: 0 10px;
+          border: 1px solid rgba(120, 120, 128, 0.28);
+          border-radius: 7px;
+          background: transparent;
+          color: inherit;
+          font-size: 12px;
+          cursor: pointer;
+        }
+  .style-opt-chips { display: flex; flex-wrap: wrap; gap: 0.28em; }
+  .style-opt-chip { font-size: 0.7em; padding: 0.24em 0.6em; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); background: transparent; color: inherit; cursor: pointer; }
+  .style-opt-chip.active { background: color-mix(in srgb, var(--mc-accent, #0A84FF) 18%, transparent); border-color: color-mix(in srgb, var(--mc-accent, #0A84FF) 55%, transparent); color: var(--mc-accent, #0A84FF); }
+  .style-opt-row-wrap { align-items: flex-start; }
+  .style-opt-empty { font-size: 0.7em; opacity: 0.55; }
+  .style-opt-col { display: flex; flex-direction: column; gap: 0.3em; flex: 1 1 100%; }
+  .style-opt-custom { display: flex; gap: 0.3em; align-items: center; flex-wrap: wrap; }
+  .style-opt-custom .style-opt-input { flex: 1 1 6em; }
         .style-opts {
           display: flex;
           flex-wrap: nowrap;
@@ -1621,7 +1880,8 @@ export class WidgetConfig extends SunPanelPageElement {
         }
         .style-frame svg { max-width: 56px; max-height: 56px; }
 
-        .card-mode-wrap { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 16px; }
+        /* v1.46：overflow:hidden —— 预览框内容越界时在框内裁掉，避免相邻样式帧文字互相叠压 */
+        .card-mode-wrap { flex: 1; min-height: 0; width: 100%; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 16px; }
 
         /* 显示模式通用样式（与卡片渲染共享渲染逻辑，类名保持一致）。
            字号一律用 em：以 16px 为基准，拼接块由 JS 按单元格像素内联设置根字号，实现等比缩放 */

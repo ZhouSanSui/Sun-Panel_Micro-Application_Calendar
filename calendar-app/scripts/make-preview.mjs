@@ -3,6 +3,7 @@
  * 套上与组件相同的 em/网格 CSS，用于肉眼校验各尺寸下的排版。
  */
 import { writeFileSync } from 'node:fs';
+import { CARD_MODE_CSS } from '../src/core/card-mode-styles.js';
 import { renderBlocksHTML, renderInfoBlock } from '../src/core/card-mode-render.js';
 import { layoutBlocks, comboGridFor } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
@@ -151,16 +152,37 @@ const cards = CASES.map(([size, w, h, list, cardCenter, note]) => {
 
 // v1.40：单独模式按卡片尺寸版式预览（renderInfoBlock + pv-single-<size> 尺寸类名）
 const SINGLE_CASES = [
-  ['1x1', 120, 120, 'timeDate', 'led'],
-  ['2x1', 120, 252, 'timeDate', 'led'],
-  ['1xfull', 1080, 120, 'timeDate', 'led'],
-  ['1x2', 252, 120, 'timeDate', 'led'],
-  ['2x2', 252, 252, 'timeDate', 'led'],
-  ['2x4', 516, 252, 'timeDate', 'led'],
-  ['4x4', 516, 516, 'timeDate', 'led'],
-  ['1x1', 120, 120, 'schedule', 'recentEvent'],
-  ['2x1', 120, 252, 'schedule', 'recentEvent'],
-  ['1xfull', 1080, 120, 'schedule', 'recentEvent'],
+  ['important', 'targetDay', '2x2', { text: '项目上线', date: '2026-11-11' }],
+  // v2.11：新内容「仪图」（指针 / 半环）、文字新增「时光倒计时」、格阵粒度与形状、生命进度条
+  ['gauge', 'dial', '2x2'], ['gauge', 'dial', '4x4'],
+  ['gauge', 'semiGauge', '1x2'], ['gauge', 'semiGauge', '2x2'],
+  ['progress', 'yearGrid', '2x2', { unit: 'week' }], ['progress', 'yearGrid', '2x4', { unit: 'day' }],
+  ['progress', 'yearGrid', '4x4', { shape: 'dot' }],
+  ['progress', 'multiBars', '2x4', { bars: 'y,m,w,d,life', age: 30, life: 85 }],
+  ['progress', 'multiBars', '2x2', { bars: 'life', age: 30, life: 85 }],
+  ['1x1', 120, 120, 'timeDate', 'boldClock'],
+  ['2x1', 120, 252, 'timeDate', 'stripeClock'],
+  ['1xfull', 1080, 120, 'timeDate', 'wordClock'],
+  ['1x2', 252, 120, 'timeDate', 'stripeClock'],
+  ['2x2', 252, 252, 'timeDate', 'ringClock'],
+  ['2x4', 516, 252, 'timeDate', 'wordClock'],
+  ['4x4', 516, 516, 'timeDate', 'stripeClock'],
+  ['1x1', 120, 120, 'schedule', 'bigDays'],
+  ['2x1', 120, 252, 'schedule', 'bigDays'],
+  ['1xfull', 1080, 120, 'schedule', 'capsule'],
+  // v2.7：新增「显示样式」—— 进度类三款图形版 + 时间双区
+  ['2x2', 252, 252, 'progress', 'yearGrid'],
+  ['4x4', 516, 516, 'progress', 'yearGrid'],
+  ['1x2', 252, 120, 'progress', 'yearBars'],
+  ['2x4', 516, 252, 'progress', 'yearBars'],
+  ['1xfull', 1080, 120, 'progress', 'weekGrid'],
+  ['2x4', 516, 252, 'progress', 'weekGrid'],
+  ['1x2', 252, 120, 'timeDate', 'dualZone'],
+  ['2x1', 120, 252, 'timeDate', 'dualZone'],
+  ['2x2', 252, 252, 'timeDate', 'dualZone'],
+  ['2x4', 516, 252, 'progress', 'ringProgress'],
+  ['4x4', 516, 516, 'progress', 'heatYear'],
+  ['2x2', 252, 252, 'schedule', 'bigDays'],
 ];
 const singleCards = SINGLE_CASES.map(([size, w, h, c, s]) => {
   const inner = toHTML(renderInfoBlock({ ...base, content: c, style: s, singleRow: true, size }));
@@ -174,6 +196,7 @@ const singleCards = SINGLE_CASES.map(([size, w, h, c, s]) => {
 }).join('\n');
 
 const CSS = `
+${CARD_MODE_CSS}
   body { margin:0; padding:28px; background:#0d1117; color:#c9d1d9;
          font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Microsoft YaHei',sans-serif; }
   h1 { font-size:15px; font-weight:600; color:#8b949e; margin:0 0 20px; }
@@ -184,93 +207,47 @@ const CSS = `
      保证预览与线上合成一致；item-card-content class 让运行时同步路径可复用。 */
   .card { padding:12px; box-sizing:border-box; border-radius:20px; overflow:hidden;
           box-shadow:0 2px 10px rgba(0,0,0,.45); display:flex; flex-direction:column; }
-  .card-mode-wrap { flex:1; min-height:0; width:100%; display:flex; flex-direction:column;
+  .card-mode-wrap { flex:1; min-height:0; width:100%; overflow:hidden; display:flex; flex-direction:column;
                     align-items:center; justify-content:center; font-size:16px; }
   .text-light { color:#F5F5F7; text-shadow:0 1px 2px rgba(0,0,0,.35); }
-  .pv-center { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.375em; width:100%; text-align:center; }
+
   /* v1.40 需求 2：宽扁块（像素比 ≥2:1）倒数型双栏布局（数字列 + 文字列） */
-  .pv-center.pv-flat { flex-direction:row; align-items:center; justify-content:center; gap:.5em; }
-  .pv-fnum { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:0 1 auto; }
-  .pv-ftext { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.1875em; flex:0 1 auto; min-width:0; text-align:center; }
-  .pv-col { display:flex; flex-direction:column; gap:.3125em; width:100%; }
-  .pv-gap { height:.5em; }
-  .pv-big { font-size:1.875em; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
-  .pv-mid { font-size:1em; font-weight:700; line-height:1.25; }
-  .pv-seg { white-space:nowrap; }
+
   /* v1.35：简约显示的间隔圆点（方案 B 自绘，实测单点占位 0.84em） */
-  .pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
-  .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0,0,0,.35); }
-  .pv-row2 { font-size:.75em; font-weight:600; }
-  .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: .5em; width: 100%; }
-  .pv-sch-name { font-size: .75em; font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pv-sch-meta { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; font-size: .5em; line-height: 1.25; white-space: nowrap; }
-  .pv-sch-date { opacity: .95; }
-  .pv-sch-time { opacity: .8; }
-  .pv-sub { font-size:.5625em; line-height:1.3; }
-  .pv-tight .pv-sub { display:none; }
-  .pv-bar { height:.25em; border-radius:.125em; overflow:hidden; }
-  .pv-fill { height:100%; border-radius:.125em; }
-  .pv-chip2 { font-size:.6875em; padding:.25em .625em; border-radius:.5em; font-weight:600; display:inline-flex; gap:.375em; align-items:center; }
-  .pv-flip { display:inline-flex; gap:.25em; align-items:center; }
-  .pv-flip-box { font-size:1.375em; font-weight:800; padding:.25em .5em; border-radius:.375em; font-variant-numeric:tabular-nums; }
-  .pv-ap { font-size:.6875em; font-weight:600; }
-  .pv-wk { display:grid; grid-template-columns:repeat(7,1fr); gap:.125em; }
-  .pv-wk-cell { display:flex; flex-direction:column; align-items:center; border-radius:.375em; padding:.1875em 0; }
-  .pv-wk-d { font-size:.75em; font-weight:600; }
-  .pv-wk-w { font-size:.5em; }
+
   /* v1.31：间距统一由 .pv-col 的 gap(.3125em) 提供，不再叠加 margin-top */
-  .pv-mini-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:.125em; margin-top:0; }
+
   /* ---- v1.31 新增：窄高块竖排容器 ---- */
-  .pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:.1875em; }
-  .pv-vstack.t { gap:.125em; }
-  .pv-vline { font-size:1.25em; font-weight:700; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
+
   /* v1.35 反馈 1：竖排简约的星期行降为说明级字号，使数字行与无星期样式字号相等 */
-  .pv-vline.wk { font-size:.7em; }
-  .pv-vbig { font-size:1.875em; font-weight:800; line-height:1.1; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .pv-vrow { display:flex; align-items:baseline; justify-content:center; gap:.25em; width:100%; }
+
   /* ---- v1.31 新增：日历日期标题 ---- */
-  .pv-cal-head { text-align:center; color:inherit; line-height:1.2; }
-  .pv-cal-wd { font-size:.5625em; font-weight:600; margin-left:.3125em; }
+
   /* ---- v1.31 新增：周日历竖排（7 天改 7 行） ---- */
-  .pv-wkv { display:grid; grid-template-rows:repeat(7,1fr); grid-template-columns:1fr; gap:.0625em; width:100%; }
-  .pv-wkv-cell { display:flex; align-items:center; justify-content:space-between; padding:.125em .375em; border-radius:.375em; }
-  .pv-wkv-d { font-size:.75em; font-weight:600; line-height:1.2; font-variant-numeric:tabular-nums; }
-  .pv-wkv-w { font-size:.5625em; line-height:1.3; text-align:right; }
+
   /* ---- v1.31 新增：1×1 占格的小卡星期（字号减半） ---- */
-  .pv-wd-sm { font-size:0.9375em; font-weight:700; line-height:1.1; }
-  .pv-sub-sm { font-size:0.5em; }
-  .pv-c { aspect-ratio:1; border-radius:.25em; display:flex; align-items:center; justify-content:center; font-size:.5625em; font-weight:500; }
-  .pv-c.out { opacity:.35; }
-  .pv-yearcal { display:grid; grid-template-columns:repeat(3,1fr); gap:.3125em; }
-  .pv-block > .pv-col { align-self:stretch; flex:1 1 auto; min-height:0; }
-  .pv-block > .pv-col > .pv-mini-grid { flex:1 1 auto; min-height:0; grid-auto-rows:1fr; }
-  .pv-mini-grid > .pv-c { aspect-ratio:auto; min-height:0; line-height:1; }
+
   .pv-blank { width:100%; height:100%; }
   .pv-block.blank { outline-color:rgba(255,120,120,.35); }
-  .pv-blocks { position:relative; flex:1; min-height:0; width:100%; }
+
   .pv-block { position:absolute; box-sizing:border-box; padding:.1875em; display:flex;
               flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
               outline:1px dashed rgba(255,255,255,.10); }
   @media (prefers-reduced-motion: no-preference) { .pv-block { transition:left .16s ease, top .16s ease; } }
   /* v1.40：单独模式按卡片尺寸的版式规则（与三组件 CSS 同源，改规则必须同步） */
-  .pv-single .pv-center { flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.5em; }
+
   .pv-single-1x1 .pv-big, .pv-single-1x1 .pv-mid, .pv-single-1x1 .pv-vbig { font-size:1.25em; }
-  .pv-single-1x1 .pv-sub { display:none; }
-  .pv-single-1x2 .pv-center { gap:.75em; }
+
   .pv-single-1x2 .pv-big, .pv-single-1x2 .pv-mid, .pv-single-1x2 .pv-vbig { font-size:1.15em; }
-  .pv-single-2x1 .pv-center { flex-direction:column; gap:.375em; }
+
   .pv-single-2x1 .pv-big, .pv-single-2x1 .pv-mid, .pv-single-2x1 .pv-vbig { font-size:1.1em; }
-  .pv-single-2x2 .pv-center { gap:.5em; }
-  .pv-single-2x4 .pv-center { gap:.875em; }
+
   .pv-single-2x4 .pv-big, .pv-single-2x4 .pv-mid, .pv-single-2x4 .pv-vbig { font-size:1.2em; }
   .pv-single-4x4 .pv-big, .pv-single-4x4 .pv-mid, .pv-single-4x4 .pv-vbig { font-size:1.25em; }
-  .pv-single-4x4 .pv-sub { font-size:.6875em; }
-  .pv-single-1xfull .pv-center { align-items:center; gap:1em; }
+
   .pv-single-1xfull .pv-big, .pv-single-1xfull .pv-mid, .pv-single-1xfull .pv-vbig { font-size:1.3em; }
   /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
-  .pv-single-1x1 { font-size:16px; } .pv-single-1x2 { font-size:17px; } .pv-single-2x1 { font-size:17px; }
-  .pv-single-2x2 { font-size:22px; } .pv-single-2x4 { font-size:26px; } .pv-single-4x4 { font-size:34px; }
-  .pv-single-1xfull { font-size:18px; }
+
 `;
 
 writeFileSync(new URL('./preview.html', import.meta.url),

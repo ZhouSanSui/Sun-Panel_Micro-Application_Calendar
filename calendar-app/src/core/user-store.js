@@ -145,26 +145,76 @@ export const BLANK_CONTENT = 'blank';
  * 注意：不含「日历」（已移除）。
  */
 export const SINGLE_CONTENTS = [
-  { key: 'timeDate', zh: '时间及日期', en: 'Time & Date', icon: '🕐', styles: [
-    { key: 'led', zh: 'LED样式表', en: 'LED Clock' },
-    { key: 'analog', zh: '指针表', en: 'Analog Clock' },
-    { key: 'flip', zh: '翻页表', en: 'Flip Clock' },
-    { key: 'yearCal', zh: '年日历', en: 'Year Calendar' },
-    { key: 'weekCal', zh: '周日历', en: 'Week Calendar' },
-    { key: 'flipMonthDay', zh: '翻页月日', en: 'Flip Month/Day' },
+  { key: 'timeDate', zh: '文字', en: 'Text', icon: '🕐', styles: [
+    // v2.7 / v2.9 / v2.10：只保留图形化样式（旧文字款已按需求移除）
+    { key: 'dualZone', zh: '双区时间', en: 'Dual Zone' },
+    { key: 'ringClock', zh: '环形刻度钟', en: 'Ring Clock', opts: ['color'] },
+    { key: 'dotClock', zh: 'LED数码管', en: 'Dot LED', opts: ['color'] },
+    { key: 'boldClock', zh: '粗体大字钟', en: 'Bold Clock', sizes: ['1x1', '2x2', '2x4', '4x4'], opts: ['color'] },
+    { key: 'stripeClock', zh: '极简条钟', en: 'Stripe Clock', opts: ['color'] },
+    { key: 'wordClock', zh: '文字时钟', en: 'Word Clock', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
   ] },
   { key: 'schedule', zh: '日程', en: 'Schedule', icon: '🗓', styles: [
-    { key: 'holidayCountdown', zh: '放假倒计时', en: 'Holiday Countdown' },
-    { key: 'recentEvent', zh: '最近事项', en: 'Recent Events' },
+    { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x4', '1xfull'], opts: ['color', 'text'] },
+    { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', opts: ['color', 'sched'] },
+    { key: 'bigDays', zh: '巨型天数', en: 'Big Days', sizes: ['1x1', '2x2', '2x4', '4x4'], opts: ['color', 'sched'] },
   ] },
-  { key: 'progress', zh: '进度', en: 'Progress', icon: '◴', styles: [
-    { key: 'year', zh: '年进度', en: 'Year' },
-    { key: 'month', zh: '月进度', en: 'Month' },
-    { key: 'week', zh: '周进度', en: 'Week' },
-    { key: 'day', zh: '日进度', en: 'Day' },
-    { key: 'recentSchedule', zh: '最近日程进度', en: 'Nearest Schedule' },
+  { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
+    { key: 'yearGrid', zh: '进度格阵', en: 'Grid', opts: ['unit', 'shape', 'color'] },
+    { key: 'yearBars', zh: '年月条阵', en: 'Month Bars' },
+    { key: 'weekGrid', zh: '周进度格', en: 'Week Grid' },
+    { key: 'multiBars', zh: '多进度条', en: 'Multi Bars', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'bars', 'age', 'life'] },
+    { key: 'ringProgress', zh: '四环进度', en: 'Ring Progress', opts: ['color'] },
+    { key: 'heatYear', zh: '年热力图', en: 'Heat Year', sizes: ['2x4', '4x4', '1xfull'], opts: ['color'] },
+  ] },
+  { key: 'gauge', zh: '仪表', en: 'Gauge', icon: '◎', styles: [
+    // v2.11：仪表类内容（指针 / 半环），读的是年初或当日进度
+    { key: 'dial', zh: '指针仪表', en: 'Dial', opts: ['color'] },
+    { key: 'semiGauge', zh: '半环仪表', en: 'Semi Gauge', opts: ['color'] },
   ] },
 ];
+
+/** 「样式设置」可编辑字段的元信息（widgetConfig 用它渲染控件） */
+export const STYLE_OPT_FIELDS = {
+  color: { type: 'color', zh: '主色', en: 'Color', def: '' },
+  text: { type: 'text', zh: '文案', en: 'Text', def: '', max: 24 },
+  date: { type: 'date', zh: '目标日', en: 'Target date', def: '' },
+  // v2.11：不同样式各自需要的设置
+  unit: { type: 'select', zh: '统计粒度', en: 'Unit', def: 'year', choices: [['year', '年'], ['week', '周'], ['day', '日']] },
+  shape: { type: 'select', zh: '格子形状', en: 'Shape', def: 'square', choices: [['square', '方块'], ['dot', '圆点']] },
+  bars: { type: 'multi', zh: '进度条', en: 'Bars', def: 'y,m,w,d', choices: [['y', '年'], ['m', '月'], ['w', '周'], ['d', '日'], ['life', '生命']] },
+  age: { type: 'number', zh: '当前年龄', en: 'Age', min: 0, max: 120, def: '' },
+  life: { type: 'number', zh: '预计年龄', en: 'Life span', min: 1, max: 130, def: 85 },
+  // v2.12：从日历里挑一条日程（或下面自定义一条，自定义会写回日历）
+  sched: { type: 'schedule', zh: '关联日程', en: 'Schedule', def: '' },
+};
+
+/**
+ * 某样式支持的卡片尺寸档（未声明 = 全部尺寸都支持）。
+ * 用户要求：不同卡片可显示不同样式，某样式无需适配所有卡片。
+ * @returns {string[]|null} 尺寸 key 数组，或 null 表示不限制
+ */
+export function styleSizesOf(displayMode, contentKey, styleKey) {
+  const cd = displayContents(displayMode).find((c) => c.key === contentKey);
+  const st = cd && cd.styles.find((s) => s.key === styleKey);
+  const sizes = st && st.sizes;
+  return Array.isArray(sizes) && sizes.length ? sizes : null;
+}
+
+/** 该样式在指定卡片尺寸下是否可选 */
+export function styleFitsSize(displayMode, contentKey, styleKey, size) {
+  const sizes = styleSizesOf(displayMode, contentKey, styleKey);
+  return !sizes || !size || sizes.includes(size);
+}
+
+/** 按卡片尺寸过滤后的可选样式列表（至少保留 1 个，避免空列表） */
+export function stylesForSize(displayMode, contentKey, size) {
+  const cd = displayContents(displayMode).find((c) => c.key === contentKey);
+  if (!cd) return [];
+  const all = cd.styles;
+  const fit = all.filter((s) => styleFitsSize(displayMode, contentKey, s.key, size));
+  return fit.length ? fit : all.slice(0, 1);
+}
 
 /** 取某显示模式下的内容列表 */
 export function displayContents(displayMode) {
@@ -380,6 +430,32 @@ export function normalizeOpts(v) {
   const out = {};
   if (v.singleLine !== undefined) out.singleLine = !!v.singleLine;
   if (v.noUnits !== undefined) out.noUnits = !!v.noUnits;
+  // v2.9「样式设置」：主色 / 文案 / 目标日（各自独立校验，非法值丢弃而不是整体失效）
+  if (typeof v.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.color)) out.color = v.color.toLowerCase();
+  if (typeof v.text === 'string') {
+    const t = v.text.trim().slice(0, 24);
+    if (t) out.text = t;
+  }
+  // v2.11：样式设置扩展 —— 粒度 / 形状（枚举）、进度条组合（多选）、年龄与预计年龄（数值）、日程挑选（id 列表）
+  if (v.unit === 'year' || v.unit === 'week' || v.unit === 'day') out.unit = v.unit;
+  if (v.shape === 'square' || v.shape === 'dot') out.shape = v.shape;
+  {
+    const raw = Array.isArray(v.bars) ? v.bars.join(',') : typeof v.bars === 'string' ? v.bars : '';
+    const ok0 = ['y', 'm', 'w', 'd', 'life'];
+    const picked = raw.split(',').map((x) => x.trim()).filter((x) => ok0.includes(x));
+    if (picked.length) out.bars = ok0.filter((x) => picked.includes(x)).join(',');
+  }
+  for (const k of ['age', 'life']) {
+    const n = Number(v[k]);
+    if (Number.isFinite(n) && n >= 0 && n <= 130) out[k] = Math.round(n);
+  }
+  if (typeof v.sched === 'string' && v.sched && v.sched.length <= 40) out.sched = v.sched;
+  if (typeof v.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.date)) {
+    const [y, m, d] = v.date.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    // 真实日期校验：2026-13-99 这类「格式合法但日期不存在」的必须丢弃
+    if (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) out.date = v.date;
+  }
   return Object.keys(out).length ? out : null;
 }
 
@@ -867,7 +943,12 @@ export function sanitizeBlocks(list, displayMode, size) {
   }
   if (displayMode === 'single') {
     const first = out[0] || { c: contents[0].key, s: contents[0].styles[0].key };
-    return [{ c: first.c, s: first.s }];
+    // v2.15 修正：单独模式也必须保留 opts / align，否则「样式设置」每次保存都被丢掉
+    // （历史缺陷：旧实现 return [{ c, s }] 把 opts 整块抹掉，表现为设置改完不生效）
+    const item = { c: first.c, s: first.s };
+    if (first.opts) item.opts = first.opts;
+    if (first.align) item.align = first.align;
+    return [item];
   }
   // 拼接模式：允许 0 个单元（卡片可以不显示内容）
   return out;
