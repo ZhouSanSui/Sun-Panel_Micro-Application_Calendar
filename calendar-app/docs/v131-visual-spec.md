@@ -847,6 +847,14 @@ export function showCalTitle(content, style, span, opts) {
 
 **验证**：test-render 384、test-layout 3370、lint 0 errors。
 
+### 五、日期「数值 + 单位」同排规则（v1.44）
+- **规则**：`年月日 / 年月 / 月日 / 月日星期 / 年月日星期` 横排时，每个「数值+单位」（`2026年`、`10月`、`18日`、`周日`）包在 `.pv-seg { white-space: nowrap }` 里，**单位绝不与数值分行**；段与段之间用 `<wbr>` 提供换行点，空间不足时整段换到下一行。
+- **窄块年份降两位**：块宽 <150px 时年份显示后两位（`26年`），省约 1.1em，换取段内同排；宽块仍显示四位（`2026年`）。`renderBlocksHTML` 传 `shortYear: blockW < 150`；单独模式按尺寸推断（1×1 / 1×2 / 2×1 为两位）。
+- **实现**：`card-mode-render.js` 新增 `seg()` / `joinSegs()` 辅助，替换 5 个样式的纯字符串拼接；五处 CSS 镜像补 `.pv-seg`。
+- **验证**：test-render 392（新增 8 条：段包裹、`<wbr>` 位置、窄块两位年、段数 2/4、CSS 镜像）；矩阵审计仍 **0 裁切 / 0 主文字过小**（换行由段边界承担，不产生溢出）。
+
+---
+
 ---
 
 ## 附录 C：决策速查（给 team-lead 的一页纸）
