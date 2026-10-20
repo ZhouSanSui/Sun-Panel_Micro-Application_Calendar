@@ -268,6 +268,10 @@ const CSS = `
   .pv-single-4x4 .pv-sub { font-size:.6875em; }
   .pv-single-1xfull .pv-center { align-items:center; gap:1em; }
   .pv-single-1xfull .pv-big, .pv-single-1xfull .pv-mid, .pv-single-1xfull .pv-vbig { font-size:1.3em; }
+  /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
+  .pv-single-1x1 { font-size:16px; } .pv-single-1x2 { font-size:17px; } .pv-single-2x1 { font-size:17px; }
+  .pv-single-2x2 { font-size:22px; } .pv-single-2x4 { font-size:26px; } .pv-single-4x4 { font-size:34px; }
+  .pv-single-1xfull { font-size:18px; }
 `;
 
 writeFileSync(new URL('./preview.html', import.meta.url),
