@@ -822,6 +822,33 @@ export function showCalTitle(content, style, span, opts) {
 
 ---
 
+## v1.44 三步优化（beta，2026-10-21）
+
+### 一、置中交互：从「接管」改为「点击即移交」
+- **旧模型**：卡片级置中开启的轴，单元级开关被软禁用（锁图标 +「接管」角标），点击只弹提示、不生效 → 用户以为坏了。
+- **新模型**：单元级开关**始终可点**。点击时若该轴由卡片级控制，先「钉住当前有效值 + 关闭该轴卡片级」，再执行本次切换，提示`已切换为单元级控制`；不会有「点了没反应」。
+- 空间不足：`report.clamped[axis]` 为真 → 提示`空间不足，已尽量居中`。
+- 位移过渡：`@media (prefers-reduced-motion: no-preference) { .pv-block { transition: left .16s ease, top .16s ease } }`（用 no-preference 开门，不占用既有 reduce 媒体查询）。
+- 作用域：widgetConfig 的卡片级置中写部件配置（`cardCenterH/V`，未设置回退全局），与 mainPage 全局口径并存。
+
+### 二、矩阵审计（`scripts/audit-matrix.mjs`）
+- 覆盖 7 尺寸 × 22 样式 × 推荐/最小占格 = 308 组合，无头 Chrome 测量：块溢出、子元素越界、块根字号、**主文字/次要文字最小字号**。
+- 判定：`CLIP`（溢出>1px 或越界）> `TINY`（主文字<9px）> `SUB`（次要<5.5px）> `OK`；「最小占格」遵守 `minArea`（面积下限生效时 1×1 已非法，改测 2×1/1×2 降级候选）。
+- 基线：OK 260 / SUB 44 / TINY 2 / CLIP 2 → 修复后 **OK 284 / SUB 24 / TINY 0 / CLIP 0**。
+
+### 三、按矩阵修复
+- `time.hms`、`time.dateFullWeekday` 声明 `minArea: 2`：禁 1×1 占格（hms 1×1 横向溢出 4px；dateFullWeekday 主字号仅 7.9px）。1×1 场景改由 2×1 或 1×2（竖排）承担。
+- 块根字号 <10px 时追加 `.pv-tight`，`display:none` 隐藏 `.pv-sub`（48px 小块里副标题只有 ~5px，不可读）。
+
+### 四、单独模式按尺寸版式
+- 容器加 `pv-single-<size>`；字号基准随尺寸放大：1×1 16 / 1×2 17 / 2×1 17 / 2×2 22 / 2×4 26 / 4×4 34 / 1×FULL 18（px）。
+- 版式：1×1 隐藏副标题、主字 1.25em；1×2 / 2×4 / 1×FULL 横排（gap 0.75 / 0.875 / 1em）；2×1 纵排（gap 0.375em）；2×2 居中；4×4 副标题放大 0.6875em。
+- 只作用于 `.pv-single`，不影响拼接模式。
+
+**验证**：test-render 384、test-layout 3370、lint 0 errors。
+
+---
+
 ## 附录 C：决策速查（给 team-lead 的一页纸）
 
 | # | 决策 | 关键数值 |
