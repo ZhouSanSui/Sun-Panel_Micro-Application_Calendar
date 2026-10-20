@@ -1,0 +1,303 @@
+<!doctype html><html><head><meta charset=utf-8><style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Microsoft YaHei',sans-serif}
+.m{position:absolute;white-space:nowrap;visibility:hidden;font-variant-numeric:tabular-nums;font-size:100px}
+.w6{font-weight:600} .w7{font-weight:700} .w8{font-weight:800}
+/* ---- 与 card-mode-render.js 同源的结构样式（改模板必须同步） ---- */
+.pv-center { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.375em; width:100%; text-align:center; }
+/* v1.40 需求 2：宽扁块双栏布局（与 card-mode-render.js 同源，改模板必须同步） */
+.pv-center.pv-flat { flex-direction:row; align-items:center; justify-content:center; gap:0.5em; }
+.pv-fnum { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:0 1 auto; }
+.pv-ftext { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.1875em; flex:0 1 auto; min-width:0; text-align:center; }
+.pv-col { display:flex; flex-direction:column; gap:0.3125em; width:100%; }
+.pv-big { font-size:1.875em; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
+.pv-mid { font-size:1em; font-weight:700; line-height:1.25; }
+/* v1.35：简约显示间隔圆点（方案 B 自绘）——与 card-mode-render.js 同源，改模板必须同步 */
+.pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
+.pv-row2 { font-size:0.75em; font-weight:600; }
+.pv-sub { font-size:0.5625em; line-height:1.3; }
+.pv-wd-sm { font-size:0.9375em; font-weight:700; line-height:1.1; }
+.pv-sub-sm { font-size:0.5em; line-height:1.3; }
+.pv-ap { font-size:0.6875em; font-weight:600; }
+.pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:0.1875em; }
+.pv-vstack.t { gap:0.125em; }
+.pv-vline { font-size:1.25em; font-weight:700; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
+/* v1.35 反馈 1：竖排简约的星期行（.pv-vline.wk 0.7em），与组件三处 CSS 一致 */
+.pv-vline.wk { font-size:.7em; }
+.pv-vbig  { font-size:1.875em; font-weight:800; line-height:1.1; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.pv-cal-head { text-align:center; color:inherit; line-height:1.2; }
+.pv-cal-wd { font-size:0.5625em; font-weight:600; margin-left:0.3125em; }
+.pv-wk { display:grid; grid-template-columns:repeat(7,1fr); gap:0.125em; }
+.pv-wk-cell { display:flex; flex-direction:column; align-items:center; border-radius:0.375em; padding:0.1875em 0; }
+.pv-wk-d { font-size:0.75em; font-weight:600; }
+.pv-wk-w { font-size:0.5em; }
+.pv-mini-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:0.125em; margin-top:0; }
+.pv-c { aspect-ratio:1; border-radius:0.25em; display:flex; align-items:center; justify-content:center; font-size:0.5625em; font-weight:500; }
+.pv-wkv { display:grid; grid-template-rows:repeat(7,1fr); grid-template-columns:1fr; gap:0.0625em; width:100%; }
+.pv-wkv-cell { display:flex; align-items:center; justify-content:space-between; padding:0.125em 0.375em; border-radius:0.375em; }
+.pv-wkv-d { font-size:0.75em; font-weight:600; font-variant-numeric:tabular-nums; }
+.pv-wkv-w { font-size:0.5625em; text-align:right; }
+</style></head><body><pre id=out></pre><script>
+const out = [];
+function run(label, S, cls) {
+  for (const [k, v] of Object.entries(S)) {
+    const d = document.createElement("div");
+    d.className = "m " + cls;
+    d.textContent = v;
+    document.body.appendChild(d);
+    out.push(label + k + "=" + (d.getBoundingClientRect().width / 100).toFixed(3));
+  }
+}
+
+// A 组：日期串类（.pv-mid 级 weight 700）/ 标题文本（.pv-row2 级 weight 600）
+const A = {
+  "time:dateMonthDay":    "10月20日",
+  "time:dateMonthDayEn":  "Oct 20",
+  "time:dateFull":        "2026年10月18日",
+  "time:dateWeekday":     "10月18日 周日",
+  "time:dateFullWeekday": "2026年10月18日 周日",
+  "time:vYear":           "2026年",
+  "time:vMonth":          "10月",
+  "time:vDay":            "20日",
+  "time:vWeekdayZh":      "周日",
+  "time:vWeekdayEnShort": "Sun",
+  "time:vWeekdayEnLong":  "Wednesday",
+  "time:calWdEn":         "Sun",
+};
+// B 组：大数字类（.pv-big 级 weight 800）
+const B = { "time:vBig2": "05", "time:vBig4": "2026", "time:vBig2Zh": "周日", "time:vAp": "PM" };
+// D 组：日历日期标题文本（weight 600；渲染时再 ×0.75em）
+const D = { "time:calTitleZh": "2026年10月20日", "time:calTitleEn": "Oct 20, 2026" };
+
+// ---------- 结构样本：按真实模板 DOM 量「固有宽/高」，root=200px → /200 = em ----------
+const ROOT = 200;
+function mk(tag, cls, text, style) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  if (style) e.setAttribute("style", style);
+  return e;
+}
+function host() {
+  const h = document.createElement("div");
+  // width:max-content → 取「固有宽度」，不受宿主宽度钳制（fr 列按 max-content 求解）
+  h.setAttribute("style", "position:absolute;visibility:hidden;white-space:nowrap;width:max-content;font-size:" + ROOT + "px");
+  document.body.appendChild(h);
+  return h;
+}
+/** 在 root 上下文里量一个节点的固有尺寸（em，相对块根字号） */
+function box(build) {
+  const h = host();
+  const el = build();
+  h.appendChild(el);
+  return { w: el.getBoundingClientRect().width / ROOT, h: el.getBoundingClientRect().height / ROOT };
+}
+/** 月历网格（42 格 = 6 行） */
+const monthGrid = () => box(() => {
+  const g = mk("div", "pv-mini-grid");
+  for (let i = 0; i < 42; i++) g.appendChild(mk("span", "pv-c", "20"));
+  return g;
+});
+/** 横排条（周历 7 列 / 单行月历 N 列） */
+const strip = (n, wd) => box(() => {
+  const g = mk("div", "pv-wk");
+  g.setAttribute("style", "grid-template-columns:repeat(" + n + ",1fr)");
+  for (let i = 0; i < n; i++) {
+    const c = mk("div", "pv-wk-cell");
+    c.appendChild(mk("span", "pv-wk-d", "20"));
+    c.appendChild(mk("span", "pv-wk-w", wd));
+    g.appendChild(c);
+  }
+  return g;
+});
+/**
+ * 竖排容器（与 card-mode-render.js 的 vstack 同构）。
+ * tight=false → 日期串类：每行 .pv-vline（1.25em/700/lh1.15），gap .1875em；
+ *   行项可为 { t, wk:true } → .pv-vline.wk（0.7em，v1.35 反馈 1 竖排简约的星期行）
+ * tight=true  → 时间大类：每行 .pv-vrow > .pv-vbig（1.875em/800/lh1.1）+ 可选 .pv-ap，gap .125em
+ */
+const vstack = (lines, tight, apText) => box(() => {
+  const v = mk("div", "pv-vstack" + (tight ? " t" : ""));
+  for (let i = 0; i < lines.length; i++) {
+    if (tight) {
+      const row = mk("div", "pv-vrow");
+      row.appendChild(mk("span", "pv-vbig", lines[i]));
+      if (i === 0 && apText) row.appendChild(mk("span", "pv-ap", apText));
+      v.appendChild(row);
+    } else {
+      const ln = lines[i];
+      const isWk = ln && typeof ln === "object";
+      v.appendChild(mk("div", isWk ? "pv-vline wk" : "pv-vline", isWk ? ln.t : ln));
+    }
+  }
+  return v;
+});
+/** 周历竖排 7 行（行内「日期 + 星期」，space-between） */
+const wkv = (wd) => box(() => {
+  const g = mk("div", "pv-wkv");
+  for (let i = 0; i < 7; i++) {
+    const c = mk("div", "pv-wkv-cell");
+    c.appendChild(mk("span", "pv-wkv-d", "20"));
+    c.appendChild(mk("span", "pv-wkv-w", wd));
+    g.appendChild(c);
+  }
+  return g;
+});
+/** 日历日期标题行（.pv-row2 0.75em/600 + 可选 .pv-cal-wd 0.5625em/600 ml .3125em） */
+const calHead = (main, wd) => box(() => {
+  const d = mk("div", "pv-cal-head pv-row2");
+  d.appendChild(mk("span", "", main));
+  if (wd) d.appendChild(mk("span", "pv-cal-wd", wd));
+  return d;
+});
+
+run("A/", A, "w7");
+run("B/", B, "w8");
+run("D/", D, "w6");
+
+const f = (n) => n.toFixed(3);
+out.push(`E/strip7=${f(strip(7, '一').w)}x${f(strip(7, '一').h)}`);
+out.push(`E/strip15=${f(strip(15, '一').w)}x${f(strip(15, '一').h)}`);
+out.push(`E/strip19=${f(strip(19, '一').w)}x${f(strip(19, '一').h)}`);
+out.push(`E/monthGrid=${f(monthGrid().w)}x${f(monthGrid().h)}`);
+
+const V = [
+  // v1.34：竖排日期串按**实际渲染文案**测量——zh 年份用后两位（v1.32 需求 5），en 用 month:'short'
+  ['dateFullVertZh', ['26年', '10月', '20日'], false],
+  ['dateFullVertEn', ['26', 'Oct', '20'], false],
+  ['dateMonthDayVertZh', ['10月', '20日'], false],
+  ['dateMonthDayVertEn', ['Oct', '20'], false],
+  ['dateWeekdayVertZh', ['10月', '20日', '周日'], false],
+  ['dateWeekdayVertEn', ['Oct', '20', 'Sun'], false],
+  ['dateFullWeekdayVertZh', ['26年', '10月', '20日', '周日'], false],
+  ['dateFullWeekdayVertEn', ['26', 'Oct', '20', 'Sun'], false],
+  ['hmVert', ['14', '05'], true, ''],
+  ['hmsVert', ['14', '05', '09'], true, ''],
+  // 12 小时制：AM/PM 内联在「时」行右侧（.pv-ap .6875em，行内 gap .25em）
+  ['hmVert12', ['02', '05'], true, 'PM'],
+];
+for (const [k, lines, tight, ap] of V) {
+  const r = vstack(lines, tight, ap);
+  out.push(`E/${k}=${f(r.w)}x${f(r.h)}`);
+}
+// 1×1 小卡：年取后两位（.pv-big 1.875em/800）；星期主文字减半（.pv-wd-sm .9375em/700）
+{
+  const r = box(() => {
+    const c = mk("div", "pv-center");
+    c.appendChild(mk("div", "pv-big", "26"));
+    c.appendChild(mk("div", "pv-sub", "年"));
+    return c;
+  });
+  out.push(`E/yearShort=${f(r.w)}x${f(r.h)}`);
+}
+{
+  const r = box(() => {
+    const c = mk("div", "pv-center");
+    c.appendChild(mk("div", "pv-wd-sm", "周三"));
+    c.appendChild(mk("div", "pv-sub pv-sub-sm", "星期"));
+    return c;
+  });
+  out.push(`E/weekdaySmallZh=${f(r.w)}x${f(r.h)}`);
+}
+{
+  const r = box(() => {
+    const c = mk("div", "pv-center");
+    c.appendChild(mk("div", "pv-wd-sm", "Wednesday"));
+    c.appendChild(mk("div", "pv-sub pv-sub-sm", "Weekday"));
+    return c;
+  });
+  out.push(`E/weekdaySmallEn=${f(r.w)}x${f(r.h)}`);
+}
+// 周历竖排（en 用 weekday:'short'）
+out.push(`E/weekVertZh=${f(wkv('一').w)}x${f(wkv('一').h)}`);
+out.push(`E/weekVertEn=${f(wkv('Mon').w)}x${f(wkv('Mon').h)}`);
+out.push(`E/monthHeadZh=${f(calHead('2026年10月20日', null).w)}x${f(calHead('2026年10月20日', null).h)}`);
+out.push(`E/monthHeadEn=${f(calHead('Oct 20, 2026', null).w)}x${f(calHead('Oct 20, 2026', null).h)}`);
+out.push(`E/weekHeadZh=${f(calHead('2026年10月20日', '周日').w)}x${f(calHead('2026年10月20日', '周日').h)}`);
+out.push(`E/weekHeadEn=${f(calHead('Oct 20, 2026', 'Sun').w)}x${f(calHead('Oct 20, 2026', 'Sun').h)}`);
+// 旧月历表头（年月，用于对照）
+out.push(`E/monthHeadOldZh=${f(calHead('2026年10月', null).w)}x${f(calHead('2026年10月', null).h)}`);
+// 整块（表头 + 主体）：直接给出 CONTENT_FIT 的 w/h
+const blk = (build) => box(build);
+{
+  const r = blk(() => {
+    const col = mk("div", "pv-col");
+    col.appendChild(calHeadEl('2026年10月20日', null));
+    col.appendChild(monthGridEl());
+    return col;
+  });
+  out.push(`E/monthTitleBlk=${f(r.w)}x${f(r.h)}`);
+}
+{
+  const r = blk(() => {
+    const col = mk("div", "pv-col");
+    col.appendChild(calHeadEl('2026年10月20日', '周日'));
+    col.appendChild(stripEl(7, '一'));
+    return col;
+  });
+  out.push(`E/weekTitleBlk=${f(r.w)}x${f(r.h)}`);
+}
+function calHeadEl(main, wd) {
+  const d = mk("div", "pv-cal-head pv-row2");
+  d.appendChild(mk("span", "", main));
+  if (wd) d.appendChild(mk("span", "pv-cal-wd", wd));
+  return d;
+}
+function monthGridEl() {
+  const g = mk("div", "pv-mini-grid");
+  for (let i = 0; i < 42; i++) g.appendChild(mk("span", "pv-c", "20"));
+  return g;
+}
+function stripEl(n, wd) {
+  const g = mk("div", "pv-wk");
+  g.setAttribute("style", "grid-template-columns:repeat(" + n + ",1fr)");
+  for (let i = 0; i < n; i++) {
+    const c = mk("div", "pv-wk-cell");
+    c.appendChild(mk("span", "pv-wk-d", "20"));
+    c.appendChild(mk("span", "pv-wk-w", wd));
+    g.appendChild(c);
+  }
+  return g;
+}
+
+// ---------- F 组：v1.40 flat/tall 倒数型双栏/窄高布局固有尺寸 ----------
+// flat：双栏（数字列 .pv-fnum + 文字列 .pv-ftext），横向并排；tall：竖排（DOM 同默认 .pv-center）
+const flatBox = (name, days, subDays, subName) => box(() => {
+  const c = mk("div", "pv-center pv-flat");
+  const fn = mk("div", "pv-fnum");
+  fn.appendChild(mk("div", "pv-big", String(days)));
+  fn.appendChild(mk("div", "pv-sub", subDays));
+  const ft = mk("div", "pv-ftext");
+  ft.appendChild(mk("div", "pv-row2", name));
+  ft.appendChild(mk("div", "pv-sub", subName));
+  c.appendChild(fn); c.appendChild(ft);
+  return c;
+});
+const stackBox = (name, days, subDays, subName) => box(() => {
+  const c = mk("div", "pv-center");
+  c.appendChild(mk("div", "pv-big", String(days)));
+  c.appendChild(mk("div", "pv-sub", subDays));
+  c.appendChild(mk("div", "pv-row2", name));
+  c.appendChild(mk("div", "pv-sub", subName));
+  return c;
+});
+{
+  const impFlatZh = flatBox('中秋节', 365, '天后', '下个节日');
+  const impFlatEn = flatBox('Mid-Autumn Festival', 365, 'days left', 'Next festival');
+  const recFlatZh = flatBox('部门周会', 365, '天后', '最近日程');
+  const recFlatEn = flatBox('Team Weekly', 365, 'days left', 'Nearest schedule');
+  const impStackZh = stackBox('中秋节', 365, '天后', '下个节日');
+  const impStackEn = stackBox('Mid-Autumn Festival', 365, 'days left', 'Next festival');
+  const recStackZh = stackBox('部门周会', 365, '天后', '最近日程');
+  const recStackEn = stackBox('Team Weekly', 365, 'days left', 'Nearest schedule');
+  out.push(`F/importantFlatZh=${f(impFlatZh.w)}x${f(impFlatZh.h)}`);
+  out.push(`F/importantFlatEn=${f(impFlatEn.w)}x${f(impFlatEn.h)}`);
+  out.push(`F/recentFlatZh=${f(recFlatZh.w)}x${f(recFlatZh.h)}`);
+  out.push(`F/recentFlatEn=${f(recFlatEn.w)}x${f(recFlatEn.h)}`);
+  out.push(`F/importantStackZh=${f(impStackZh.w)}x${f(impStackZh.h)}`);
+  out.push(`F/importantStackEn=${f(impStackEn.w)}x${f(impStackEn.h)}`);
+  out.push(`F/recentStackZh=${f(recStackZh.w)}x${f(recStackZh.h)}`);
+  out.push(`F/recentStackEn=${f(recStackEn.w)}x${f(recStackEn.h)}`);
+}
+
+document.getElementById("out").textContent = out.join(String.fromCharCode(10));
+</script></body></html>

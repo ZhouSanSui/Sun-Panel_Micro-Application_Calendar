@@ -1,0 +1,19 @@
+node_modules
+dist
+.history
+packages/*.zip
+packages/*
+.DS_Store
+.template-sync-info.json
+.tmp/
+scripts/preview*.png
+scripts/_probe.mjs
+scripts/_probe.html
+scripts/_tmp_*.png
+scripts/_tmp_*.css
+scripts/_fb*.png
+scripts/_dbg.mjs
+scripts/_keeptest.mjs
+
+# 本机部署脚本：含内网地址，凭据走环境变量，不入库
+deploy.mjs

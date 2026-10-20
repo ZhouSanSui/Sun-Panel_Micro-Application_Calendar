@@ -1,0 +1,11 @@
+# 仓库只保留打包所需源码：忽略临时文件、生成物与工作区元数据
+.tmp/
+.workbuddy/
+node_modules/
+dist/
+packages/
+*.log
+
+# 生成的预览页（scripts/make-preview.mjs / make-defaults-preview.mjs 可随时重建）
+calendar-app/scripts/preview.html
+calendar-app/scripts/defaults-preview.html
