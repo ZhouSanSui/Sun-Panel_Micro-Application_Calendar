@@ -1,6 +1,6 @@
 {
   "name": "zhousansui-holiday-count-down",
-  "version": "2.2.261021-beta",
+  "version": "2.3.261021-beta",
   "templateName": "microapp-template",
   "templateVersion": "1.1.2",
   "type": "module",
@@ -20,7 +20,10 @@
     "clean": "rm -rf dist .build packages",
     "test": "node build/build.js && echo 'Build test passed'",
     "lint": "eslint src config",
-    "lint:fix": "eslint src config --fix"
+    "lint:fix": "eslint src config --fix",
+    "check:css": "node scripts/check-css-mirror.mjs",
+    "check:version": "node scripts/check-version.mjs",
+    "preview:png": "node scripts/screenshot.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
