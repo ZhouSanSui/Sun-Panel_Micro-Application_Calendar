@@ -15,7 +15,7 @@ export default {
   // 应用唯一标识（作者标识-应用标识）
   microAppId: 'zhousansui-holiday-count-down',
   // 应用版本
-  version: '2.11.261021-beta',
+  version: '2.12.261021-beta',
   // 入口文件
   entry: 'main.js',
   // 图标
