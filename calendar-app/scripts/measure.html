@@ -8,6 +8,21 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFa
 .pv-center.pv-flat { flex-direction:row; align-items:center; justify-content:center; gap:0.5em; }
 .pv-fnum { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:0 1 auto; }
 .pv-ftext { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.1875em; flex:0 1 auto; min-width:0; text-align:center; }
+/* v1.40：单独模式按卡片尺寸的版式规则（与三组件 CSS 同源，改规则必须同步） */
+.pv-single .pv-center{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.5em}
+.pv-single-1x1 .pv-big,.pv-single-1x1 .pv-mid,.pv-single-1x1 .pv-vbig{font-size:1.25em}
+.pv-single-1x1 .pv-sub{display:none}
+.pv-single-1x2 .pv-center{gap:.75em}
+.pv-single-1x2 .pv-big,.pv-single-1x2 .pv-mid,.pv-single-1x2 .pv-vbig{font-size:1.15em}
+.pv-single-2x1 .pv-center{flex-direction:column;gap:.375em}
+.pv-single-2x1 .pv-big,.pv-single-2x1 .pv-mid,.pv-single-2x1 .pv-vbig{font-size:1.1em}
+.pv-single-2x2 .pv-center{gap:.5em}
+.pv-single-2x4 .pv-center{gap:.875em}
+.pv-single-2x4 .pv-big,.pv-single-2x4 .pv-mid,.pv-single-2x4 .pv-vbig{font-size:1.2em}
+.pv-single-4x4 .pv-big,.pv-single-4x4 .pv-mid,.pv-single-4x4 .pv-vbig{font-size:1.25em}
+.pv-single-4x4 .pv-sub{font-size:.6875em}
+.pv-single-1xfull .pv-center{align-items:center;gap:1em}
+.pv-single-1xfull .pv-big,.pv-single-1xfull .pv-mid,.pv-single-1xfull .pv-vbig{font-size:1.3em}
 .pv-col { display:flex; flex-direction:column; gap:0.3125em; width:100%; }
 .pv-big { font-size:1.875em; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
 .pv-mid { font-size:1em; font-weight:700; line-height:1.25; }
@@ -62,6 +77,8 @@ const A = {
   "time:vWeekdayEnShort": "Sun",
   "time:vWeekdayEnLong":  "Wednesday",
   "time:calWdEn":         "Sun",
+  // v1.35：U+00B7 自身 advance（用于核对「自绘圆点方案 B」的决策依据）
+  "time:dotAdvance":      "·",
 };
 // B 组：大数字类（.pv-big 级 weight 800）
 const B = { "time:vBig2": "05", "time:vBig4": "2026", "time:vBig2Zh": "周日", "time:vAp": "PM" };
@@ -297,6 +314,81 @@ const stackBox = (name, days, subDays, subName) => box(() => {
   out.push(`F/importantStackEn=${f(impStackEn.w)}x${f(impStackEn.h)}`);
   out.push(`F/recentStackZh=${f(recStackZh.w)}x${f(recStackZh.h)}`);
   out.push(`F/recentStackEn=${f(recStackEn.w)}x${f(recStackEn.h)}`);
+}
+
+// ---------- G 组：v1.35 简约显示（noUnits）结构样本 ----------
+// 必须按**真实 DOM** 量：圆点是自绘 span（宽高 + 左右 margin 各 .28em），
+// 纯文本测量（run）完全量不到 margin，会把 10 个 NoUnits 的 w 系统性地算窄。
+// 星期一律取 en 最宽短星期 Mon（实测 Mon 2.917em > Wed 2.868em > Sun 2.372em），
+// 不要按当天量——换一天就会溢出。zh 侧任意「周X」都是 2 个 CJK，等宽。
+function nuDot() { return mk("span", "pv-dot"); }   // 空内容：尺寸全由 CSS 决定
+function nuWbr() { return document.createElement("wbr"); }
+/** 横排简约：.pv-center > .pv-mid[tabular-nums]；段间「圆点 + wbr」；星期前用字面空格 */
+function nuH(parts, wk) {
+  return box(() => {
+    const c = mk("div", "pv-center");
+    const m = mk("div", "pv-mid");
+    m.setAttribute("style", "font-variant-numeric:tabular-nums");
+    parts.forEach((p, i) => {
+      if (i) { m.appendChild(nuDot()); m.appendChild(nuWbr()); }
+      m.appendChild(mk("span", "", p));
+    });
+    if (wk) { m.appendChild(document.createTextNode(" ")); m.appendChild(mk("span", "", wk)); }
+    c.appendChild(m);
+    return m;
+  });
+}
+/** 竖排简约：.pv-vstack > .pv-vline；末行为星期时加 .wk（.7em） */
+function nuV(lines, hasWk) {
+  return box(() => {
+    const v = mk("div", "pv-vstack");
+    lines.forEach((t, i) => {
+      const last = i === lines.length - 1;
+      v.appendChild(mk("div", "pv-vline" + (hasWk && last ? " wk" : ""), t));
+    });
+    return v;
+  });
+}
+const G = [
+  ['dateFullNoUnitsZh', ['2026', '10', '18'], null],
+  ['dateYearMonthNoUnitsZh', ['2026', '10'], null],
+  ['dateMonthDayNoUnitsZh', ['10', '18'], null],
+  ['dateWeekdayNoUnitsZh', ['10', '18'], '周一'],
+  ['dateWeekdayNoUnitsEn', ['10', '18'], 'Mon'],
+  ['dateFullWeekdayNoUnitsZh', ['2026', '10', '18'], '周一'],
+  ['dateFullWeekdayNoUnitsEn', ['2026', '10', '18'], 'Mon'],
+];
+for (const [k, parts, wk] of G) {
+  const r = nuH(parts, wk);
+  out.push(`G/${k}=${f(r.w)}x${f(r.h)}`);
+}
+const GV = [
+  ['dateFullVertNoUnitsZh', ['26', '10', '18'], false],
+  ['dateYearMonthVertNoUnitsZh', ['26', '10'], false],
+  ['dateMonthDayVertNoUnitsZh', ['10', '18'], false],
+  ['dateWeekdayVertNoUnitsZh', ['10', '18', '周一'], true],
+  ['dateWeekdayVertNoUnitsEn', ['10', '18', 'Mon'], true],
+  ['dateFullWeekdayVertNoUnitsZh', ['26', '10', '18', '周一'], true],
+  ['dateFullWeekdayVertNoUnitsEn', ['26', '10', '18', 'Mon'], true],
+];
+for (const [k, lines, hasWk] of GV) {
+  const r = nuV(lines, hasWk);
+  out.push(`G/${k}=${f(r.w)}x${f(r.h)}`);
+}
+// 新样式「年月」非简约：横排 zh「2026年10月」/ en「Oct 2026」（month:'short'）；竖排 zh / en
+for (const [k, s] of [['dateYearMonthZh', '2026年10月'], ['dateYearMonthEn', 'Oct 2026']]) {
+  const r = box(() => {
+    const c = mk("div", "pv-center");
+    const m = mk("div", "pv-mid", s);
+    m.setAttribute("style", "font-variant-numeric:tabular-nums");
+    c.appendChild(m);
+    return m;
+  });
+  out.push(`G/${k}=${f(r.w)}x${f(r.h)}`);
+}
+for (const [k, lines] of [['dateYearMonthVertZh', ['26年', '10月']], ['dateYearMonthVertEn', ['26', 'Oct']]]) {
+  const r = nuV(lines, false);
+  out.push(`G/${k}=${f(r.w)}x${f(r.h)}`);
 }
 
 document.getElementById("out").textContent = out.join(String.fromCharCode(10));

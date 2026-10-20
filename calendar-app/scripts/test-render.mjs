@@ -160,6 +160,25 @@ for (const w of [520, 760, 1080, 1440]) {
   ok(str.length > 0, '单独模式应有内容');
 }
 
+// v1.40：单独模式按卡片尺寸的版式类名（pv-single-<size>）
+{
+  for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+    const str = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'led', singleRow: true, size })).join('');
+    ok(str.includes('pv-single-' + size), `单独模式 size=${size} 应输出 pv-single-${size}`);
+  }
+  const noSize = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'led', singleRow: true })).join('');
+  ok(noSize.includes('pv-single') && !noSize.includes('pv-single-'), '缺 size 时只输出基础 pv-single');
+  const combo = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'led' })).join('');
+  ok(!combo.includes('pv-single'), '非 singleRow 不输出 pv-single');
+}
+// v1.40：三组件 CSS 镜像含按尺寸版式规则
+for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
+  const src = readFileSync(new URL('../src/components/' + f, import.meta.url), 'utf8');
+  ok(src.includes('.pv-single-1x1'), `${f} CSS 应含 .pv-single-1x1`);
+  ok(src.includes('.pv-single-1xfull'), `${f} CSS 应含 .pv-single-1xfull`);
+  ok(src.includes('.pv-single-1x1 .pv-sub { display: none; }'), `${f} CSS 1x1 应隐藏 .pv-sub`);
+}
+
 // 每种样式的单块都能在受支持尺寸下渲染出非空内容
 for (const [size, [hw, hh]] of Object.entries(HOST)) {
   const sim = simulate(size, hw, hh, [{ c: 'time', s: 'hms' }]);

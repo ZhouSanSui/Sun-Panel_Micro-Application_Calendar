@@ -3,7 +3,7 @@
  * 套上与组件相同的 em/网格 CSS，用于肉眼校验各尺寸下的排版。
  */
 import { writeFileSync } from 'node:fs';
-import { renderBlocksHTML } from '../src/core/card-mode-render.js';
+import { renderBlocksHTML, renderInfoBlock } from '../src/core/card-mode-render.js';
 import { layoutBlocks, gridForSize } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
@@ -151,6 +151,30 @@ const cards = CASES.map(([size, w, h, list, cardCenter, note]) => {
   </figure>`;
 }).join('\n');
 
+// v1.40：单独模式按卡片尺寸版式预览（renderInfoBlock + pv-single-<size> 尺寸类名）
+const SINGLE_CASES = [
+  ['1x1', 120, 120, 'timeDate', 'led'],
+  ['2x1', 120, 252, 'timeDate', 'led'],
+  ['1xfull', 1080, 120, 'timeDate', 'led'],
+  ['1x2', 252, 120, 'timeDate', 'led'],
+  ['2x2', 252, 252, 'timeDate', 'led'],
+  ['2x4', 516, 252, 'timeDate', 'led'],
+  ['4x4', 516, 516, 'timeDate', 'led'],
+  ['1x1', 120, 120, 'schedule', 'recentEvent'],
+  ['2x1', 120, 252, 'schedule', 'recentEvent'],
+  ['1xfull', 1080, 120, 'schedule', 'recentEvent'],
+];
+const singleCards = SINGLE_CASES.map(([size, w, h, c, s]) => {
+  const inner = toHTML(renderInfoBlock({ ...base, content: c, style: s, singleRow: true, size }));
+  return `
+  <figure>
+    <figcaption>单独 ${size} · ${w}×${h}px · ${c}:${s} · pv-single-${size}</figcaption>
+    <div class="card item-card-content" style="width:${w}px;height:${h}px">
+      <div class="card-mode-wrap text-light">${inner}</div>
+    </div>
+  </figure>`;
+}).join('\n');
+
 const CSS = `
   body { margin:0; padding:28px; background:#0d1117; color:#c9d1d9;
          font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Microsoft YaHei',sans-serif; }
@@ -227,6 +251,21 @@ const CSS = `
   .pv-block { position:absolute; box-sizing:border-box; padding:.1875em; display:flex;
               flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
               outline:1px dashed rgba(255,255,255,.10); }
+  /* v1.40：单独模式按卡片尺寸的版式规则（与三组件 CSS 同源，改规则必须同步） */
+  .pv-single .pv-center { flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.5em; }
+  .pv-single-1x1 .pv-big, .pv-single-1x1 .pv-mid, .pv-single-1x1 .pv-vbig { font-size:1.25em; }
+  .pv-single-1x1 .pv-sub { display:none; }
+  .pv-single-1x2 .pv-center { gap:.75em; }
+  .pv-single-1x2 .pv-big, .pv-single-1x2 .pv-mid, .pv-single-1x2 .pv-vbig { font-size:1.15em; }
+  .pv-single-2x1 .pv-center { flex-direction:column; gap:.375em; }
+  .pv-single-2x1 .pv-big, .pv-single-2x1 .pv-mid, .pv-single-2x1 .pv-vbig { font-size:1.1em; }
+  .pv-single-2x2 .pv-center { gap:.5em; }
+  .pv-single-2x4 .pv-center { gap:.875em; }
+  .pv-single-2x4 .pv-big, .pv-single-2x4 .pv-mid, .pv-single-2x4 .pv-vbig { font-size:1.2em; }
+  .pv-single-4x4 .pv-big, .pv-single-4x4 .pv-mid, .pv-single-4x4 .pv-vbig { font-size:1.25em; }
+  .pv-single-4x4 .pv-sub { font-size:.6875em; }
+  .pv-single-1xfull .pv-center { align-items:center; gap:1em; }
+  .pv-single-1xfull .pv-big, .pv-single-1xfull .pv-mid, .pv-single-1xfull .pv-vbig { font-size:1.3em; }
 `;
 
 writeFileSync(new URL('./preview.html', import.meta.url),
@@ -234,4 +273,10 @@ writeFileSync(new URL('./preview.html', import.meta.url),
 <title>v1.35 拼接模式网格布局预览</title><style>${CSS}</style></head>
 <body><h1>v1.35 拼接模式 · 网格布局静态预览（虚线为块边界）</h1>
 <div class="grid-wrap">${cards}</div></body></html>`);
-console.log('✅ scripts/preview.html 已生成');
+// v1.40：单独模式按尺寸版式独立预览页（便于无头截图逐尺寸肉眼校验）
+writeFileSync(new URL('./preview-single.html', import.meta.url),
+  `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>v1.40 单独模式 · 按尺寸版式预览</title><style>${CSS}</style></head>
+<body><h1>v1.40 单独模式 · 按卡片尺寸的版式（pv-single-*）</h1>
+<div class="grid-wrap">${singleCards}</div></body></html>`);
+console.log('✅ scripts/preview.html + scripts/preview-single.html 已生成');

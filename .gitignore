@@ -8,4 +8,5 @@ packages/
 
 # 生成的预览页（scripts/make-preview.mjs / make-defaults-preview.mjs 可随时重建）
 calendar-app/scripts/preview.html
+calendar-app/scripts/preview-single.html
 calendar-app/scripts/defaults-preview.html

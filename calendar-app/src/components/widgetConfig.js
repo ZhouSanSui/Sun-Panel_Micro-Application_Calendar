@@ -656,7 +656,7 @@ export class WidgetConfig extends SunPanelPageElement {
         cellH,
         size: this._size,
       })
-      : renderInfoBlock({ ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true });
+      : renderInfoBlock({ ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true, size: this._size });
     return html`
       <div class="pv-size-box mode-pv ${textMode}" style="${visual.bg};width:${w}px;height:${h}px;">
         <div class="card-mode-wrap">${inner}</div>
@@ -1679,6 +1679,33 @@ export class WidgetConfig extends SunPanelPageElement {
         }
         /* 单独模式：整卡内容一行排列 */
         .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
+        /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
+           与 widget / mainPage / make-preview / measure.html 五处镜像，改规则必须同步） */
+        .pv-single-1x1 .pv-big,
+        .pv-single-1x1 .pv-mid,
+        .pv-single-1x1 .pv-vbig { font-size: 1.25em; }
+        .pv-single-1x1 .pv-sub { display: none; }
+        .pv-single-1x2 .pv-center { gap: 0.75em; }
+        .pv-single-1x2 .pv-big,
+        .pv-single-1x2 .pv-mid,
+        .pv-single-1x2 .pv-vbig { font-size: 1.15em; }
+        .pv-single-2x1 .pv-center { flex-direction: column; gap: 0.375em; }
+        .pv-single-2x1 .pv-big,
+        .pv-single-2x1 .pv-mid,
+        .pv-single-2x1 .pv-vbig { font-size: 1.1em; }
+        .pv-single-2x2 .pv-center { gap: 0.5em; }
+        .pv-single-2x4 .pv-center { gap: 0.875em; }
+        .pv-single-2x4 .pv-big,
+        .pv-single-2x4 .pv-mid,
+        .pv-single-2x4 .pv-vbig { font-size: 1.2em; }
+        .pv-single-4x4 .pv-big,
+        .pv-single-4x4 .pv-mid,
+        .pv-single-4x4 .pv-vbig { font-size: 1.25em; }
+        .pv-single-4x4 .pv-sub { font-size: 0.6875em; }
+        .pv-single-1xfull .pv-center { align-items: center; gap: 1em; }
+        .pv-single-1xfull .pv-big,
+        .pv-single-1xfull .pv-mid,
+        .pv-single-1xfull .pv-vbig { font-size: 1.3em; }
         .pv-size-box svg { max-width: 80%; max-height: 80%; }
       </style>
       <div class="page" style="${appleThemeVars(dark)}">

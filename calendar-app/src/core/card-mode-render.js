@@ -826,10 +826,13 @@ function renderInfoBlockInner(o) {
 /**
  * 渲染单个显示内容单元（v1.24 外壳）。
  * @param {boolean} o.singleRow 单独模式整卡渲染时内容按「一行」排列
+ * @param {string} [o.size] 单独模式卡片尺寸（1x1/1x2/2x1/2x2/2x4/4x4/1xfull）：
+ *   输出 pv-single-<size> 类名，供按尺寸版式规则命中（CSS 见三组件与预览镜像）
  */
 export function renderInfoBlock(o) {
   const body = renderInfoBlockInner(o);
-  return o.singleRow ? html`<div class="pv-single">${body}</div>` : body;
+  const cls = o.size ? 'pv-single pv-single-' + o.size : 'pv-single';
+  return o.singleRow ? html`<div class="${cls}">${body}</div>` : body;
 }
 
 /**
