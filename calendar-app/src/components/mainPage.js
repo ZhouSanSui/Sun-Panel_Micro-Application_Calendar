@@ -25,7 +25,7 @@ import {
   cardThemeVisual,
   DISPLAY_MODES, displayContents, contentDef, styleDef, defaultStyleFor,
   sanitizeBlocks,
-  gridForSize, layoutBlocks, blocksFit, styleSpanDef, autoLayout,
+  gridForSize, comboGridFor, layoutBlocks, blocksFit, styleSpanDef, autoLayout,
   blockSpanDef, effectiveSpan, spanBounds, shiftFlatStyle,
   unitAlign, unitOpts, unitId, isFullCard, unitAlignExplicit,
   alignGovernor, applyAlignmentWithReport, layoutSignature, NO_UNITS_DATE_STYLES,
@@ -1752,11 +1752,23 @@ export class MainPage extends SunPanelPageElement {
     const theme = this._theme();
     const displayMode = this._cardDisplayMode();
     const blocks = this._cardBlocksFor(size);
-    // SunPanel 尺寸为「行×列」，预览按 [列,行] 等比缩放（与 widgetConfig 一致）
-    const [pvCols, pvRows] = CARD_SIZE_GRID[size] || [2, 2];
-    const pvU = Math.min(90, 200 / pvRows, 220 / pvCols);
-    const pvW = Math.round(pvU * pvCols);
-    const pvH = Math.round(pvU * pvRows);
+    // v1.45：优先用 widget 回写的实测尺寸，复现真实宽高比与网格（预览 = 实际）；
+    // 没有实测数据时退回「按尺寸网格等比缩放」（示意用）
+    const pvReal = s.previewSize;
+    const isReal = !!(pvReal && pvReal.size === size && pvReal.w > 0 && pvReal.h > 0);
+    let pvW;
+    let pvH;
+    let pvScale = 1;
+    if (isReal) {
+      pvScale = Math.min(240 / pvReal.w, 200 / pvReal.h, 1);
+      pvW = Math.round(pvReal.w * pvScale);
+      pvH = Math.round(pvReal.h * pvScale);
+    } else {
+      const [pvCols, pvRows] = CARD_SIZE_GRID[size] || [2, 2];
+      const pvU = Math.min(90, 200 / pvRows, 220 / pvCols);
+      pvW = Math.round(pvU * pvCols);
+      pvH = Math.round(pvU * pvRows);
+    }
     const common = {
       visual,
       theme,
@@ -1766,10 +1778,12 @@ export class MainPage extends SunPanelPageElement {
       hour12: s.hour12,
       t: (k) => this.t(k),
     };
-    // 卡片内可用区 = 预览框去掉 6% 内边距
-    const grid = gridForSize(size);
-    const cellW = (pvW * 0.88) / (grid.cols || 1);
-    const cellH = (pvH * 0.88) / (grid.rows || 1);
+    // 卡片内可用区：有实测尺寸时按真实内边距（24px × 缩放），否则按 12% 估算
+    const grid = isReal ? comboGridFor(size, pvReal.w, pvReal.h) : gridForSize(size);
+    const innerW = isReal ? pvW - 24 * pvScale : pvW * 0.88;
+    const innerH = isReal ? pvH - 24 * pvScale : pvH * 0.88;
+    const cellW = innerW / (grid.cols || 1);
+    const cellH = innerH / (grid.rows || 1);
     const inner = displayMode === 'combo'
       ? renderBlocksHTML({
         ...common,

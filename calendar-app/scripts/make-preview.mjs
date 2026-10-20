@@ -4,7 +4,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import { renderBlocksHTML, renderInfoBlock } from '../src/core/card-mode-render.js';
-import { layoutBlocks, gridForSize } from '../src/core/user-store.js';
+import { layoutBlocks, comboGridFor } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
 // 注入一批临近日程（供 schedule.multiple 用例渲染真实数据；now=2026-10-18）
@@ -131,10 +131,8 @@ const CASES = [
 ];
 
 const cards = CASES.map(([size, w, h, list, cardCenter, note]) => {
-  const g = gridForSize(size);
-  let cols = g.cols;
-  if (size === '1xfull') cols = Math.max(4, Math.min(10, Math.round((w - 24) / 90)));
-  const grid = { cols, rows: g.rows };
+  // v1.45：与运行时同一套网格（1xfull 按宽度取列、窄卡降密度）
+  const grid = comboGridFor(size, w, h);
   const cellW = (w - 24) / grid.cols;
   const cellH = (h - 24) / grid.rows;
   const blocks = list.map(([c, s, extra]) => ({ c, s, ...(extra || {}) }));

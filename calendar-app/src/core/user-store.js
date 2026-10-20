@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   cardBlocks: null,        // 当前显示的信息块 key 列表（null=按尺寸默认）
   cardCenterH: false,      // 卡片级水平置中（内容未填满时整体居中）
   cardCenterV: false,      // 卡片级垂直置中
+  previewSize: null,       // v1.45：widget 回写的实测卡片尺寸 {size,w,h}，配置页预览据此复现真实宽高比
 };
 
 /** 卡片主题定义（移除"跟随"，改为玻璃/渐变/纸感系列） */
@@ -209,6 +210,25 @@ export const CARD_GRID = {
 export function gridForSize(size) {
   const g = CARD_GRID[size];
   return g ? { cols: g.cols, rows: g.rows } : { cols: 4, rows: 4 };
+}
+
+/**
+ * v1.45：运行时的实际网格（与 widget 渲染完全同源）。
+ * - 1×FULL：列数按宽度动态取 4~10（基准列宽 90px）
+ * - 其他尺寸：单元格实测 <24px 时对应维度降密度（保底 2）
+ * 传 0/undefined 时回退声明网格。
+ */
+export function comboGridFor(size, w, h) {
+  const g = gridForSize(size);
+  if (size === '1xfull') {
+    if (!w) return g;
+    return { cols: Math.max(4, Math.min(10, Math.round((w - 24) / 90))), rows: g.rows };
+  }
+  if (!w || !h) return g;
+  const out = { cols: g.cols, rows: g.rows };
+  while ((h - 24) / out.rows < 24 && out.rows > 2) out.rows = Math.ceil(out.rows / 2);
+  while ((w - 24) / out.cols < 24 && out.cols > 2) out.cols = Math.ceil(out.cols / 2);
+  return out;
 }
 
 /** 取某样式的占位声明（preferred + min，未声明时 1×1） */

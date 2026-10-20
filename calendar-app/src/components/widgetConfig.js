@@ -22,7 +22,7 @@ import {
   CARD_THEMES, cardThemeVisual,
   DISPLAY_MODES, displayContents, contentDef, styleDef, defaultStyleFor,
   sanitizeBlocks, migrateToBlocks,
-  gridForSize, layoutBlocks, blocksFit, styleSpanDef, autoLayout,
+  gridForSize, comboGridFor, layoutBlocks, blocksFit, styleSpanDef, autoLayout,
   blockSpanDef, effectiveSpan, spanBounds, shiftFlatStyle,
   unitAlign, unitOpts, unitId, isFullCard, unitAlignExplicit,
   alignGovernor, applyAlignmentWithReport, layoutSignature, NO_UNITS_DATE_STYLES,
@@ -638,10 +638,22 @@ export class WidgetConfig extends SunPanelPageElement {
     const theme = APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue;
     const visual = cardThemeVisual(this.cardTheme, dark);
     const isZh = this._isZh();
-    const [cols, rows] = this._sizeGrid();
-    const u = Math.min(64, 140 / rows, 220 / cols);
-    const w = Math.round(u * cols);
-    const h = Math.round(u * rows);
+    // v1.45：优先复现 widget 实测尺寸（同宽高比 + 同网格），否则退回按尺寸网格缩放
+    const pvReal = getUserStore()?.getSettings()?.previewSize;
+    const isReal = !!(pvReal && pvReal.size === this._size && pvReal.w > 0 && pvReal.h > 0);
+    let pvScale = 1;
+    let w;
+    let h;
+    if (isReal) {
+      pvScale = Math.min(240 / pvReal.w, 200 / pvReal.h, 1);
+      w = Math.round(pvReal.w * pvScale);
+      h = Math.round(pvReal.h * pvScale);
+    } else {
+      const [cols, rows] = this._sizeGrid();
+      const u = Math.min(64, 140 / rows, 220 / cols);
+      w = Math.round(u * cols);
+      h = Math.round(u * rows);
+    }
     const textMode = visual.textLight ? 'text-light' : 'text-dark';
     const common = {
       visual,
@@ -653,10 +665,11 @@ export class WidgetConfig extends SunPanelPageElement {
       t: (k) => this.t(k),
     };
     const blocks = sanitizeBlocks(this.cardBlocks, this.displayMode, this._size);
-    const grid = gridForSize(this._size);
-    // 单元格像素宽/高：预览框按尺寸网格等比缩小，作为块内 em 字号的基准
-    const cellW = (w - 14) / (grid.cols || 1);
-    const cellH = (h - 14) / (grid.rows || 1);
+    const grid = isReal ? comboGridFor(this._size, pvReal.w, pvReal.h) : gridForSize(this._size);
+    // 单元格像素宽/高：有实测尺寸时按真实内边距缩放，否则按预览框等比估算
+    const padPx = isReal ? 24 * pvScale : 14;
+    const cellW = (w - padPx) / (grid.cols || 1);
+    const cellH = (h - padPx) / (grid.rows || 1);
     const inner = this.displayMode === 'combo'
       ? renderBlocksHTML({
         ...common,

@@ -13,7 +13,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { renderBlocksHTML } from '../src/core/card-mode-render.js';
 import {
-  COMBO_CONTENTS, displayContents, gridForSize, layoutBlocks, prefSpan, spanBounds,
+  COMBO_CONTENTS, displayContents, comboGridFor, layoutBlocks, prefSpan, spanBounds,
 } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
@@ -67,9 +67,7 @@ const SIZES = Object.keys(DIMS);
 const cases = [];
 for (const size of SIZES) {
   const [w, h] = DIMS[size];
-  const g = gridForSize(size);
-  const cols = size === '1xfull' ? Math.max(4, Math.min(10, Math.round((w - 24) / 90))) : g.cols;
-  const grid = { cols, rows: g.rows };
+  const grid = comboGridFor(size, w, h);
   const cellW = (w - 24) / grid.cols;
   const cellH = (h - 24) / grid.rows;
 

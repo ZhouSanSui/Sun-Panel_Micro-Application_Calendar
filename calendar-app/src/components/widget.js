@@ -12,7 +12,7 @@ import { getSchedulesOfDay, SCHEDULE_TYPES, getNextOccurrence } from '../core/sc
 import { APPLE_COLORS } from '../core/apple-ui.js';
 import {
   DEFAULT_WIDGET_CONFIG, CARD_SIZE_MODULES, cardThemeVisual,
-  sanitizeBlocks, migrateToBlocks, gridForSize, layoutBlocks,
+  sanitizeBlocks, migrateToBlocks, gridForSize, comboGridFor, layoutBlocks,
 } from '../core/user-store.js';
 import { renderInfoBlock, renderBlocksHTML } from '../core/card-mode-render.js';
 
@@ -78,6 +78,20 @@ export class Widget extends SunPanelWidgetElement {
     if (this._cardSize === '1xfull') {
       const availW = Math.max(0, w - 24); // .widget padding 12×2
       this._fullCols = Math.max(4, Math.min(10, Math.round(availW / 90)));
+    }
+    // v1.45：把实测尺寸回写设置，供配置页预览复现同一宽高比与网格（避免预览与实际不一致）
+    const prev = getUserStore()?.getSettings()?.previewSize;
+    if (!prev || prev.size !== this._cardSize
+      || Math.abs(prev.w - w) >= 4 || Math.abs(prev.h - h) >= 4) {
+      clearTimeout(this._pvSizeTimer);
+      this._pvSizeTimer = setTimeout(() => {
+        const now = getUserStore()?.getSettings()?.previewSize;
+        if (now && now.size === this._cardSize
+          && Math.abs(now.w - w) < 4 && Math.abs(now.h - h) < 4) return;
+        getUserStore()?.updateSettings({
+          previewSize: { size: this._cardSize, w: Math.round(w), h: Math.round(h) },
+        });
+      }, 600);
     }
     this.requestUpdate();
   }
@@ -242,19 +256,8 @@ export class Widget extends SunPanelWidgetElement {
    * - 其他尺寸按声明网格，若实测单元格 <24px 则对应维度降密度（保底 2）
    */
   get _comboGrid() {
-    const g = gridForSize(this._cardSize);
-    if (this._cardSize === '1xfull') {
-      return this._fullCols ? { cols: this._fullCols, rows: g.rows } : g;
-    }
-    if (this._hostW && this._hostH) {
-      const availW = this._hostW - 24;
-      const availH = this._hostH - 24;
-      const out = { cols: g.cols, rows: g.rows };
-      while (availH / out.rows < 24 && out.rows > 2) out.rows = Math.ceil(out.rows / 2);
-      while (availW / out.cols < 24 && out.cols > 2) out.cols = Math.ceil(out.cols / 2);
-      return out;
-    }
-    return g;
+    // v1.45：与配置页预览共用 comboGridFor，保证「预览 = 实际」
+    return comboGridFor(this._cardSize, this._hostW, this._hostH);
   }
 
   /** 单元格像素宽/高（块内 em 字号的基准；未量到尺寸时给经验值） */

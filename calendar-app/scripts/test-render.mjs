@@ -621,6 +621,18 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     }
   }
 
+  // v1.45：配置页预览复现 widget 实测尺寸与运行时网格
+  {
+    const mp = readFileSync(new URL('../src/components/mainPage.js', import.meta.url), 'utf8');
+    ok(/previewSize/.test(mp) && /comboGridFor\(size, pvReal\.w, pvReal\.h\)/.test(mp),
+      'mainPage 预览使用实测尺寸 + 运行时网格');
+    const wc = readFileSync(new URL('../src/components/widgetConfig.js', import.meta.url), 'utf8');
+    ok(/previewSize/.test(wc) && /comboGridFor\(this\._size, pvReal\.w, pvReal\.h\)/.test(wc),
+      'widgetConfig 预览使用实测尺寸 + 运行时网格');
+    const w = readFileSync(new URL('../src/components/widget.js', import.meta.url), 'utf8');
+    ok(/previewSize: \{ size: this\._cardSize/.test(w), 'widget 回写实测尺寸到设置');
+  }
+
   // v1.44：日期「数值+单位」不可断行（.pv-seg），只允许段间换行；窄块年份降两位
   {
     const mk = (extra) => flatten(renderInfoBlock({ ...base, ...extra })).join('');

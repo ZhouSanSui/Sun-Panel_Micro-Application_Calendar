@@ -7,7 +7,7 @@
  *  5) 旧数据（无 span/pos 的 [{c,s}]）经 layoutBlocks 后坐标合法
  */
 import {
-  CARD_GRID, gridForSize, styleSpanDef, buildOccupancy, canPlace, findSlot,
+  CARD_GRID, gridForSize, comboGridFor, styleSpanDef, buildOccupancy, canPlace, findSlot,
   autoLayout, blocksFit, layoutBlocks, sanitizeBlocks,
   normalizeSpan, blockSpanDef, effectiveSpan, spanBounds, flatStyleSeq, shiftFlatStyle,
   unitId, unitAlign, unitOpts, isFullCard, UserStore,
@@ -321,6 +321,20 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
   ok(unknown.c === seq[0].c, '未知样式应回退到序列首项');
   // 单独模式序列
   ok(flatStyleSeq('single').length === displayContents('single').reduce((n, c) => n + c.styles.length, 0), '单独模式扁平序列长度正确');
+}
+
+// v1.45：运行时网格 comboGridFor（预览/审计/运行时共用，保证「预览 = 实际」）
+{
+  ok(comboGridFor('1xfull', 1080, 120).cols === 10, '1xfull 1080px → 10 列');
+  ok(comboGridFor('1xfull', 700, 120).cols === 8, '1xfull 700px → 8 列');
+  ok(comboGridFor('1xfull', 520, 120).cols === 6, '1xfull 520px → 6 列');
+  ok(comboGridFor('1xfull', 300, 120).cols === 4, '1xfull 300px → 保底 4 列');
+  // 4×4 卡实测 110×200：cellW=(110-24)/4=21.5 <24 → 列降密度到 2；cellH=44 ≥24 → 行保持 4
+  const g2 = comboGridFor('4x4', 110, 200);
+  ok(g2.cols === 2 && g2.rows === 4, `窄卡单元格 <24px 时仅该维度降密度（实际 ${g2.cols}×${g2.rows}）`);
+  ok(comboGridFor('2x2', 252, 252).cols === 4 && comboGridFor('2x2', 252, 252).rows === 4,
+    '常规尺寸保持声明网格 4×4');
+  ok(comboGridFor('1xfull', 0, 0).cols === gridForSize('1xfull').cols, '未量到尺寸时回退声明网格');
 }
 
 // ---------- 9) v1.30 空卡片 / 空白单元 ----------
