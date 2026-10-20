@@ -17,3 +17,8 @@ scripts/_keeptest.mjs
 
 # 本机部署脚本：含内网地址，凭据走环境变量，不入库
 deploy.mjs
+
+# 矩阵审计生成物（scripts/audit-matrix.mjs 可重建）
+scripts/audit-cases.html
+scripts/audit-matrix.html
+scripts/audit-result.json

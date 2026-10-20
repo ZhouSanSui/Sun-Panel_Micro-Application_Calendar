@@ -56,9 +56,14 @@ node scripts/test-layout.mjs             # 布局/占格/置中回归（约 3300
 node scripts/test-render.mjs             # 渲染/DOM/样式镜像回归（约 350 断言）
 node scripts/make-preview.mjs            # → scripts/preview.html（各尺寸排版用例）
 node scripts/make-defaults-preview.mjs   # → scripts/defaults-preview.html（7 卡默认样式）
+node scripts/audit-matrix.mjs            # → scripts/audit-matrix.html（样式×尺寸显示能力矩阵）
 ```
 
-预览页用浏览器打开即可肉眼校验；上述生成物不入库。
+`audit-matrix` 会把「每个显示样式 × 每个卡片尺寸 × 推荐/最小占格」全渲染一遍，用无头 Chrome
+量溢出与字号，输出红黄绿矩阵（绿=正常、黄=主文字 <9px、蓝=次要文字 <5.5px、红=被裁切），
+用于发现「某个尺寸下某样式塞不下」的问题。
+
+预览页与审计报告均为生成物，不入库。
 
 ## 构建与部署
 
