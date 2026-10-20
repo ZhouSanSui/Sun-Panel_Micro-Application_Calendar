@@ -125,6 +125,8 @@ export default {
   CARD_ALIGN_DEFAULT_TAG: 'Default',
   CARD_ALIGN_TAKEOVER_TAG: 'Taken over',
   CARD_ALIGN_UNIT_HINT: 'Centers the whole row/column band',
+  CARD_ALIGN_SWITCHED: 'Switched to per-unit control',
+  CARD_ALIGN_CLAMPED: 'Not enough room — centered as far as possible',
   CARD_CENTER_TAKEOVER_NOTE: 'When on, it overrides per-unit centering in the resize editor',
   // v1.31 req 2: month "one line" is 1×FULL only
   CARD_SINGLELINE_ONLY_FULL: '"One line" is only available on 1×FULL cards',

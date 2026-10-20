@@ -252,6 +252,7 @@ const CSS = `
   .pv-block { position:absolute; box-sizing:border-box; padding:.1875em; display:flex;
               flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
               outline:1px dashed rgba(255,255,255,.10); }
+  @media (prefers-reduced-motion: no-preference) { .pv-block { transition:left .16s ease, top .16s ease; } }
   /* v1.40：单独模式按卡片尺寸的版式规则（与三组件 CSS 同源，改规则必须同步） */
   .pv-single .pv-center { flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.5em; }
   .pv-single-1x1 .pv-big, .pv-single-1x1 .pv-mid, .pv-single-1x1 .pv-vbig { font-size:1.25em; }

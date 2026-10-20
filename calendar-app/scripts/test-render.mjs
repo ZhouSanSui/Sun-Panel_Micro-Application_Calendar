@@ -621,6 +621,25 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     }
   }
 
+  // v1.43：置中不再「接管即禁用」——单元级控件始终可点，点击即把该轴移交给单元
+  {
+    const mp = readFileSync(new URL('../src/components/mainPage.js', import.meta.url), 'utf8');
+    ok(!/alignLocked: \{ h: this\._alignGov\.h === 'card'/.test(mp),
+      'mainPage 不再按接管态锁定单元级开关');
+    ok(!/onUnlock:/.test(mp), 'mainPage 占格编辑器不再提供「解锁」入口（点击即移交）');
+    ok(/CARD_ALIGN_SWITCHED/.test(mp), 'mainPage 使用「已切换为单元级控制」提示');
+    ok(/report\.clamped\[axis\]/.test(mp), 'mainPage 使用 clamped 判定给出「空间不足」提示');
+    const wc = readFileSync(new URL('../src/components/widgetConfig.js', import.meta.url), 'utf8');
+    ok(!/alignLocked: \{ h: this\._alignGov\.h === 'card'/.test(wc), 'widgetConfig 同样不再锁定单元级开关');
+    for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
+      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      ok(/@media \(prefers-reduced-motion: no-preference\) \{ \.pv-block \{ transition: left 0\.16s ease, top 0\.16s ease; \} \}/.test(cssSrc),
+        `${f} 仅在允许动效时给 .pv-block 加位移过渡`);
+      ok(!/@media \(prefers-reduced-motion: reduce\)[^}]*\.pv-block/.test(cssSrc),
+        `${f} reduce 媒体查询不涉及 .pv-block（不干扰既有动效规则）`);
+    }
+  }
+
   // v1.40 需求 1：年/星期小卡规则对调验证（2×1 小卡、1×2 全量）
   {
     const mk2 = (extra) => renderInfoBlock({ ...base, ...extra });

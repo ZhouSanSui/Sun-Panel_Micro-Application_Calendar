@@ -125,6 +125,8 @@ export default {
   CARD_ALIGN_DEFAULT_TAG: '默认',
   CARD_ALIGN_TAKEOVER_TAG: '接管',
   CARD_ALIGN_UNIT_HINT: '按所在行/列整组居中',
+  CARD_ALIGN_SWITCHED: '已切换为单元级控制',
+  CARD_ALIGN_CLAMPED: '空间不足，已尽量居中',
   CARD_CENTER_TAKEOVER_NOTE: '开启后接管占格编辑器中的单元级置中',
   // v1.31 需求 2：月历「单行显示」仅 1×FULL
   CARD_SINGLELINE_ONLY_FULL: '「单行显示」仅 1×FULL 卡片可用',

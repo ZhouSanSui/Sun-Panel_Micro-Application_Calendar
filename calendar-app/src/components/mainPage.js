@@ -1421,13 +1421,12 @@ export class MainPage extends SunPanelPageElement {
       onResize: (dCols, dRows) => this._cardResizeSpan(dCols, dRows),
       onReset: () => this._cardResetSpan(),
       onClose: () => { this._cardSpanEdit = null; this.requestUpdate(); },
-      // v1.31 需求 1：卡片级接管的轴 → 单元级开关软禁用（可点，点了给原因 + 解锁）
-      alignLocked: { h: this._alignGov.h === 'card', v: this._alignGov.v === 'card' },
+      // v1.43：不再有「接管/锁定」——单元级控件始终可点，点击即移交该轴控制权
+      alignLocked: { h: false, v: false },
       alignDefault: { h: !unitAlignExplicit(info.b), v: !unitAlignExplicit(info.b) },
       alignHint: this.t('CARD_ALIGN_UNIT_HINT'),
       t: (key, vars) => this.t(key, vars),
       onToggleAlign: (axis) => this._toggleCardAlignWithFeedback(axis),
-      onUnlock: (axis) => this._unlockCardCenter(axis),
       onFull: () => this._fillCardSpanFull(),
       onToggleSingleLine: () => this._toggleCardSpanSingleLine(),
       onToggleNoUnits: () => this._toggleCardSpanNoUnits(),
@@ -1578,9 +1577,12 @@ export class MainPage extends SunPanelPageElement {
    * 否则执行切换，并在「无空间可居中」时给出一次性提示（D6）。
    */
   _toggleCardAlignWithFeedback(axis) {
+    // v1.43：不再「接管即禁用」。卡片级开着该轴时，点单元开关 = 当场把该轴控制权交给单元：
+    // 先钉住当前有效值并关掉卡片级，再执行本次切换（保证点一下一定改变状态），最后给出提示。
+    let switched = false;
     if (this._alignGov[axis] === 'card') {
-      this._showCardCfgHint(this.t(axis === 'h' ? 'CARD_ALIGN_LOCKED_H' : 'CARD_ALIGN_LOCKED_V'));
-      return;
+      this._unlockCardCenter(axis);
+      switched = true;
     }
     const before = layoutSignature(this._cardLaidBlocks());
     this._toggleCardSpanAlign(axis);
@@ -1597,6 +1599,14 @@ export class MainPage extends SunPanelPageElement {
       gridForSize(this._cardCfgSizeKey()),
       { h: this._alignGov.h === 'unit', v: this._alignGov.v === 'unit' },
     );
+    if (report.clamped[axis]) {
+      this._showCardCfgHint(this.t('CARD_ALIGN_CLAMPED'));
+      return;
+    }
+    if (switched) {
+      this._showCardCfgHint(this.t('CARD_ALIGN_SWITCHED'));
+      return;
+    }
     const n = report.groupSize[axis];
     if (n > 1) {
       this._showCardCfgHint(this.t(axis === 'h' ? 'CARD_ALIGN_GROUP_H' : 'CARD_ALIGN_GROUP_V', { count: n - 1 }));
@@ -1868,6 +1878,7 @@ export class MainPage extends SunPanelPageElement {
           justify-content: center;
           overflow: hidden;
         }
+        @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
         .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
         /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
            与 widget / widgetConfig / make-preview / measure.html 五处镜像，改规则必须同步） */

@@ -882,6 +882,7 @@ export class Widget extends SunPanelWidgetElement {
         justify-content: center;
         overflow: hidden;
       }
+      @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
       /* 单独模式：整卡内容一行排列 */
       .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
       /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；

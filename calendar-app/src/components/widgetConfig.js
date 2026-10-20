@@ -460,9 +460,11 @@ export class WidgetConfig extends SunPanelPageElement {
    * 否则执行切换，并在「无空间可居中」时给出一次性提示（D6，避免静默无反应）。
    */
   _toggleAlignWithFeedback(axis) {
+    // v1.43：同 mainPage —— 卡片级开着该轴时点单元开关，先把该轴移交给单元再切换。
+    let switched = false;
     if (this._alignGov[axis] === 'card') {
-      this._showHint(this.t(axis === 'h' ? 'CARD_ALIGN_LOCKED_H' : 'CARD_ALIGN_LOCKED_V'));
-      return;
+      this._unlockCardCenter(axis);
+      switched = true;
     }
     const before = layoutSignature(this._laidBlocks());
     this._toggleSpanAlign(axis);
@@ -478,6 +480,14 @@ export class WidgetConfig extends SunPanelPageElement {
       gridForSize(this._size),
       { h: this._alignGov.h === 'unit', v: this._alignGov.v === 'unit' },
     );
+    if (report.clamped[axis]) {
+      this._showHint(this.t('CARD_ALIGN_CLAMPED'));
+      return;
+    }
+    if (switched) {
+      this._showHint(this.t('CARD_ALIGN_SWITCHED'));
+      return;
+    }
     const n = report.groupSize[axis];
     if (n > 1) {
       this._showHint(this.t(axis === 'h' ? 'CARD_ALIGN_GROUP_H' : 'CARD_ALIGN_GROUP_V', { count: n - 1 }));
@@ -769,12 +779,12 @@ export class WidgetConfig extends SunPanelPageElement {
       onReset: () => this._resetSpan(),
       onClose: () => this._closeSpanEdit(),
       // v1.31 需求 1：卡片级接管的轴 → 单元级开关软禁用（可点，点了给原因 + 解锁）
-      alignLocked: { h: this._alignGov.h === 'card', v: this._alignGov.v === 'card' },
+      // v1.43：去掉接管/锁定，单元级开关始终可点（点击即移交该轴）
+      alignLocked: { h: false, v: false },
       alignDefault: { h: !unitAlignExplicit(info.b), v: !unitAlignExplicit(info.b) },
       alignHint: this.t('CARD_ALIGN_UNIT_HINT'),
       t: (key, vars) => this.t(key, vars),
       onToggleAlign: (axis) => this._toggleAlignWithFeedback(axis),
-      onUnlock: (axis) => this._unlockCardCenter(axis),
       onFull: () => this._fillSpanFull(),
       onToggleSingleLine: () => this._toggleSpanSingleLine(),
       onToggleNoUnits: () => this._toggleSpanNoUnits(),
@@ -1679,6 +1689,7 @@ export class WidgetConfig extends SunPanelPageElement {
           justify-content: center;
           overflow: hidden;
         }
+        @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
         /* 单独模式：整卡内容一行排列 */
         .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
         /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
