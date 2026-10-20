@@ -827,6 +827,8 @@ export class Widget extends SunPanelWidgetElement {
       .pv-sch-date { opacity: 0.95; }
       .pv-sch-time { opacity: 0.8; }
       .pv-sub { font-size: 0.5625em; line-height: 1.3; }
+      /* v1.43：块根字号 <10px（48px 小块）时隐藏说明级小字，避免 5px 不可读副标题 */
+      .pv-tight .pv-sub { display: none; }
       .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }
       .pv-fill { height: 100%; border-radius: 0.125em; }
       .pv-chip2 { font-size: 0.6875em; padding: 0.25em 0.625em; border-radius: 0.5em; font-weight: 600; display: inline-flex; gap: 0.375em; align-items: center; }

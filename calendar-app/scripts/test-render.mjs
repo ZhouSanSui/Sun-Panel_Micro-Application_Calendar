@@ -606,6 +606,21 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     ok(!strSq.includes('pv-flat'), 'renderBlocksHTML：2×2 近方形占格不触发 flat');
   }
 
+  // v1.43：块根字号 <10px 时附加 pv-tight（隐藏 5px 级不可读副标题）
+  {
+    const gridT = { cols: 2, rows: 2 };
+    const laidSmall = layoutBlocks([{ c: 'time', s: 'day', span: { cols: 1, rows: 1 } }], 'combo', '1x1', gridT);
+    const strSmall = flatten(renderBlocksHTML({ ...base, blocks: laidSmall, grid: gridT, cellW: 48, cellH: 48 })).join('');
+    ok(strSmall.includes('pv-tight'), '48px 小块（根字号 <10px）应附加 pv-tight');
+    const laidBig = layoutBlocks([{ c: 'time', s: 'day', span: { cols: 2, rows: 2 } }], 'combo', '1x1', gridT);
+    const strBig = flatten(renderBlocksHTML({ ...base, blocks: laidBig, grid: gridT, cellW: 48, cellH: 48 })).join('');
+    ok(!strBig.includes('pv-tight'), '全卡大块不应附加 pv-tight');
+    for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
+      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      ok(/\.pv-tight \.pv-sub \{ display:\s*none; \}/.test(cssSrc), `${f} 含 .pv-tight 隐藏副标题规则`);
+    }
+  }
+
   // v1.40 需求 1：年/星期小卡规则对调验证（2×1 小卡、1×2 全量）
   {
     const mk2 = (extra) => renderInfoBlock({ ...base, ...extra });

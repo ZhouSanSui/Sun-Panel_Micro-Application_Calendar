@@ -208,6 +208,7 @@ const CSS = `
   .pv-sch-date { opacity: .95; }
   .pv-sch-time { opacity: .8; }
   .pv-sub { font-size:.5625em; line-height:1.3; }
+  .pv-tight .pv-sub { display:none; }
   .pv-bar { height:.25em; border-radius:.125em; overflow:hidden; }
   .pv-fill { height:100%; border-radius:.125em; }
   .pv-chip2 { font-size:.6875em; padding:.25em .625em; border-radius:.5em; font-weight:600; display:inline-flex; gap:.375em; align-items:center; }

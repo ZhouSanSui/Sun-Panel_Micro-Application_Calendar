@@ -258,6 +258,23 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
   ok(mb.min.cols === 2 && mb.min.rows === 1, 'schedule.multiple 最小占格 2×1');
   ok(mb.minArea === 0, 'schedule.multiple 无面积下限');
 
+  // v1.43：矩阵审计发现的 1×1 占格问题 → hms（溢出 4px）/ dateFullWeekday（主字号 7.9px）声明 minArea=2
+  for (const d of [{ c: 'time', s: 'hms' }, { c: 'time', s: 'dateFullWeekday' }]) {
+    const bd2 = spanBounds('combo', '2x2', d);
+    ok(bd2.minArea === 2, `${d.s} 的 minArea 应为 2（禁 1×1，避免溢出/不可读）`);
+  }
+  // 1×1 卡（网格 2×2）：hms 首选 2×1 应放得下
+  const layH = autoLayout([{ c: 'time', s: 'hms' }], 'combo', '1x1');
+  ok(layH.length === 1 && layH[0].span.cols === 2 && layH[0].span.rows === 1, '1×1 卡 hms 首选 2×1');
+  // 首位被 1×1 占住时，hms 只能降级为 1×2（竖排），不得落在 1×1
+  const layH2 = autoLayout(
+    [{ c: 'time', s: 'hm', span: { cols: 1, rows: 1 } }, { c: 'time', s: 'hms' }],
+    'combo', '1x1',
+  );
+  const hz = layH2.find((x) => x.s === 'hms');
+  ok(hz && !(hz.span.cols === 1 && hz.span.rows === 1),
+    `hms 不得落在 1×1 占格（实际 ${hz ? `${hz.span.cols}×${hz.span.rows}` : '未放下'}）`);
+
   // 降级链：2×2 放不下时，面积样式按 {2,1}/{1,2} 降级（而非跳过）
   // 1x2 卡（网格 4×2）：先放一个占满首行的块，仅剩 4×1 横条 → festival 降级为 2×1
   const lay = autoLayout(

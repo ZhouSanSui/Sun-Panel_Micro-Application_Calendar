@@ -105,9 +105,9 @@ export const COMBO_CONTENTS = [
     // v1.31 需求 6：月日。排在年月日之后，与「月日星期 / 年月日星期」构成完整的「年 / 星期」二维开关序列
     { key: 'dateMonthDay', zh: '月日', en: 'M/D', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
     { key: 'dateWeekday', zh: '月日星期', en: 'M/D Weekday', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
-    { key: 'dateFullWeekday', zh: '年月日星期', en: 'Y/M/D Weekday', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
+    { key: 'dateFullWeekday', zh: '年月日星期', en: 'Y/M/D Weekday', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, minArea: 2 },
     { key: 'hm', zh: '时分', en: 'HH:MM', span: { cols: 1, rows: 1 } },
-    { key: 'hms', zh: '时分秒', en: 'HH:MM:SS', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
+    { key: 'hms', zh: '时分秒', en: 'HH:MM:SS', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, minArea: 2 },
     { key: 'year', zh: '年', en: 'Year', span: { cols: 1, rows: 1 } },
     { key: 'month', zh: '月', en: 'Month', span: { cols: 1, rows: 1 } },
     { key: 'weekOfYear', zh: '第几周', en: 'Week of Year', span: { cols: 1, rows: 1 } },

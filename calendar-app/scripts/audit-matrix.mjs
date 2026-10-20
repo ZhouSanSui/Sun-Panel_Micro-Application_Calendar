@@ -79,7 +79,16 @@ for (const size of SIZES) {
       const d = { c: content.key, s: style.key };
       const pref = prefSpan('combo', size, d);
       const bounds = spanBounds('combo', size, { c: d.c, s: d.s });
-      const min = bounds.min || pref;
+      // 「最小占格」必须遵守 minArea：面积下限生效时，1×1 已非法，改测 2×1 / 1×2 降级候选
+      const minArea = bounds.minArea || 0;
+      let min = bounds.min || pref;
+      if (minArea > 0 && min.cols * min.rows < minArea) {
+        const cand = [{ cols: 2, rows: 1 }, { cols: 1, rows: 2 }]
+          .filter((x) => x.cols * x.rows >= minArea
+            && x.cols <= grid.cols && x.rows <= grid.rows
+            && !(x.cols === pref.cols && x.rows === pref.rows));
+        if (cand.length) min = cand[0];
+      }
       const variants = [
         ['pref', pref],
         ['min', min],

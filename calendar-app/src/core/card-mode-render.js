@@ -887,7 +887,9 @@ export function renderBlocksHTML(o) {
     // 块内可用空间（em）：供内容按空间自适应（如多个日程按高度增减条数）
     const availW = blockW / u - 2 * FIT_PAD;
     const availH = blockH / u - 2 * FIT_PAD;
-    const cls = b.c === 'blank' ? 'pv-block pv-blank' : 'pv-block';
+    // v1.43：块根字号过小时（<10px，典型为 48px 小块）附加 pv-tight，
+    // 隐藏说明级小字（.pv-sub），避免出现 5px 左右不可读的副标题
+    const cls = `${b.c === 'blank' ? 'pv-block pv-blank' : 'pv-block'}${u < 10 ? ' pv-tight' : ''}`;
     return html`<div
         class="${cls}"
         style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px"
