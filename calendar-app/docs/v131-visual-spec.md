@@ -853,6 +853,15 @@ export function showCalTitle(content, style, span, opts) {
 - **实现**：`card-mode-render.js` 新增 `seg()` / `joinSegs()` 辅助，替换 5 个样式的纯字符串拼接；五处 CSS 镜像补 `.pv-seg`。
 - **验证**：test-render 392（新增 8 条：段包裹、`<wbr>` 位置、窄块两位年、段数 2/4、CSS 镜像）；矩阵审计仍 **0 裁切 / 0 主文字过小**（换行由段边界承担，不产生溢出）。
 
+### 六、预览与实际一致性（v1.45）
+- **问题**：配置页预览用**写死的等比尺寸**（按尺寸网格缩放，宽高比固定），而 widget 用**宿主实测宽高**算网格（1×FULL 按宽度取 4~10 列、其它尺寸单元格 <24px 会降密度）→ 同一占格得到不同块宽/不同字号 → 预览与实际不一致。
+- **修法**：
+  1. `user-store.js` 新增 `comboGridFor(size, w, h)`——把运行时网格规则（1×FULL 列数、<24px 降密度、保底 2）收敛为一个函数，widget / mainPage / widgetConfig / make-preview / audit-matrix 全部共用。
+  2. widget 在 `_measure()` 里把实测尺寸（`{size,w,h}`）防抖 600ms 回写到用户设置 `previewSize`（变化 <4px 不写，避免循环）。
+  3. 两处预览优先用 `previewSize`：按真实宽高比缩放到预览框，`cellW/cellH` 用真实内边距（24px × 缩放）；无实测数据时退回原「等比示意」。
+- **注意**：`previewSize` 要等 widget 至少渲染一次后才有值；在此之前预览仍是示意（近似）模式——部署后刷新面板即生效。
+- **验证**：test-layout 3377（新增 `comboGridFor` 6 条：1080→10 列、700→8、520→6、300→保底 4、窄卡降密度、未测尺寸回退）、test-render 395（新增 3 条预览同源断言）。
+
 ---
 
 ---
