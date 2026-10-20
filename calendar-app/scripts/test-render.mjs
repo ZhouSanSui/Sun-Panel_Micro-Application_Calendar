@@ -621,6 +621,25 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     }
   }
 
+  // v1.44：日期「数值+单位」不可断行（.pv-seg），只允许段间换行；窄块年份降两位
+  {
+    const mk = (extra) => flatten(renderInfoBlock({ ...base, ...extra })).join('');
+    const wide = mk({ content: 'time', style: 'dateFull', shortYear: false });
+    ok(wide.includes('pv-seg') && wide.includes('2026年'), 'dateFull 宽块：段包裹 + 四位年');
+    ok(/pv-seg[^>]*>2026年<\/span><wbr>/.test(wide), 'dateFull 段间用 <wbr> 分隔（仅段边界可换行）');
+    const narrow = mk({ content: 'time', style: 'dateFull', shortYear: true });
+    ok(narrow.includes('26年') && !narrow.includes('2026年'), 'dateFull 窄块：年份降为两位');
+    const wd = mk({ content: 'time', style: 'dateFullWeekday', shortYear: true });
+    const segs = (wd.match(/pv-seg/g) || []).length;
+    ok(segs === 4, `dateFullWeekday 应为 4 个不可断段（实际 ${segs}）`);
+    const md = mk({ content: 'time', style: 'dateMonthDay', shortYear: false });
+    ok((md.match(/pv-seg/g) || []).length === 2, 'dateMonthDay 应为 2 个不可断段');
+    for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
+      const cssSrc = readFileSync(new URL(`../src/components/${f}`, import.meta.url), 'utf8');
+      ok(/\.pv-seg \{ white-space: nowrap; \}/.test(cssSrc), `${f} 含 .pv-seg nowrap 规则`);
+    }
+  }
+
   // v1.43：置中不再「接管即禁用」——单元级控件始终可点，点击即把该轴移交给单元
   {
     const mp = readFileSync(new URL('../src/components/mainPage.js', import.meta.url), 'utf8');

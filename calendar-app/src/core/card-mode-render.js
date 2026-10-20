@@ -329,6 +329,8 @@ function renderInfoBlockInner(o) {
     // v1.31：窄高块 → 竖排；1×1 占格 → 小卡差异化渲染；span 用于日期标题判定
     // v1.40：宽扁块（flat）→ 倒数型双栏布局
     tall = false, small = false, flat = false,
+    /** v1.44：日期串窄块使用两位年份（2026 → 26）；未显式传入时按卡片尺寸推断 */
+    shortYear = undefined,
   } = o;
   const label = visual.label, label2 = visual.label2, label3 = visual.label3, cardBg = visual.cardBg;
   const TODAY = (t && t('MAIN_TODAY')) || (isZh ? '今天' : 'Today');
@@ -363,6 +365,20 @@ function renderInfoBlockInner(o) {
     <div class="pv-mid" style="color:${label};font-variant-numeric:tabular-nums;">${v}</div>
     ${sub ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
   </div>`;
+
+  /**
+   * v1.44 日期单位绑定规则：
+   * - 每个「数值 + 单位」（如 2026年 / 10月 / 18日）作为一个不可断整体（.pv-seg nowrap）
+   * - 只允许在段与段之间换行（<wbr>），绝不出现「2026」与「年」分行
+   * - 窄块（shortYear）年份只显示后两位（26年），同行可省约 1.1em
+   */
+  const isShortYear = shortYear === undefined
+    ? (o.size ? ['1x1', '1x2', '2x1'].includes(o.size) : false)
+    : !!shortYear;
+  const seg = (v) => html`<span class="pv-seg">${v}</span>`;
+  const joinSegs = (parts) => parts.reduce((acc, cur, i) => (i
+    ? html`${acc}<wbr>${cur}`
+    : cur), '');
 
   /**
    * v1.31 需求 7：竖排容器。
@@ -518,7 +534,9 @@ function renderInfoBlockInner(o) {
         }
         return tall
           ? vstack(isZh ? [`${yS}年`, `${mo}月`, `${d}日`] : [`${yS}`, moEn, `${d}`], false)
-          : mid(isZh ? `${y}年${mo}月${d}日` : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+          : mid(isZh
+            ? joinSegs([seg(`${isShortYear ? yS : y}年`), seg(`${mo}月`), seg(`${d}日`)])
+            : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
       }
       // v1.35 需求 1：年月。横排「2026 · 10」，竖排「26 / 10」；简约时同形只去「年/月」单位
       case 'dateYearMonth': {
@@ -528,7 +546,9 @@ function renderInfoBlockInner(o) {
         }
         return tall
           ? vstack(isZh ? [`${yS}年`, `${mo}月`] : [`${yS}`, moEn], false)
-          : mid(isZh ? html`${y}年<wbr>${mo}月` : now.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }));
+          : mid(isZh
+            ? joinSegs([seg(`${isShortYear ? yS : y}年`), seg(`${mo}月`)])
+            : now.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }));
       }
       case 'dateMonthDay': {
         if (noUnits) {
@@ -537,7 +557,9 @@ function renderInfoBlockInner(o) {
         }
         return tall
           ? vstack(isZh ? [`${mo}月`, `${d}日`] : [moEn, `${d}`], false)
-          : mid(isZh ? html`${mo}月<wbr>${d}日` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+          : mid(isZh
+            ? joinSegs([seg(`${mo}月`), seg(`${d}日`)])
+            : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
       }
       case 'dateWeekday': {
         if (noUnits) {
@@ -547,7 +569,9 @@ function renderInfoBlockInner(o) {
         }
         return tall
           ? vstack(isZh ? [`${mo}月`, `${d}日`, wdZh] : [moEn, `${d}`, wdEnShort], false)
-          : mid(isZh ? `${mo}月${d}日 ${wdZh}` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'long' }));
+          : mid(isZh
+            ? joinSegs([seg(`${mo}月`), seg(`${d}日`), seg(wdZh)])
+            : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'long' }));
       }
       case 'dateFullWeekday': {
         if (noUnits) {
@@ -557,7 +581,9 @@ function renderInfoBlockInner(o) {
         }
         return tall
           ? vstack(isZh ? [`${yS}年`, `${mo}月`, `${d}日`, wdZh] : [`${yS}`, moEn, `${d}`, wdEnShort], false)
-          : mid(isZh ? `${y}年${mo}月${d}日 ${wdZh}` : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
+          : mid(isZh
+            ? joinSegs([seg(`${isShortYear ? yS : y}年`), seg(`${mo}月`), seg(`${d}日`), seg(wdZh)])
+            : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
       }
       case 'hm':
         return tall ? vstack([hPart, mm], true, apText) : big(fmtHM(now, hour12, false));
@@ -895,6 +921,8 @@ export function renderBlocksHTML(o) {
         style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px"
       >${renderInfoBlockInner({
     ...o, content: b.c, style: b.s, span: b.span, opts, availW, availH, tall, small, flat, singleDays,
+    // v1.44：窄块（<150px）日期串年份降为两位，给「数值+单位」留同排空间
+    shortYear: blockW < 150,
   })}</div>`;
   })}
   </div>`;

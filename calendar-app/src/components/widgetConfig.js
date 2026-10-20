@@ -1622,6 +1622,8 @@ export class WidgetConfig extends SunPanelPageElement {
         .pv-gap { height: 0.5em; }
         .pv-big { font-size: 1.875em; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
         .pv-mid { font-size: 1em; font-weight: 700; line-height: 1.25; }
+        /* v1.44：日期段不可断行 */
+        .pv-seg { white-space: nowrap; }
         /* v1.35：简约显示的间隔圆点（方案 B 自绘，实测单点占位 0.84em） */
         .pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
         .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0,0,0,0.38); }
