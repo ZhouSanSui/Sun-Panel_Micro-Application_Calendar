@@ -63,6 +63,11 @@ const DIMS = {
   '1x1': [120, 120], '1x2': [252, 120], '2x1': [120, 252], '2x2': [252, 252],
   '2x4': [516, 252], '4x4': [516, 516], '1xfull': [1080, 120],
 };
+// 尺寸覆盖：AUDIT_DIMS='{"1x1":[96,90],...}'（用于按真实面板尺寸复测）
+if (process.env.AUDIT_DIMS) {
+  try { Object.assign(DIMS, JSON.parse(process.env.AUDIT_DIMS)); } catch (e) { console.error('AUDIT_DIMS 解析失败：', e.message); process.exit(1); }
+}
+
 const SIZES = Object.keys(DIMS);
 
 const cases = [];

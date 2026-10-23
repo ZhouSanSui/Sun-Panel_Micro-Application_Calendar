@@ -206,6 +206,16 @@ export const SINGLE_BASE_PX = {
   '1x1': 16, '1x2': 17, '2x1': 17, '2x2': 22, '2x4': 26, '4x4': 34, '1xfull': 18,
 };
 /**
+ * 单独模式预览的「设计基准尺寸」（与 audit-matrix 的 DIMS 同源）。
+ * 用途：拿不到 widget 实测尺寸时，预览按这套尺寸渲染再等比缩小，
+ * 保证 ① 宽高比与真实卡片一致 ② 16px 基准字号在该尺寸下不裁切
+ * （旧回退用 64px 小框，内容必然被裁——「预览与实际两处裁切不一样」的根因之一）。
+ */
+export const SINGLE_REF_PX = {
+  '1x1': [120, 120], '1x2': [252, 120], '2x1': [120, 252], '2x2': [252, 252],
+  '2x4': [516, 252], '4x4': [516, 516], '1xfull': [1080, 120],
+};
+/**
  * 小卡差异化渲染（v1.32 修正，v1.40 规则对调）：
  * 只对 1×1 / 2×1 小部件卡片生效（v1.40 按用户截图反馈，原 1×2 与 2×1 规则互换），
  * 且只看「水平占格是否为 1」，垂直方向不做限制。
@@ -1493,9 +1503,13 @@ export function renderInfoBlock(o) {
   // v3.8：单独模式也把「块内可用空间（em）」传给渲染内核 —— 格阵/热力图按几何
   // 自适应列行与格边长需要它（此前只有拼接模式传 availW/availH）。
   // 根字号 = 该尺寸的 CSS 基准（1×FULL 按真实宽度换算），与下面 inline 的 font-size 同源。
-  const baseForAvail = o.size === '1xfull'
+  // v3.9：baseForAvail 必须计入 singleScale —— 缩放预览的「可用空间(em)」要与真实卡片同源，
+  // 否则行数裁剪/格阵自适应等几何判定在预览里走另一条路（预览裁一处、实际裁另一处）。
+  const scaleForAvail = Number(o.singleScale);
+  const baseForAvail = (o.size === '1xfull'
     ? Math.min(34, Math.max(12, geo ? o.w / 60 : 18))
-    : (o.size ? SINGLE_BASE_PX[o.size] : 16);
+    : (o.size ? SINGLE_BASE_PX[o.size] : 16))
+    * (Number.isFinite(scaleForAvail) && scaleForAvail > 0 ? scaleForAvail : 1);
   const availGeo = geo
     ? { availW: o.w / baseForAvail - 2 * FIT_PAD, availH: o.h / baseForAvail - 2 * FIT_PAD }
     : {};

@@ -29,7 +29,7 @@ import {
   unitAlign, unitOpts, unitId, isFullCard, unitAlignExplicit,
   alignGovernor, applyAlignmentWithReport, layoutSignature, NO_UNITS_DATE_STYLES,
 } from '../core/user-store.js';
-import { renderInfoBlock, renderBlocksHTML, renderSpanEditor } from '../core/card-mode-render.js';
+import { renderInfoBlock, renderBlocksHTML, renderSpanEditor, SINGLE_REF_PX } from '../core/card-mode-render.js';
 import { getUserStore } from '../core/app-state.js';
 import appConfig from '../../config/app.config.js';
 
@@ -837,21 +837,29 @@ export class WidgetConfig extends SunPanelPageElement {
     const theme = APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue;
     const visual = cardThemeVisual(this.cardTheme, dark);
     const isZh = this._isZh();
-    // v1.45：优先复现 widget 实测尺寸（同宽高比 + 同网格），否则退回按尺寸网格缩放
+    // v1.45：优先复现 widget 实测尺寸（同宽高比 + 同网格），否则用「设计基准尺寸」等比缩小
     const pvReal = getUserStore()?.getSettings()?.previewSize;
     const isReal = !!(pvReal && pvReal.size === this._size && pvReal.w > 0 && pvReal.h > 0);
     let pvScale = 1;
     let w;
     let h;
+    let refW = 0;
+    let refH = 0;
     if (isReal) {
-      pvScale = Math.min(240 / pvReal.w, 200 / pvReal.h, 1);
-      w = Math.round(pvReal.w * pvScale);
-      h = Math.round(pvReal.h * pvScale);
+      refW = pvReal.w;
+      refH = pvReal.h;
+      pvScale = Math.min(240 / refW, 200 / refH, 1);
+      w = Math.round(refW * pvScale);
+      h = Math.round(refH * pvScale);
     } else {
-      const [cols, rows] = this._sizeGrid();
-      const u = Math.min(64, 140 / rows, 220 / cols);
-      w = Math.round(u * cols);
-      h = Math.round(u * rows);
+      // v3.9：拿不到实测尺寸（面板未刷新 / 首次配置）时，按设计基准尺寸渲染再等比缩小，
+      // 保证宽高比与真实卡片一致、且 16px 基准字号在该尺寸下不裁切
+      const ref = SINGLE_REF_PX[this._size] || [252, 252];
+      refW = ref[0];
+      refH = ref[1];
+      pvScale = Math.min(240 / refW, 200 / refH, 1);
+      w = Math.round(refW * pvScale);
+      h = Math.round(refH * pvScale);
     }
     const textMode = visual.textLight ? 'text-light' : 'text-dark';
     const common = {
@@ -890,8 +898,9 @@ export class WidgetConfig extends SunPanelPageElement {
         size: this._size,
         singleScale: pvScale,
         // v3.3：方向判定与 1×FULL 字号都用真实像素，预览/实际必须同源
-        w: isReal ? pvReal.w : this._size === '1xfull' ? 1080 : 0,
-        h: isReal ? pvReal.h : 0,
+        // v3.9：无实测尺寸时传「设计基准尺寸」（配合 singleScale 等比缩小）
+        w: refW,
+        h: refH,
       });
     return html`
       <div class="pv-size-box mode-pv ${textMode}" style="${visual.bg};width:${w}px;height:${h}px;">

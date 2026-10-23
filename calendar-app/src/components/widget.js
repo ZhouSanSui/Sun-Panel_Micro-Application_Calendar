@@ -48,6 +48,9 @@ export class Widget extends SunPanelWidgetElement {
     }
     this._measure();
     ensureAppState(this.spCtx?.api).then(() => {
+      // v3.9：onInitialized 里那次 _measure() 早于 store 就绪，回写静默失败；
+      // ResizeObserver 只在尺寸变化时触发，stable 面板上不会再写 → 这里补一次
+      this._measure();
       this._refresh();
       this._unsub = subscribeAppState(() => {
         this._refresh();

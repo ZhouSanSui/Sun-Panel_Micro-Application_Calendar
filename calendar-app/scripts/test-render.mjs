@@ -16,6 +16,7 @@ import { html, render } from '../node_modules/lit/index.js';
 import {
   renderBlocksHTML, renderInfoBlock, fitFor, fitFontU, renderSpanEditor,
   isTallBlock, isSmallUnit, vertFitKey, singleLineDays, TALL_RATIO, SINGLE_BASE_PX, SIZE_ORIENT,
+  SINGLE_REF_PX,
 } from '../src/core/card-mode-render.js';
 import {
   gridForSize, layoutBlocks, spanBounds, effectiveSpan, styleSpanDef,
@@ -677,6 +678,31 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     const tightFull = mk({ content: 'time', style: 'dateFullWeekday', availW: 4.0, availH: 3.3 });
     ok(!/周[一二三四五六日天]/.test(tightFull), 'dateFullWeekday 窄块同样丢弃星期段');
     ok((tightFull.match(/pv-seg/g) || []).length >= 3, 'dateFullWeekday 至少保留年/月/日三段');
+  }
+
+  // v3.9：缩放预览必须与真实卡片同源（avail 计入 singleScale；无实测尺寸用设计基准尺寸）
+  {
+    ok(SINGLE_REF_PX && SINGLE_REF_PX['1x1'][0] === 120 && SINGLE_REF_PX['1x1'][1] === 120,
+      'SINGLE_REF_PX 提供设计基准尺寸（1x1=120x120）');
+    const rows = (str) => (str.match(/pv-mb-row/g) || []).length;
+    // 真实卡片 120x120（base 16）与等比缩小一半的预览 60x60（base 8）应得到同样的行数
+    const real = flatten(renderInfoBlock({
+      ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
+      singleRow: true, size: '1x1', w: 120, h: 120,
+    })).join('');
+    const scaled = flatten(renderInfoBlock({
+      ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
+      singleRow: true, size: '1x1', w: 60, h: 60, singleScale: 0.5,
+    })).join('');
+    ok(rows(real) === 4, `真实卡片 multiBars 应显示 4 行（实际 ${rows(real)}）`);
+    ok(rows(scaled) === rows(real),
+      `等比缩放预览的 multiBars 行数必须与真实卡片一致（实际 ${rows(scaled)} vs ${rows(real)}）`);
+    // 预览容器必须内联等比缩小后的根字号
+    ok(/font-size:8\.00px/.test(scaled), 'singleScale=0.5 时 1x1 预览根字号应为 16×0.5=8.00px');
+    // 回写链路：store 就绪后必须补一次测量（否则 previewSize 永不写入）
+    const wjs = readFileSync(new URL('../src/components/widget.js', import.meta.url), 'utf8');
+    ok(/ensureAppState\(this\.spCtx\?\.api\)\.then\(\(\) => \{[\s\S]{0,200}this\._measure\(\)/.test(wjs),
+      'widget 必须在 store 就绪后补一次 _measure()，确保 previewSize 被写回');
   }
 
   // v1.45：配置页预览复现 widget 实测尺寸与运行时网格

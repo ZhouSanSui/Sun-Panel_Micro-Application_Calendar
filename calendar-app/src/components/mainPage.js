@@ -31,7 +31,7 @@ import {
   unitAlign, unitOpts, unitId, isFullCard, unitAlignExplicit,
   alignGovernor, applyAlignmentWithReport, layoutSignature, NO_UNITS_DATE_STYLES,
 } from '../core/user-store.js';
-import { renderInfoBlock, renderBlocksHTML, renderSpanEditor } from '../core/card-mode-render.js';
+import { renderInfoBlock, renderBlocksHTML, renderSpanEditor, SINGLE_REF_PX } from '../core/card-mode-render.js';
 import {
   APPLE_COLORS, appleStyles, appleUiStyles, appleThemeVars, appleSwitch, appleSegmented,
   appleGroup, appleRow, appleButton, appleSelect,
@@ -1760,15 +1760,22 @@ export class MainPage extends SunPanelPageElement {
     let pvW;
     let pvH;
     let pvScale = 1;
+    let refW = 0;
+    let refH = 0;
     if (isReal) {
-      pvScale = Math.min(240 / pvReal.w, 200 / pvReal.h, 1);
-      pvW = Math.round(pvReal.w * pvScale);
-      pvH = Math.round(pvReal.h * pvScale);
+      refW = pvReal.w;
+      refH = pvReal.h;
+      pvScale = Math.min(240 / refW, 200 / refH, 1);
+      pvW = Math.round(refW * pvScale);
+      pvH = Math.round(refH * pvScale);
     } else {
-      const [pvCols, pvRows] = CARD_SIZE_GRID[size] || [2, 2];
-      const pvU = Math.min(90, 200 / pvRows, 220 / pvCols);
-      pvW = Math.round(pvU * pvCols);
-      pvH = Math.round(pvU * pvRows);
+      // v3.9：无实测尺寸时用「设计基准尺寸」等比缩小（宽高比正确且不裁切）
+      const ref = SINGLE_REF_PX[size] || [252, 252];
+      refW = ref[0];
+      refH = ref[1];
+      pvScale = Math.min(240 / refW, 200 / refH, 1);
+      pvW = Math.round(refW * pvScale);
+      pvH = Math.round(refH * pvScale);
     }
     const common = {
       visual,
@@ -1803,8 +1810,9 @@ export class MainPage extends SunPanelPageElement {
         size,
         singleScale: pvScale,
         // v3.3：方向判定与 1×FULL 字号都用真实像素，预览/实际必须同源
-        w: pvReal && pvReal.w ? pvReal.w : 0,
-        h: pvReal && pvReal.h ? pvReal.h : 0,
+        // v3.9：无实测尺寸时传「设计基准尺寸」（配合 singleScale 等比缩小）
+        w: refW,
+        h: refH,
       });
 
     return html`
