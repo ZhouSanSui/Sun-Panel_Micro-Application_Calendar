@@ -3,25 +3,28 @@
 > 目标：把本仓库交给任意编码 Agent（如 DeepSeek Harness / `dsh`）接管时可自解释、可复现、无凭据泄漏。
 > 配套文件：根目录 `AGENTS.md`（agent 入口）、`docs/PROJECT-CONVENTIONS.md`（约定汇编）、`docs/VERSIONS.md`（版本台账）。
 
-## 一、当前状态快照（2026-10-21 04:10）
+## 一、当前状态快照（2026-10-23）
 
 | 项 | 值 |
 |---|---|
-| 工作版本 | `2.2.261021-beta`（`calendar-app/config/app.config.js`） |
-| 已部署 | SunPanel 应用 `zhousansui-holiday-count-down` → `v2.2.261021-beta` |
-| 最近正式版 | `1.0.261020`（GitHub Release + tag，唯一正式 tag） |
-| 测试 | `test-layout` 3377 项、`test-render` 395 项，全绿 |
-| Lint | 0 error（261 warning 为既有基线） |
-| 矩阵审计 | 裁切 0 / 主文字过小 0 / 次要注意 24 |
-| 跟踪文件 | 51（源码 + 5 份规格/约定/台账/交接 + 根 README/AGENTS） |
+| 工作版本 | `3.7.261022-beta`（`config/app.config.js` / `package.json` / `app.json` 三处一致，`npm run check:version` 可验） |
+| 已部署 | SunPanel 应用 `zhousansui-holiday-count-down`；线上实际版本以管理页为准（每次发布由 `release.mjs` 部署） |
+| 最近正式版 | `2.0.261021`（GitHub Release + tag；其后 2.1~3.7 均为「修改」类 beta，未归档、台账不加行） |
+| 测试 | `test-layout` 3876 项、`test-render` 592 项，全绿 |
+| Lint | 0 error（16 warning 为既有基线） |
+| 矩阵审计 | 364 组合：裁切 0 / 主文字过小 0 / 次要注意 30 |
+| 单独模式审计 | `audit-single.mjs` 140 用例：裁切 0 / 主文字过小 0 / 次要注意 0 |
+| 跟踪文件 | 58（`git ls-files \| wc -l` 实查） |
 
 > 部署名以 `calendar-app/app.json` 的 `microAppId` 为准：`zhousansui-holiday-count-down`。
+> v2.0–v3.8 新增能力（单独模式 17+3 款、节日卡 / 假期倒计时 / 年电量、拼接进图、schedMode、
+> unit=month、SIZE_ORIENT、v3.8 几何自适应）的规格见 `docs/v131-visual-spec.md` 文末章节。
 
 ## 二、接手前必做（4 项）
 
 ### 1. 读三份文档
 `AGENTS.md` → `docs/PROJECT-CONVENTIONS.md` → `docs/VERSIONS.md`。
-理解三件事：**五处 CSS 镜像**、**版本规则**、**交付门禁**。
+理解三件事：**共享 CSS 真源**（规则只写 `src/core/card-mode-styles.js`，镜像由插值 + `check:css` 保证）、**版本规则**、**交付门禁**。
 
 ### 2. 配环境
 - Node 18+（建议 22.x 与当前一致）
@@ -49,7 +52,7 @@ node scripts/audit-matrix.mjs
 
 ### 改一个显示样式（最常见）
 1. 改 `src/core/card-mode-render.js` 的渲染分支（必要时补 `CONTENT_FIT`）
-2. **五处 CSS 镜像同步**（三组件 + make-preview + measure.html）
+2. **改共享 CSS 真源 `src/core/card-mode-styles.js`**（三组件与预览脚本插值引用，无需手工同步；`npm run check:css` 验一致）
 3. `node scripts/test-render.mjs`；若涉及尺寸/占格再跑 `test-layout.mjs`
 4. `node scripts/audit-matrix.mjs` 确认 0 裁切 / 0 主文字过小
 5. `node scripts/make-preview.mjs` + 无头截图肉眼核对
@@ -74,13 +77,14 @@ node scripts/release.mjs --mode=major --execute   # 归档
 
 ## 五、交接后第一批建议任务
 
-1. 跑完 §二.4 的四项自检，报告数字（验证环境一致）
-2. 处理矩阵审计里 24 个「次要文字 <5.5px」组合：决定是「隐藏副标题 / 提高最小占格 / 保持现状」
-3. 英文日期与中文对齐：把 `Oct 18, 2026` 也做成分段（`Oct 18` / `2026`），避免在怪位置换行
-4. 把 `_showHint` 加上「撤销」动作，减少误操作成本
+1. 英文日期与中文对齐：把 `Oct 18, 2026` 也做成分段（`Oct 18` / `2026`），避免在怪位置换行
+2. 把 `_showHint` 加上「撤销」动作，减少误操作成本
+3. 矩阵审计 30 个「次要文字 <5.5px」组合的决策：决定是「隐藏副标题 / 提高最小占格 / 保持现状」
 
 ## 六、已知风险
 
-- `dsh` 处于开发者预览阶段（0.1 rc），官方声明会有破坏性变更；**不要让它直接操作线上部署**，先本地提交 + 人工审阅。
+- `dsh` 处于开发者预览阶段（0.1 rc），官方声明会有破坏性变更；v2.1~v3.7 的大批量改动**需人工复核**（视觉规格已按代码补齐，交互与文案未逐一走查）；**不要让它直接操作线上部署**，先本地提交 + 人工审阅。
+- 发布脚本已加门禁与干净守卫：`release.mjs --execute` 强制「工作区必须干净」并同步三处版本；但 `check:css` / `check:version` 两个校验脚本未接进脚本流程，靠主动跑，勿省。
 - 内网 SunPanel 地址与账号属于敏感信息，只走环境变量。
-- 历史提交已重建（单提交起步），旧版本只保留 tag `1.0.261020` 及之后的提交，更早历史不可回溯。
+- 历史提交已重建（单提交起步），旧版本只保留 tag `1.0.261020`、`2.0.261021` 及之后的提交，更早历史不可回溯。
+- `docs/v131-ux-spec.md` 仍停在第 5 节，v2.0 之后的交互变更零覆盖（视觉侧已补，UX 侧待补）。

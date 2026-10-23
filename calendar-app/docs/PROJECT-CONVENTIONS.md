@@ -8,9 +8,12 @@
 - SunPanel 微应用：小部件（7 种规格）+ 完整日历页；两种显示模式：
   - **拼接模式（combo）**：一卡多块，块 = `{内容, 样式}` + 可选占格/对齐/显示选项
   - **单独模式（single）**：整卡一块，按卡片尺寸套用不同版式（`pv-single-<size>`）
-- 渲染核心 `src/core/card-mode-render.js` 被三端复用（widget / mainPage / widgetConfig），
-  样式镜像共五处（三组件 + `make-preview.mjs` + `measure.html`）。
-- **CSS 五处同步**是硬约束；只改一处会出现「预览对、实际不对」或反之。
+- 渲染核心 `src/core/card-mode-render.js` 被三端复用（widget / mainPage / widgetConfig）。
+- **共享 CSS 真源**：所有 `.pv-*` 规则只写在 `src/core/card-mode-styles.js`（导出 `CARD_MODE_CSS`）；
+  三组件（widget / mainPage / widgetConfig）与脚本（`make-preview.mjs` / `audit-single.mjs`）以**插值**引用，
+  手工拷贝已删（`make-defaults-preview.mjs` / `audit-matrix.mjs` 收编中；`measure.html` 只保留文字标定所需规则）。
+  **规则只写真源，镜像由插值 + 校验保证**，不要再手工同步；漏同步会被 `npm run check:css`
+  与 test-render 的插值断言抓到（P0 修复的来龙去脉见 `docs/v131-visual-spec.md` ⑨）。
 
 ## 二、尺寸与网格
 
@@ -65,10 +68,16 @@
 - 正式版第三位沿用最后一次 beta 的打包日（只去 `-beta`）
 - 归档/小归档重新打包 + push main + Release；修改只本地提交
 - Beta 号与正式版号不互推，回溯靠台账
+- **发布前工作区必须干净**：`release.mjs --execute` 先跑 `git status --porcelain`，有未提交改动即退出——
+  避免「版本号进了 git、源码只在工作区」的不可回溯状态；bump 后 `config/app.config.js` /
+  `package.json` / `app.json` 三处版本一并提交
+- **check:css / check:version 进门禁清单**：`npm run check:css`（`.pv-*` 选择器镜像一致性）与
+  `npm run check:version`（三处版本号一致）与 lint、test-layout、test-render 并列，改渲染 / 改版本前后必须跑
+  （release.mjs 侧强制的是「工作区干净」，两个 check 靠主动跑，勿省）
 
 ## 九、已知遗留 / 待办
 
-- 矩阵审计中仍有 **24 个「次要文字 <5.5px」**的组合（多为 48px 块），属「是否允许该组合」的产品决策，未收紧。
+- 矩阵审计中仍有 **30 个「次要文字 <5.5px」**的组合（364 组合实测「次要注意 30」，多为 48px 小块），属「是否允许该组合」的产品决策，未收紧。
 - 英文日期未做分段（仍用本地化整串），中文已按 `.pv-seg` 处理。
 - `_showHint` 尚未支持「撤销」动作参数。
 - 卡片级置中在主页是全局、部件配置是部件级，两处口径已并存但未合并。
