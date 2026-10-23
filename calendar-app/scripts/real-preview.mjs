@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { renderInfoBlock } from '../src/core/card-mode-render.js';
 import { CARD_MODE_CSS } from '../src/core/card-mode-styles.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
+import { SINGLE_CONTENTS } from '../src/core/user-store.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 await ensureAppState({});
@@ -73,8 +74,25 @@ const CASES = [
   ['1xfull', 'progress', 'multiBars'], ['1xfull', 'important', 'festival'],
 ];
 
+// --all=1x1,2x1：把该尺寸支持的样式全列出来（用于「哪些样式该淘汰」的整体盘点）
+const argAll = process.argv.indexOf('--all');
+let CASES2 = CASES;
+if (argAll >= 0 && process.argv[argAll + 1]) {
+  const want = process.argv[argAll + 1].split(',').map((x) => x.trim()).filter(Boolean);
+  const ALL = ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'];
+  CASES2 = [];
+  for (const size of want) {
+    for (const ct of SINGLE_CONTENTS) {
+      for (const st of ct.styles) {
+        const sz = st.sizes || ALL;
+        if (sz.includes(size)) CASES2.push([size, ct.key, st.key]);
+      }
+    }
+  }
+}
+
 const groups = {};
-for (const [size, c, s] of CASES) (groups[size] ||= []).push([c, s]);
+for (const [size, c, s] of CASES2) (groups[size] ||= []).push([c, s]);
 
 const body = Object.entries(groups).map(([size, list]) => {
   const [w, h] = DIMS[size];

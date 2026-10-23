@@ -279,61 +279,92 @@ export class WidgetConfig extends SunPanelPageElement {
     this.requestUpdate();
   }
 
-  /** v2.9：「样式设置」面板（主色 / 文案 / 目标日），仅当样式声明了 opts 时出现 */
+  /**
+   * v2.9：「样式设置」面板（主色 / 文案 / 目标日），仅当样式声明了 opts 时出现。
+   * v3.11：改为 Apple inset grouped list —— 组标题 + 一张圆角卡片，行间细分隔线。
+   */
   _renderStyleOpts(theme, cur) {
     const need = (cur && cur.opts) || null;
     if (!need || !need.length) return '';
     const isZh = this._isZh();
     const vals = this._pendingOptsOf(this.pendingContent, cur.key) || {};
+    // schedMode 的分段控件已经画在「关联日程」那一行的顶部，这里不再单独出一行
+    const keys = need.includes('sched') ? need.filter((x) => x !== 'schedMode') : need;
     return html`
       <div class="style-opts-panel">
         <div class="style-opts-head">${this._t('t', '样式设置', 'Style options')}</div>
-        ${need.map((k) => {
+        <div class="style-opt-group">
+          ${keys.map((k) => this._renderStyleOptRow(k, vals, theme, isZh))}
+        </div>
+      </div>`;
+  }
+
+  /**
+   * v3.11：「样式设置」里的一行 —— 左标签（定宽省略）+ 右控件（靠右）。
+   * select / multi 选项 ≤4 走 iOS 分段控件，>4 走可换行的 chips；
+   * number 走 -/+ 步进器（不再裸露 input）；color 走 28px 色块 + hex 文本。
+   */
+  _renderStyleOptRow(k, vals, theme, isZh) {
     const meta = STYLE_OPT_FIELDS[k];
     if (!meta) return '';
     const v = vals[k] ?? '';
     const label = isZh ? meta.zh : meta.en;
+    const row = (ctrl, wrap) => html`<div class="style-opt-row ${wrap ? 'style-opt-row-wrap' : ''}">
+      <span class="style-opt-label">${label}</span>
+      <span class="style-opt-ctrl">${ctrl}</span>
+    </div>`;
     if (meta.type === 'color') {
-      return html`<label class="style-opt-row">
-            <span class="style-opt-label">${label}</span>
-            <input class="style-opt-color" type="color" .value=${v || '#0A84FF'}
+      // 未设置时渲染侧取的是主题色（accentOf 的兜底），色块与 hex 始终同源，不会各说各话
+      const hex = /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : theme;
+      return row(html`<label class="style-opt-swatch" style="background:${hex}">
+            <input class="style-opt-color" type="color" .value=${hex}
               @input=${(e) => this._setPendingOpt(k, e.target.value)} />
-            <button class="style-opt-reset" @click=${() => this._setPendingOpt(k, '')}>${this._t('t', '默认', 'Reset')}</button>
-          </label>`;
+          </label>
+          <span class="style-opt-hex">${hex.toUpperCase()}</span>
+          <button class="style-opt-reset" @click=${() => this._setPendingOpt(k, '')}>${this._t('t', '默认', 'Default')}</button>`);
     }
     if (meta.type === 'select' || meta.type === 'multi') {
+      const choices = meta.choices || [];
       const picked = meta.type === 'multi'
         ? String(v || meta.def || '').split(',').filter(Boolean)
         : [String(v || meta.def || '')];
-      return html`<div class="style-opt-row">
-            <span class="style-opt-label">${label}</span>
-            <div class="style-opt-chips">
-              ${(meta.choices || []).map(([val, txt]) => html`<button
-                class="style-opt-chip ${picked.includes(val) ? 'active' : ''}"
-                @click=${() => {
-    if (meta.type === 'select') { this._setPendingOpt(k, val); return; }
-    const next = picked.includes(val) ? picked.filter((x) => x !== val) : [...picked, val];
-    const order = (meta.choices || []).map(([x]) => x).filter((x) => next.includes(x));
-    this._setPendingOpt(k, order.join(','));
-  }}>${txt}</button>`)}
-            </div>
-          </div>`;
+      const pick = (val) => {
+        if (meta.type === 'select') { this._setPendingOpt(k, val); return; }
+        const next = picked.includes(val) ? picked.filter((x) => x !== val) : [...picked, val];
+        const order = choices.map(([x]) => x).filter((x) => next.includes(x));
+        this._setPendingOpt(k, order.join(','));
+      };
+      const btn = (cls) => choices.map(([val, txt]) => html`<button
+        class="${cls} ${picked.includes(val) ? 'active' : ''}"
+        aria-pressed=${picked.includes(val) ? 'true' : 'false'}
+        @click=${() => pick(val)}>${txt}</button>`);
+      return row(choices.length <= 4
+        ? html`<span class="style-opt-seg">${btn('style-opt-seg-item')}</span>`
+        : html`<span class="style-opt-chips">${btn('style-opt-chip')}</span>`);
     }
     if (meta.type === 'number') {
-      return html`<div class="style-opt-row">
-            <span class="style-opt-label">${label}</span>
-            <input class="style-opt-input" type="number" min=${meta.min ?? 0} max=${meta.max ?? 999}
-              .value=${v === '' || v == null ? (meta.def ?? '') : v}
-              @change=${(e) => this._setPendingOpt(k, e.target.value)} />
-          </div>`;
+      const min = meta.min ?? 0;
+      const max = meta.max ?? 999;
+      const raw = v === '' || v == null ? '' : Number(v);
+      const has = Number.isFinite(raw);
+      const step = (d) => {
+        // 未设置（age 的 def 是空串）时从 0 起算，再夹到 [min, max]
+        const from = has ? raw : 0;
+        this._setPendingOpt(k, String(Math.min(max, Math.max(min, from + d))));
+      };
+      return row(html`<span class="style-opt-stepper">
+            <button class="style-opt-step" aria-label=${this._t('t', '减少', 'Decrease')}
+              @click=${() => step(-1)}>−</button>
+            <span class="style-opt-num">${has ? raw : '—'}</span>
+            <button class="style-opt-step" aria-label=${this._t('t', '增加', 'Increase')}
+              @click=${() => step(1)}>+</button>
+          </span>`);
     }
     if (meta.type === 'multi-ids') {
       const picked = Array.isArray(v) ? v : String(v || '').split(',').filter(Boolean);
       const items = (getUserStore()?.getSchedules() || []).slice(0, 12);
-      return html`<div class="style-opt-row style-opt-row-wrap">
-            <span class="style-opt-label">${label}</span>
-            <div class="style-opt-chips">
-              ${items.length === 0 ? html`<span class="style-opt-empty">${isZh ? '日历里还没有日程' : 'No schedules yet'}</span>` : items.map((it) => {
+      return row(html`<span class="style-opt-chips">
+            ${items.length === 0 ? html`<span class="style-opt-empty">${isZh ? '日历里还没有日程' : 'No schedules yet'}</span>` : items.map((it) => {
     const id = String(it.id ?? it.date ?? '');
     const on = picked.includes(id) || picked.includes(String(it.date ?? ''));
     return html`<button class="style-opt-chip ${on ? 'active' : ''}"
@@ -342,8 +373,7 @@ export class WidgetConfig extends SunPanelPageElement {
     this._setPendingOpt(k, next);
   }}>${it.title || it.name || it.date}</button>`;
   })}
-            </div>
-          </div>`;
+          </span>`, true);
     }
     if (meta.type === 'schedule') {
       // v2.12：从日历里挑一条日程；也可在这里自定义一条 —— 保存时自动写回日历
@@ -354,50 +384,38 @@ export class WidgetConfig extends SunPanelPageElement {
       const list = (getUserStore()?.getSchedules() || []).slice(0, 40);
       const cur2 = typeof v === 'string' ? v : '';
       const draft = this._optDraft || {};
-      return html`<div class="style-opt-row style-opt-row-wrap">
-            <span class="style-opt-label">${label}</span>
-            <div class="style-opt-col">
-              <div class="style-opt-chips" style="margin-bottom:4px">
-                ${(modeMeta.choices || []).map(([mv, mt]) => html`<button
-                  class="style-opt-chip ${modeVal === mv ? 'active' : ''}"
-                  @click=${() => { this._setPendingOpt('schedMode', mv); }}>${mt}</button>`)}
-              </div>
-              <select class="style-opt-input" @change=${(e) => this._setPendingOpt(k, e.target.value)}>
-                <option value="" ?selected=${!cur2}>${isZh ? '不指定（用下面的目标日）' : 'None'}</option>
-                ${list.map((it) => html`<option value=${String(it.id)}
-                  ?selected=${String(it.id) === cur2}>${it.title || it.name || it.date} · ${it.date}</option>`)}
-              </select>
-              <div class="style-opt-custom">
-                <input class="style-opt-input" type="text" maxlength="24"
-                  placeholder=${isZh ? '新日程名称' : 'New schedule title'}
-                  .value=${draft.title || ''}
-                  @input=${(e) => { this._optDraft = { ...(this._optDraft || {}), title: e.target.value }; }} />
-                <input class="style-opt-input" type="date"
-                  .value=${draft.date || ''}
-                  @change=${(e) => { this._optDraft = { ...(this._optDraft || {}), date: e.target.value }; }} />
-                <button class="style-opt-reset" @click=${() => this._addOptSchedule(k)}>
-                  ${isZh ? '加入日历并选用' : 'Add & use'}
-                </button>
-              </div>
-            </div>
-          </div>`;
+      return row(html`<span class="style-opt-col">
+            <span class="style-opt-seg">${(modeMeta.choices || []).map(([mv, mt]) => html`<button
+              class="style-opt-seg-item ${modeVal === mv ? 'active' : ''}"
+              aria-pressed=${modeVal === mv ? 'true' : 'false'}
+              @click=${() => { this._setPendingOpt('schedMode', mv); }}>${mt}</button>`)}</span>
+            <select class="style-opt-input" @change=${(e) => this._setPendingOpt(k, e.target.value)}>
+              <option value="" ?selected=${!cur2}>${isZh ? '不指定（用下面的目标日）' : 'None'}</option>
+              ${list.map((it) => html`<option value=${String(it.id)}
+                ?selected=${String(it.id) === cur2}>${it.title || it.name || it.date} · ${it.date}</option>`)}
+            </select>
+            <span class="style-opt-custom">
+              <input class="style-opt-input" type="text" maxlength="24"
+                placeholder=${isZh ? '新日程名称' : 'New schedule title'}
+                .value=${draft.title || ''}
+                @input=${(e) => { this._optDraft = { ...(this._optDraft || {}), title: e.target.value }; }} />
+              <input class="style-opt-input" type="date"
+                .value=${draft.date || ''}
+                @change=${(e) => { this._optDraft = { ...(this._optDraft || {}), date: e.target.value }; }} />
+              <button class="style-opt-reset" @click=${() => this._addOptSchedule(k)}>
+                ${isZh ? '加入日历并选用' : 'Add & use'}
+              </button>
+            </span>
+          </span>`, true);
     }
     if (meta.type === 'date') {
-      return html`<label class="style-opt-row">
-            <span class="style-opt-label">${label}</span>
-            <input class="style-opt-input" type="date" .value=${v}
-              @change=${(e) => this._setPendingOpt(k, e.target.value)} />
-          </label>`;
+      return row(html`<input class="style-opt-input" type="date" .value=${v}
+        @change=${(e) => this._setPendingOpt(k, e.target.value)} />`);
     }
-    return html`<label class="style-opt-row">
-          <span class="style-opt-label">${label}</span>
-          <input class="style-opt-input" type="text" maxlength=${meta.max || 24}
-            placeholder=${isZh ? '留空用默认文案' : 'Empty = default'}
-            .value=${v}
-            @input=${(e) => this._setPendingOpt(k, e.target.value)} />
-        </label>`;
-  })}
-      </div>`;
+    return row(html`<input class="style-opt-input" type="text" maxlength=${meta.max || 24}
+      placeholder=${isZh ? '留空用默认文案' : 'Empty = default'}
+      .value=${v}
+      @input=${(e) => this._setPendingOpt(k, e.target.value)} />`);
   }
 
   /** v2.12：把「样式设置」里自定义的日程写回日历，并选中它 */
@@ -1771,59 +1789,203 @@ ${CARD_MODE_CSS}
         .confirm-btn:active { transform: scale(0.95); opacity: 0.85; }
         /* v1.29：显示样式名称只占一排，多余的横向滚动（配合左右按钮切换） */
         .style-strip-wrap { margin: 0 0 2px; }
-        /* v2.9「样式设置」：主色 / 文案 / 目标日 */
-        .style-opts-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          margin: 8px 0 2px;
-          padding: 10px 12px;
-          border-radius: 12px;
-          background: rgba(120, 120, 128, 0.08);
+        /* v2.9「样式设置」：主色 / 文案 / 目标日
+           v3.11：改为 Apple inset grouped list —— 组标题 + 一张圆角卡片 + 行间细分隔线 */
+        .style-opts-panel { margin: 10px 0 4px; }
+        .style-opts-head {
+          font-size: 12px;
+          font-weight: 600;
+          opacity: 0.6;
+          padding: 0 4px 6px;
         }
-        .style-opts-head { font-size: 12px; font-weight: 600; opacity: 0.6; }
-        .style-opt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-        .style-opt-label { flex: 0 0 auto; min-width: 3.4em; opacity: 0.72; }
-        .style-opt-color {
-          width: 34px;
-          height: 26px;
-          padding: 0;
-          border: 1px solid rgba(120, 120, 128, 0.28);
+        .style-opt-group {
+          background: var(--apple-card);
+          border-radius: 10px;
+          overflow: hidden;
+        }
+        .style-opt-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: 44px;
+          padding: 4px 14px;
+          font-size: 13px;
+        }
+        /* 分隔线只画在行上方（细线，不是四边框），与 iOS 设置页一致 */
+        .style-opt-row + .style-opt-row { border-top: 0.5px solid var(--apple-separator); }
+        .style-opt-label {
+          flex: 0 0 auto;
+          width: 5.5em;
+          color: var(--apple-label);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .style-opt-ctrl {
+          flex: 1 1 auto;
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 8px;
+        }
+        /* 分段控件：选项 ≤4 的 select / multi */
+        .style-opt-seg {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          max-width: 100%;
+          padding: 2px;
+          border-radius: 9px;
+          background: color-mix(in srgb, currentColor 8%, transparent);
+        }
+        .style-opt-seg-item {
+          position: relative;
+          flex: 0 1 auto;
+          min-width: 0;
+          height: 22px;
+          padding: 0 10px;
+          border: none;
           border-radius: 7px;
           background: transparent;
+          color: var(--apple-label);
+          font-family: inherit;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 22px;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+        .style-opt-seg-item.active {
+          background: var(--apple-fill);
+          color: var(--apple-label);
+          box-shadow: 0 1px 3px color-mix(in srgb, currentColor 22%, transparent);
+        }
+        /* 色块：点它弹出原生取色器（input 透明铺满，靠 label 关联） */
+        .style-opt-swatch {
+          position: relative;
+          flex: 0 0 auto;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 22%, transparent);
+          cursor: pointer;
+        }
+        .style-opt-color {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          padding: 0;
+          border: none;
+          border-radius: 8px;
+          opacity: 0;
+          cursor: pointer;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+        .style-opt-hex {
+          flex: 0 0 auto;
+          font-size: 11px;
+          opacity: 0.7;
+          font-variant-numeric: tabular-nums;
+        }
+        .style-opt-reset {
+          position: relative;
+          flex: 0 0 auto;
+          height: 24px;
+          padding: 0 4px;
+          border: none;
+          border-radius: 6px;
+          background: transparent;
+          color: var(--mc-accent, #0A84FF);
+          font-family: inherit;
+          font-size: 12px;
+          font-weight: 500;
           cursor: pointer;
         }
         .style-opt-input {
           flex: 1 1 auto;
           min-width: 0;
-          height: 28px;
+          height: 36px;
           padding: 0 9px;
-          border: 1px solid rgba(120, 120, 128, 0.28);
+          border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
           border-radius: 8px;
-          background: rgba(255, 255, 255, 0.72);
-          color: inherit;
+          background: color-mix(in srgb, currentColor 6%, transparent);
+          color: var(--apple-label);
           font-size: 13px;
           font-family: inherit;
         }
-        .style-opt-reset {
-          flex: 0 0 auto;
-          height: 26px;
-          padding: 0 10px;
-          border: 1px solid rgba(120, 120, 128, 0.28);
-          border-radius: 7px;
+        .style-opt-input::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: pointer; }
+        /* 步进器：number 不再裸露 input */
+        .style-opt-stepper {
+          display: inline-flex;
+          align-items: center;
+          height: 36px;
+          border-radius: 9px;
+          background: color-mix(in srgb, currentColor 8%, transparent);
+        }
+        .style-opt-step {
+          position: relative;
+          width: 36px;
+          height: 36px;
+          border: none;
+          background: transparent;
+          color: var(--apple-label);
+          font-family: inherit;
+          font-size: 16px;
+          line-height: 1;
+          cursor: pointer;
+        }
+        .style-opt-step:first-child { border-radius: 9px 0 0 9px; }
+        .style-opt-step:last-child { border-radius: 0 9px 9px 0; }
+        .style-opt-step:active { background: color-mix(in srgb, currentColor 10%, transparent); }
+        .style-opt-num {
+          min-width: 2.6em;
+          padding: 0 4px;
+          text-align: center;
+          font-size: 13px;
+          font-variant-numeric: tabular-nums;
+          border-left: 0.5px solid color-mix(in srgb, currentColor 14%, transparent);
+          border-right: 0.5px solid color-mix(in srgb, currentColor 14%, transparent);
+        }
+        /* chips：选项 >4 的 multi（5 项及以上放不下分段控件） */
+        .style-opt-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+        .style-opt-chip {
+          position: relative;
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
           background: transparent;
           color: inherit;
+          font-family: inherit;
           font-size: 12px;
           cursor: pointer;
         }
-  .style-opt-chips { display: flex; flex-wrap: wrap; gap: 0.28em; }
-  .style-opt-chip { font-size: 0.7em; padding: 0.24em 0.6em; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); background: transparent; color: inherit; cursor: pointer; }
-  .style-opt-chip.active { background: color-mix(in srgb, var(--mc-accent, #0A84FF) 18%, transparent); border-color: color-mix(in srgb, var(--mc-accent, #0A84FF) 55%, transparent); color: var(--mc-accent, #0A84FF); }
-  .style-opt-row-wrap { align-items: flex-start; }
-  .style-opt-empty { font-size: 0.7em; opacity: 0.55; }
-  .style-opt-col { display: flex; flex-direction: column; gap: 0.3em; flex: 1 1 100%; }
-  .style-opt-custom { display: flex; gap: 0.3em; align-items: center; flex-wrap: wrap; }
-  .style-opt-custom .style-opt-input { flex: 1 1 6em; }
+        .style-opt-chip.active {
+          background: color-mix(in srgb, var(--mc-accent, #0A84FF) 18%, transparent);
+          border-color: color-mix(in srgb, var(--mc-accent, #0A84FF) 55%, transparent);
+          color: var(--mc-accent, #0A84FF);
+        }
+        .style-opt-row-wrap { align-items: flex-start; }
+        .style-opt-row-wrap .style-opt-label { padding-top: 8px; }
+        .style-opt-empty { font-size: 12px; opacity: 0.55; }
+        .style-opt-col { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-width: 0; }
+        .style-opt-col .style-opt-seg { align-self: flex-end; }
+        .style-opt-custom { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .style-opt-custom .style-opt-input { flex: 1 1 6em; height: 32px; }
+        /* 触摸目标：视觉高度受设计约束偏小，用 ::after 把热区撑到约 44×44（父元素已 relative） */
+        .style-opt-chip::after, .style-opt-seg-item::after, .style-opt-step::after,
+        .style-opt-reset::after, .style-opt-swatch::after {
+          content: '';
+          position: absolute;
+          inset: -4px;
+        }
+        .style-opt-seg-item::after { inset: -11px -2px; }
+        .style-opt-chip::after { inset: -6px -3px; }
+        .style-opt-swatch::after { inset: -8px -4px; }
+        .style-opt-reset::after { inset: -10px -4px; }
         .style-opts {
           display: flex;
           flex-wrap: nowrap;

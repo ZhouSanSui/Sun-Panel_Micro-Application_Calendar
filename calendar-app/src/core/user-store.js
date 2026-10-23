@@ -165,25 +165,34 @@ export const SINGLE_CONTENTS = [
     { key: 'boldClock', zh: '粗体大字钟', en: 'Bold Clock', sizes: ['1x1', '2x2', '2x4', '4x4'], opts: ['color'] },
     { key: 'stripeClock', zh: '极简条钟', en: 'Stripe Clock', opts: ['color'] },
     { key: 'wordClock', zh: '文字时钟', en: 'Word Clock', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    // v3.11：面相方形卡 / 窄高卡补的三款（1×1、2×1 上原来能选的样式大多是为大卡设计的）
+    { key: 'dayNum', zh: '今日大数字', en: 'Day Number', sizes: ['1x1', '1x2', '2x1', '2x2'], opts: ['color'] },
+    { key: 'miniMonth', zh: '小月历', en: 'Mini Month', sizes: ['1x1', '2x1', '2x2', '2x4'], opts: ['color'] },
+    { key: 'stackTime', zh: '竖排时间', en: 'Stacked Time', sizes: ['1x1', '2x1', '2x2'], opts: ['color'] },
   ] },
   { key: 'schedule', zh: '日程', en: 'Schedule', icon: '🗓', styles: [
-    { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x4', '1xfull'], opts: ['color', 'text'] },
+    { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x4', '1xfull'], opts: ['unit', 'color', 'text'] },
     { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', opts: ['color', 'sched', 'schedMode'] },
     { key: 'bigDays', zh: '巨型天数', en: 'Big Days', sizes: ['1x1', '2x2', '2x4', '4x4'], opts: ['color', 'sched'] },
   ] },
   { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
     { key: 'yearGrid', zh: '进度格阵', en: 'Grid', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['unit', 'shape', 'color'] },
-    { key: 'yearBars', zh: '年月条阵', en: 'Month Bars' },
-    { key: 'weekGrid', zh: '周进度格', en: 'Week Grid' },
+    // v3.11：1×1 上 12 根竖条 / 7 格日期数字会被压成细条 + 叠字（用户报「不好适配」），
+    // 这两款从 1×1 下线；weekGrid 在 2×1 竖高卡上同样变形，一并下线。
+    { key: 'yearBars', zh: '年月条阵', en: 'Month Bars', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
+    { key: 'weekGrid', zh: '周进度格', en: 'Week Grid', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'] },
     { key: 'multiBars', zh: '多进度条', en: 'Multi Bars', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'bars', 'age', 'life'] },
     { key: 'ringProgress', zh: '四环进度', en: 'Ring Progress', opts: ['color'] },
     { key: 'heatYear', zh: '年热力图', en: 'Heat Year', sizes: ['2x2', '2x4', '4x4'], opts: ['color'] },
-    { key: 'battery', zh: '年电量', en: 'Year Battery', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'battery', zh: '电量条', en: 'Battery', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['unit', 'color'] },
+    // v3.11：竖高卡专用的四条横进度（按高度均分），1×1 上同样成立
+    { key: 'stackBars', zh: '分层进度条', en: 'Stacked Bars', sizes: ['1x1', '2x1', '2x2', '1xfull'], opts: ['color'] },
   ] },
   { key: 'gauge', zh: '仪表', en: 'Gauge', icon: '◎', styles: [
     // v2.11：仪表类内容（指针 / 半环），读的是年初或当日进度
-    { key: 'dial', zh: '指针仪表', en: 'Dial', opts: ['color'] },
-    { key: 'semiGauge', zh: '半环仪表', en: 'Semi Gauge', opts: ['color'] },
+    // v3.11：两者都支持「统计粒度」（年/月/周/日），指针默认年、半环默认日
+    { key: 'dial', zh: '指针仪表', en: 'Dial', opts: ['unit', 'color'] },
+    { key: 'semiGauge', zh: '半环仪表', en: 'Semi Gauge', opts: ['unit', 'color'] },
   ] },
   { key: 'important', zh: '重要日期', en: 'Important', icon: '◆', styles: [
     { key: 'festival', zh: '节日卡', en: 'Festival', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },

@@ -9,7 +9,13 @@
  * 依赖的全局服务（getUserStore / getHolidayService）从 core 模块惰性获取。
  */
 
-import { html } from 'lit';
+// v3.11：SVG 片段必须用 lit 的 `svg` 标签函数生成 —— 用 `html` 会在 <svg> 里创建
+// HTML 命名空间的未知元素（namespaceURI = xhtml），尺寸恒为 0，**完全不渲染**。
+// 实测：html`<line/>` 插进 svg → 4 个 line 全部 width=0；换成 svg`<line/>` 才正常。
+// 受影响：ringClock 的 60 刻度+时针分针、dial 的 21 刻度、ringProgress 的四环
+// （用户报「环形刻度钟/指针仪表没有指针」「四环进度没有四环」即此因）。
+// 注意：直接内联在外层模板里的 <circle>/<path>/<line> 不受影响（同模板内解析正确）。
+import { html, svg } from 'lit';
 import {
   yearProgress, dayOfYear, diffDays, formatTime, getMonthGrid, formatDate, todayStr, addDays,
   daysInMonth, weekOfYear,
@@ -435,6 +441,29 @@ function renderInfoBlockInner(o) {
     return { title: hit.title || hit.name || '', date: iso };
   })();
   const accentOf = (fb) => (typeof opt.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(opt.color) ? opt.color : fb);  const pct = (p) => Math.max(0, Math.min(100, p)).toFixed(1);
+  // v3.11：统一「统计粒度」进度 —— dial / semiGauge / battery 共用（用户要求这 3 个也能选年/月/周/日）。
+  // 返回 0~1 的「已过比例」，含当日已过的时间部分，避免整天不动。
+  const unitOf = (def) => (['year', 'month', 'week', 'day'].includes(opt.unit) ? opt.unit : def);
+  const unitElapsed = (u) => {
+    const yy = now.getFullYear(), mo = now.getMonth(), dd = now.getDate();
+    const secDay = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    const frac = secDay / 86400;
+    if (u === 'month') {
+      const dim = new Date(yy, mo + 1, 0).getDate();
+      return Math.min(1, (dd - 1 + frac) / dim);
+    }
+    if (u === 'week') return Math.min(1, (((now.getDay() + 6) % 7) + frac) / 7);
+    if (u === 'day') return Math.min(1, frac);
+    const leap = (yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0;
+    const doy = Math.floor((new Date(yy, mo, dd) - new Date(yy, 0, 1)) / 86400000);
+    return Math.min(1, (doy + frac) / (leap ? 366 : 365));
+  };
+  const UNIT_CAP = {
+    year: { zh: '今年已过', en: 'Year' },
+    month: { zh: '本月已过', en: 'Month' },
+    week: { zh: '本周已过', en: 'Week' },
+    day: { zh: '今日已过', en: 'Day' },
+  };
   const ws = weekStart;
   const todayStrV = todayStr();
   const sec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -990,6 +1019,55 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
 
+    // v3.11 dayNum：今日大数字 —— 方形卡（1×1）与窄高卡（2×1）最省空间的主角样式：
+    // 一个占据大半个卡片的日数 + 一行「月 · 周几」，没有横向长文本，几乎不可能被裁。
+    if (style === 'dayNum') {
+      const ac = accentOf(theme);
+      const mo = now.getMonth() + 1;
+      const wd = isZh ? `周${WEEK_FULL_ZH[now.getDay()]}` : WEEK_MIN_EN[now.getDay()];
+      const sub = isZh ? `${mo} 月 · ${wd}` : `${now.toLocaleDateString('en-US', { month: 'short' })} · ${wd}`;
+      return html`<div class="pv-col pv-dn">
+        <div class="pv-dn-num" style="color:${ac}">${now.getDate()}</div>
+        <div class="pv-dn-sub" style="color:${label2}">${sub}</div>
+      </div>`;
+    }
+    // v3.11 miniMonth：小月历 —— 单卡里唯一「看得见整月」的样式，7 列固定，1×1 上刚好铺满
+    if (style === 'miniMonth') {
+      const ac = accentOf(theme);
+      const cells = getMonthGrid(now.getFullYear(), now.getMonth() + 1, ws);
+      const wdZh = ['日', '一', '二', '三', '四', '五', '六'];
+      const wdEn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      const wdOrder = Array.from({ length: 7 }, (_, i) => (isZh ? wdZh : wdEn)[(ws + i) % 7]);
+      const head = isZh
+        ? `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`
+        : now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return html`<div class="pv-col pv-mm">
+        <div class="pv-mm-head" style="color:${label2}">${head}</div>
+        <div class="pv-mm-wd">${wdOrder.map((w) => html`<i style="color:${label3}">${w}</i>`)}</div>
+        <div class="pv-mm-grid">${cells.map((cell) => {
+    // 「今天」取渲染基准 now 而不是真实 todayStr()：预览/审计用固定 now 时两者会不一致（高亮落到别的日子）。
+    const isT = cell.date.getFullYear() === now.getFullYear()
+      && cell.date.getMonth() === now.getMonth()
+      && cell.date.getDate() === now.getDate();
+    const cls = `pv-mm-c${cell.inMonth ? '' : ' out'}${isT ? ' now' : ''}`;
+    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${label3}`}">${cell.date.getDate()}</span>`;
+  })}</div>
+      </div>`;
+    }
+    // v3.11 stackTime：竖排时间 —— 时/分/秒 三行堆叠，专门吃 2×1 这类窄高卡的高度
+    if (style === 'stackTime') {
+      const rows = [
+        [String(hour12 ? (now.getHours() % 12 || 12) : now.getHours()).padStart(2, '0'), isZh ? '时' : 'h'],
+        [String(now.getMinutes()).padStart(2, '0'), isZh ? '分' : 'm'],
+        [String(now.getSeconds()).padStart(2, '0'), isZh ? '秒' : 's'],
+      ];
+      return html`<div class="pv-col pv-skt">
+        ${rows.map(([v, u], i) => html`<div class="pv-skt-row">
+          <b style="color:${i === 0 ? label : label2}">${v}</b><i style="color:${label3}">${u}</i>
+        </div>`)}
+      </div>`;
+    }
+
     // v2.10 stripeClock 极简条钟：超大细体时间 + 主题色细线 + 日期
     if (style === 'stripeClock') {
       const ac = accentOf(theme);
@@ -1039,13 +1117,13 @@ function renderInfoBlockInner(o) {
         const a = (i / 60) * Math.PI * 2;
         const r1 = i % 5 === 0 ? 30 : 35;
         const sn = Math.sin(a), cs = Math.cos(a);
-        return html`<line x1="${(50 + sn * r1).toFixed(2)}" y1="${(50 - cs * r1).toFixed(2)}" x2="${(50 + sn * 39.5).toFixed(2)}" y2="${(50 - cs * 39.5).toFixed(2)}" stroke="currentColor" stroke-opacity="${i % 5 === 0 ? 0.55 : 0.24}" stroke-width="${i % 5 === 0 ? 1.1 : 0.6}" stroke-linecap="round" />`;
+        return svg`<line x1="${(50 + sn * r1).toFixed(2)}" y1="${(50 - cs * r1).toFixed(2)}" x2="${(50 + sn * 39.5).toFixed(2)}" y2="${(50 - cs * 39.5).toFixed(2)}" stroke="currentColor" stroke-opacity="${i % 5 === 0 ? 0.55 : 0.24}" stroke-width="${i % 5 === 0 ? 1.1 : 0.6}" stroke-linecap="round" />`;
       });
       // v3.10 指针：外圈刻度只表达「当日已过比例」，钟面本身必须有时针/分针才叫刻度钟。
       // 指针长度控制在 26 以内（刻度内圈半径 30），避免与刻度/进度弧打架；数字下沉到 6 点位。
       const handOf = (deg, len, w2, op) => {
         const a = (deg * Math.PI) / 180;
-        return html`<line x1="50" y1="50" x2="${(50 + Math.sin(a) * len).toFixed(2)}" y2="${(50 - Math.cos(a) * len).toFixed(2)}" stroke="${ac}" stroke-opacity="${op}" stroke-width="${w2}" stroke-linecap="round" />`;
+        return svg`<line x1="50" y1="50" x2="${(50 + Math.sin(a) * len).toFixed(2)}" y2="${(50 - Math.cos(a) * len).toFixed(2)}" stroke="${ac}" stroke-opacity="${op}" stroke-width="${w2}" stroke-linecap="round" />`;
       };
       const hDeg = (((now.getHours() % 12) * 60 + now.getMinutes()) / 720) * 360;
       const mDeg = ((now.getMinutes() * 60 + now.getSeconds()) / 3600) * 360;
@@ -1122,9 +1200,13 @@ function renderInfoBlockInner(o) {
 
   if (content === 'gauge' && o.singleRow) {
     const ac = accentOf(theme);
-    const yp0 = yearProgress(now);
-    const secAll = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    const dP = Math.min(1, secAll / 86400);
+    // v3.11：指针仪表默认「年」；半环仪表默认「日」。两者都能在样式设置里选年/月/周/日。
+    const uDial = unitOf('year');
+    const uSg = unitOf('day');
+    const yp0 = unitElapsed(uDial);
+    const dP = unitElapsed(uSg);
+    const capDial = UNIT_CAP[uDial];
+    const capSg = UNIT_CAP[uSg];
     if (style === 'dial') {
       const A0 = -120, SWEEP = 240;
       const ang = A0 + SWEEP * yp0;
@@ -1134,7 +1216,7 @@ function renderInfoBlockInner(o) {
         const a = ((A0 + (SWEEP * i) / 20) * Math.PI) / 180;
         const big = i % 5 === 0;
         const r1 = big ? 34 : 37, r2 = 40;
-        return html`<line x1="${(50 + Math.sin(a) * r1).toFixed(2)}" y1="${(50 - Math.cos(a) * r1).toFixed(2)}"
+        return svg`<line x1="${(50 + Math.sin(a) * r1).toFixed(2)}" y1="${(50 - Math.cos(a) * r1).toFixed(2)}"
             x2="${(50 + Math.sin(a) * r2).toFixed(2)}" y2="${(50 - Math.cos(a) * r2).toFixed(2)}"
             stroke="currentColor" stroke-opacity="${big ? 0.6 : 0.28}" stroke-width="${big ? 1.4 : 0.8}" stroke-linecap="round" />`;
       });
@@ -1148,9 +1230,9 @@ function renderInfoBlockInner(o) {
                 x2="${nx.toFixed(2)}" y2="${ny.toFixed(2)}" stroke="${ac}" stroke-width="2.8" stroke-linecap="round" />
               <circle cx="50" cy="50" r="3.4" fill="${ac}" />
             </svg>
-            <div class="pv-gl-val" style="color:${label}">${Math.round(yp0)}%</div>
+            <div class="pv-gl-val" style="color:${label}">${Math.round(yp0 * 100)}%</div>
           </div>
-          <div class="pv-gl-cap">${isZh ? '今年已过' : 'Year'}</div>
+          <div class="pv-gl-cap">${isZh ? capDial.zh : capDial.en}</div>
         </div>`;
     }
     if (style === 'semiGauge') {
@@ -1164,7 +1246,7 @@ function renderInfoBlockInner(o) {
             </svg>
             <div class="pv-sg-val" style="color:${label}">${Math.round(dP * 100)}%</div>
           </div>
-          <div class="pv-sg-cap">${isZh ? '今日已过' : 'Today'}</div>
+          <div class="pv-sg-cap">${isZh ? capSg.zh : capSg.en}</div>
         </div>`;
     }
   }
@@ -1179,21 +1261,31 @@ function renderInfoBlockInner(o) {
     // v2.9 capsule：胶囊倒计时（年倒计时 d/h/m/s，可按「样式设置」改主色与文案）
     if (style === 'capsule') {
       const ac = accentOf(theme);
-      const title = typeof opt.text === 'string' && opt.text
-        ? opt.text
-        : (isZh ? `${now.getFullYear()} 年倒计时` : `Year ${now.getFullYear()}`);
-      const end = new Date(now.getFullYear() + 1, 0, 1);
+      // v3.11：胶囊倒计时也能选年/月/周/日 —— 终点分别是元旦 / 次月 1 号 / 本周结束 / 今晚 24 点。
+      const u = unitOf('year');
+      const yy = now.getFullYear(), mo = now.getMonth(), dNow = now.getDate();
+      const end = u === 'month' ? new Date(yy, mo + 1, 1)
+        : u === 'week' ? new Date(yy, mo, dNow + (7 - ((now.getDay() - ws + 7) % 7)))
+          : u === 'day' ? new Date(yy, mo, dNow + 1)
+            : new Date(yy + 1, 0, 1);
+      const defTitle = u === 'month' ? (isZh ? `${mo + 1} 月倒计时` : `Month ${mo + 1}`)
+        : u === 'week' ? (isZh ? '本周倒计时' : 'This week')
+          : u === 'day' ? (isZh ? '今日倒计时' : 'Today')
+            : (isZh ? `${yy} 年倒计时` : `Year ${yy}`);
+      const title = typeof opt.text === 'string' && opt.text ? opt.text : defTitle;
       const ms = Math.max(0, end.getTime() - now.getTime());
       const dd = Math.floor(ms / 86400000);
       const hh = Math.floor(ms / 3600000) % 24;
       const mm = Math.floor(ms / 60000) % 60;
       const ss = Math.floor(ms / 1000) % 60;
       const pad = (v) => String(v).padStart(2, '0');
-      const cell = (v, u) => html`<span class="pv-cp-cell"><b style="color:${label}">${pad(v)}</b><i style="color:${label3}">${u}</i></span>`;
+      const cell = (v, uu) => html`<span class="pv-cp-cell"><b style="color:${label}">${pad(v)}</b><i style="color:${label3}">${uu}</i></span>`;
+      // 周/日剩余不足 1 天时不再占一格「00 天」，避免小卡片挤出一行。
+      const showD = u === 'year' || u === 'month' || dd > 0;
       return html`<div class="pv-col pv-cp">
         <div class="pv-cp-pill" style="border-color:${ac};color:${ac}">${title}</div>
         <div class="pv-cp-row">
-          ${cell(dd, isZh ? '天' : 'd')}${cell(hh, isZh ? '时' : 'h')}${cell(mm, isZh ? '分' : 'm')}${cell(ss, isZh ? '秒' : 's')}
+          ${showD ? cell(dd, isZh ? '天' : 'd') : ''}${cell(hh, isZh ? '时' : 'h')}${cell(mm, isZh ? '分' : 'm')}${cell(ss, isZh ? '秒' : 's')}
         </div>
       </div>`;
     }
@@ -1323,7 +1415,7 @@ function renderInfoBlockInner(o) {
       const pD = Math.min(1, secDay / 86400);
       const rings = [[44, pY, 0.95], [34, pM, 0.7], [24, pW, 0.5], [14, pD, 0.34]].map(([rr, p2, op]) => {
         const C2 = 2 * Math.PI * rr;
-        return html`<circle cx="50" cy="50" r="${rr}" fill="none" stroke="${ac}" stroke-opacity="${op}"
+        return svg`<circle cx="50" cy="50" r="${rr}" fill="none" stroke="${ac}" stroke-opacity="${op}"
           stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${(C2 * p2).toFixed(2)} ${C2.toFixed(2)}"
           transform="rotate(-90 50 50)" />`;
       });
@@ -1341,12 +1433,37 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
     // v2.10 heatYear 年热力图：12 列 × 各月天数的方块阵（今天高亮）
+    // v3.11 stackBars：分层进度条 —— 年/月/周/日 四行横条，窄高卡（2×1）上按高度均分铺满
+    if (style === 'stackBars') {
+      const sbAc = accentOf(theme);
+      const mPct = ((now.getDate() - 1 + sec / 86400)
+        / daysInMonth(now.getFullYear(), now.getMonth() + 1)) * 100;
+      const rows = [
+        [isZh ? '年' : 'Y', yearProgress(now)],
+        [isZh ? '月' : 'M', mPct],
+        [isZh ? '周' : 'W', weekPct],
+        [isZh ? '日' : 'D', dayPct],
+      ];
+      return html`<div class="pv-col pv-sb">
+        ${rows.map(([k, v], i) => {
+    const w = Math.max(2, Math.min(100, v));
+    return html`<div class="pv-sb-row">
+          <span class="pv-sb-k" style="color:${i === 0 ? label2 : label3}">${k}</span>
+          <span class="pv-sb-bar"><i style="width:${w.toFixed(1)}%;background:${sbAc};opacity:${(1 - i * 0.16).toFixed(2)}"></i></span>
+          <b class="pv-sb-v" style="color:${i === 0 ? label : label2}">${Math.round(v)}%</b>
+        </div>`;
+  })}
+      </div>`;
+    }
     if (style === 'battery') {
       const acb = accentOf(theme);
-      const pct = Math.max(0, Math.min(100, yearProgress(now)));
+      // v3.11：电量条同样支持年/月/周/日，默认「年」。
+      const uBt = unitOf('year');
+      const capBt = UNIT_CAP[uBt];
+      const pct = Math.max(0, Math.min(100, unitElapsed(uBt) * 100));
       const segs = 10;
       return html`<div class="pv-col pv-bt">
-        <div class="pv-bt-head"><span style="color:${label3}">${isZh ? '今年已过' : 'Year'}</span><b style="color:${acb}">${Math.round(pct)}%</b></div>
+        <div class="pv-bt-head"><span style="color:${label3}">${isZh ? capBt.zh : capBt.en}</span><b style="color:${acb}">${Math.round(pct)}%</b></div>
         <div class="pv-bt-body" style="border-color:${acb}">
           <i style="width:${Math.max(2, Math.round(pct))}%;background:${acb}"></i>
           ${Array.from({ length: segs - 1 }, (_, i) => html`<u style="left:${((i + 1) * 100) / segs}%"></u>`)}
@@ -1380,23 +1497,65 @@ function renderInfoBlockInner(o) {
       // 在大卡上月/周/日粒度又只剩一角「稀疏」）。
       // 可用盒 = 块内 availW × (availH - 头行)；缺几何（样式条小预览等）回退 CONTENT_FIT 声明值。
       const YG_GAP = 0.1;
+      // v3.11：格子边长上限。只按「尽可能大」择优会把格子数少的粒度（月 31 / 周 7 / 日 24）
+      // 在大卡上拉成 2em+ 的巨格；但上限压太狠（1.15em）又会在大卡上缩成一小撮、四周大片留白。
+      // 取 2.2em —— 常规尺寸下由容器宽度先撞限，上限只在「窄高卡」这种高度过剩的形态才生效。
+      const YG_CELL_MAX = 3.0;
       const YG_HEAD_EM = 0.925; // .pv-yg-head 0.5em×1.25 + .pv-yg gap 0.3em
       const ygBoxW = Number.isFinite(o.availW) ? o.availW : 10.0;
       const ygBoxH = (Number.isFinite(o.availH) ? o.availH : 9.0) - YG_HEAD_EM;
-      const ygLayout = (n) => {
-        let best = { cols: Math.min(n, 31), rows: Math.ceil(n / Math.min(n, 31)), cell: 0 };
-        for (let cols = 1; cols <= n; cols++) {
-          const rows = Math.ceil(n / cols);
-          const cell = Math.min(
-            (ygBoxW - (cols - 1) * YG_GAP) / cols,
-            (ygBoxH - (rows - 1) * YG_GAP) / rows,
-          );
-          if (cell > best.cell) best = { cols, rows, cell };
-        }
-        return best;
+      // v3.11：语义列数 —— 月按日历直觉 7 列（一周一行），周按横向/竖向条，日按 6×4 时刻表。
+      // 只有在「宽高比接近」时才用语义列，窄高卡仍回落到方形排布，避免 7 列被压成一条细线。
+      const ygAspect = ygBoxW / Math.max(0.001, ygBoxH);
+      // 语义列数：月 = 7（一周一行）、周 = 7 横条 / 1 竖列、日 = 12×2（上下午）/ 6×4 / 5×5 / 4×6。
+      // 宽高比越出合理区间就交回自由择优（1×FULL 这种超宽扁卡上，7 列月历会被压成一条细线）。
+      const ygPrefCols = (n, u) => {
+        if (u === 'month') return ygAspect >= 0.75 && ygAspect <= 2.6 ? 7 : 0;
+        if (u === 'week') return ygAspect >= 0.85 ? 7 : (ygAspect <= 0.7 ? 1 : 0);
+        if (u === 'day') return ygAspect >= 1.6 ? 12 : ygAspect >= 0.9 ? 6 : ygAspect >= 0.62 ? 5 : 4;
+        return 0;
       };
-      const ygGridInline = (n) => {
-        const { cols, rows, cell } = ygLayout(n);
+      // 语义列数的最小可接受比例（周是「一天一格」的条，宁可留白也要保持一排 7 格）
+      const YG_PREF_MIN = { month: 0.7, week: 0.4, day: 0.7 };
+      const ygCellAt = (cols, n) => {
+        const rows = Math.ceil(n / cols);
+        const raw = Math.min(
+          (ygBoxW - (cols - 1) * YG_GAP) / cols,
+          (ygBoxH - (rows - 1) * YG_GAP) / rows,
+        );
+        const cell = Math.min(raw, YG_CELL_MAX);
+        // 面积覆盖率：格子被上限压平后，「格子最大」不再等于「铺得最满」，
+        // 1×FULL 上按格子最大择优只会得到 6 列一小撮，必须改成按覆盖率择优。
+        const cov = (cols * cell / Math.max(0.001, ygBoxW)) * (rows * cell / Math.max(0.001, ygBoxH));
+        return { cols, rows, cell, cov, waste: cols * rows - n };
+      };
+      const ygLayout = (n, u) => {
+        let free = null;
+        for (let cols = 1; cols <= n; cols++) {
+          const cur = ygCellAt(cols, n);
+          if (!free
+            || cur.cov > free.cov + 1e-6
+            || (Math.abs(cur.cov - free.cov) <= 1e-6 && cur.cell > free.cell + 1e-6)
+            || (Math.abs(cur.cov - free.cov) <= 1e-6 && Math.abs(cur.cell - free.cell) <= 1e-6
+              && cur.waste < free.waste)
+            || (Math.abs(cur.cov - free.cov) <= 1e-6 && Math.abs(cur.cell - free.cell) <= 1e-6
+              && cur.waste === free.waste
+              && (Math.abs(cur.cols - cur.rows) < Math.abs(free.cols - free.rows)
+                || (Math.abs(cur.cols - cur.rows) === Math.abs(free.cols - free.rows)
+                  && cur.cols > free.cols)))) {
+            free = cur;
+          }
+        }
+        let best = free;
+        const pref = ygPrefCols(n, u);
+        if (pref) {
+          const p = ygCellAt(pref, n);
+          if (p.cell >= free.cell * (YG_PREF_MIN[u] || 0.7)) best = p;
+        }
+        return best || { cols: n, rows: 1, cell: 0.2, waste: 0 };
+      };
+      const ygGridInline = (n, u) => {
+        const { cols, rows, cell } = ygLayout(n, u);
         const c = Math.max(0.18, cell).toFixed(3);
         return `--cols:${cols};--rows:${rows};grid-template-columns:repeat(${cols},${c}em);grid-template-rows:repeat(${rows},${c}em)`;
       };
@@ -1406,7 +1565,7 @@ function renderInfoBlockInner(o) {
         const todayD = now.getDate();
         return html`<div class="pv-col pv-yg">
           <div class="pv-yg-head"><span style="color:${label3}">${now.getFullYear()}</span><b style="color:${ac0}">${todayD}/${mDays}</b></div>
-          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(mDays)}">${Array.from({ length: mDays }, (_, i) => {
+          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(mDays, 'month')}">${Array.from({ length: mDays }, (_, i) => {
   const n = i + 1;
   const cls = n === todayD ? 'now' : n < todayD ? 'on' : '';
   return html`<i class="${cls}" style="${n === todayD ? `background:${ac0}` : ''}"></i>`;
@@ -1417,7 +1576,7 @@ function renderInfoBlockInner(o) {
         const wd = (now.getDay() + 6) % 7;
         return html`<div class="pv-col pv-yg">
           <div class="pv-yg-head"><span style="color:${label3}">${isZh ? `第${weekOfYear(now)}周` : `W${weekOfYear(now)}`}</span><b style="color:${ac0}">${wd + 1}/7</b></div>
-          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(7)}">${Array.from({ length: 7 }, (_, i) => {
+          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(7, 'week')}">${Array.from({ length: 7 }, (_, i) => {
   const cls = i === wd ? 'now' : i < wd ? 'on' : '';
   return html`<i class="${cls}" style="${i === wd ? `background:${ac0}` : ''}"></i>`;
 })}</div>
@@ -1427,7 +1586,7 @@ function renderInfoBlockInner(o) {
         const hr = now.getHours();
         return html`<div class="pv-col pv-yg">
           <div class="pv-yg-head"><span style="color:${label3}">${isZh ? '今日' : 'Today'}</span><b style="color:${ac0}">${hr + 1}/24</b></div>
-          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(24)}">${Array.from({ length: 24 }, (_, i) => {
+          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(24, 'day')}">${Array.from({ length: 24 }, (_, i) => {
   const cls = i === hr ? 'now' : i < hr ? 'on' : '';
   return html`<i class="${cls}" style="${i === hr ? `background:${ac0}` : ''}"></i>`;
 })}</div>
@@ -1440,7 +1599,7 @@ function renderInfoBlockInner(o) {
           <span style="color:${label3}">${now.getFullYear()}</span>
           <b style="color:${ac0}">${isZh ? `${doy}/${total} 天` : `${doy}/${total} d`}</b>
         </div>
-        <div class="pv-yg-grid${ygShape}" style="${ygGridInline(total)}">${Array.from({ length: total }, (_, i) => {
+        <div class="pv-yg-grid${ygShape}" style="${ygGridInline(total, 'year')}">${Array.from({ length: total }, (_, i) => {
   const n = i + 1;
   const cls = n === doy ? 'now' : n < doy ? 'on' : '';
   return html`<i class="${cls}" style="${n === doy ? `background:${ac0}` : ''}"></i>`;

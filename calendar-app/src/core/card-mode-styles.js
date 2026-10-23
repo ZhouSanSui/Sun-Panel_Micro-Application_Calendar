@@ -231,7 +231,9 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-wc { flex-direction: row; align-items: baseline; gap: 0.6em; }
 .pv-single-1xfull .pv-wc-main { font-size: 1.5em; }
 
-.pv-bd { justify-content: center; gap: 0.1em; width: 100%; }
+/* v3.11：补 align-items/text-align —— 单独模式里 .pv-single > .pv-col 被 stretch 撑满整宽，
+   缺这两条时标题与尾行会贴左边（用户截图 1×1 巨型天数「倒计时」在左上角）。 */
+.pv-bd { justify-content: center; align-items: center; text-align: center; gap: 0.1em; width: 100%; }
 .pv-bd-title { font-size: 0.5em; letter-spacing: 0.1em; opacity: 0.72; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .pv-bd-num { font-size: 2.2em; font-weight: 800; line-height: 0.95; font-variant-numeric: tabular-nums; }
 .pv-bd-num small { font-size: 0.34em; font-weight: 600; margin-left: 0.1em; }
@@ -249,8 +251,26 @@ export const CARD_MODE_CSS = `
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
 .pv-rp-legend i { width: 0.5em; height: 0.5em; border-radius: 999px; display: block; }
 .pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; gap: 0.6em; }
-/* 1×FULL 横排：环固定 4em 见方（此处必须显式给高，容器已不再用 aspect-ratio） */
-.pv-single-1xfull .pv-rp-ring { flex: 0 0 4em; width: 4em; height: 4em; }
+/* 1×FULL 横排：环固定 5.2em 见方（此处必须显式给高，容器已不再用 aspect-ratio）。
+   v3.11：4em 在真实卡（1387×347 / 基准 51.7px）上环直径仅 207px，整卡看着空 —— 抬到 5.2em。 */
+.pv-single-1xfull .pv-rp-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
+.pv-single-1xfull .pv-rp { gap: 0.9em; }
+.pv-single-1xfull .pv-rp-legend { font-size: 0.46em; gap: 0.4em 0.9em; }
+/* v3.11 1×FULL ringClock：原来是「环在上、时间在下」的方卡版式，横条卡上环被限高到 ≈2em、
+   两侧全是空的。改成横排：环固定 5.2em 见方（不能留 width:100% —— 横排里 100% 宽会把
+   时间挤出卡片右侧），时间放大贴右侧。 */
+.pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; gap: 0.7em; }
+.pv-single-1xfull .pv-rc-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
+.pv-single-1xfull .pv-rc-time { font-size: 1.6em; }
+/* v3.11 1×FULL yearBars：12 根竖条原本长到 347px 卡高，像 12 根柱子；改成
+   「左侧条带 + 右侧年度读数」的横排，把 1387px 的横向空间用起来。 */
+.pv-single-1xfull .pv-yb { flex-direction: row; align-items: center; gap: 0.7em; }
+.pv-single-1xfull .pv-yb-bars { flex: 1 1 auto; min-width: 0; height: 3.4em; }
+.pv-single-1xfull .pv-yb-foot { flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 0.06em; }
+/* v3.11 1×FULL dial：表盘本身已经吃满卡高（实测 ≈73%），不再改排布；只把读数放大一档，
+   免得 1387px 宽的横条里「80%」小得像注脚。 */
+.pv-single-1xfull .pv-gl-val { font-size: 1.05em; bottom: 0; }
+.pv-single-1xfull .pv-gl-cap { font-size: 0.56em; }
 
 .pv-hy-wrap { width: 100%; height: 100%; padding: 0.34em; box-sizing: border-box; }
 .pv-hy { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.14em; width: 100%; height: 100%; opacity: 0.92; }
@@ -296,6 +316,39 @@ export const CARD_MODE_CSS = `
 .pv-hd-name { font-size: 0.62em; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pv-hd-date { font-size: 0.48em; opacity: 0.55; font-variant-numeric: tabular-nums; }
 .pv-single-1x2 .pv-hd-days, .pv-single-2x1 .pv-hd-days, .pv-single-1xfull .pv-hd-days { font-size: 1.35em; }
+
+/* ===== v3.11 方卡/窄高卡专用样式：今日大数字 / 小月历 / 竖排时间 / 分层进度条 ===== */
+/* dayNum：日数独占视觉重心。方形卡与窄高卡都不存在「横向长文本」，天然不会被裁。 */
+.pv-dn { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.06em; }
+.pv-dn-num { font-size: 3.4em; font-weight: 800; line-height: 0.98; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.pv-dn-sub { font-size: 0.56em; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.pv-single-2x1 .pv-dn-num { font-size: 4em; }
+.pv-single-1x2 .pv-dn-num { font-size: 2.6em; }
+/* miniMonth：表头 + 星期行 + 7 列固定网格；行高用 1fr 均分剩余高度，1×1 上刚好铺满 */
+.pv-mm { width: 100%; height: 100%; gap: 0.16em; justify-content: center; }
+.pv-mm-head { flex: 0 0 auto; font-size: 0.46em; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
+.pv-mm-wd { flex: 0 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.06em; font-size: 0.38em; font-weight: 700; text-align: center; line-height: 1.2; }
+.pv-mm-wd i { font-style: normal; }
+.pv-mm-grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 0.06em; }
+.pv-mm-c { display: flex; align-items: center; justify-content: center; font-size: 0.44em; font-weight: 600; line-height: 1; border-radius: 0.26em; font-variant-numeric: tabular-nums; }
+.pv-mm-c.out { opacity: 0.26; }
+.pv-single-2x4 .pv-mm-c { font-size: 0.56em; }
+/* stackTime：三行竖排，按高度均分 */
+.pv-skt { width: 100%; height: 100%; justify-content: center; align-items: center; gap: 0.12em; }
+.pv-skt-row { display: flex; align-items: baseline; gap: 0.14em; line-height: 1; }
+.pv-skt-row b { font-size: 1.9em; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.pv-skt-row i { font-size: 0.5em; font-style: normal; opacity: 0.7; }
+.pv-single-2x1 .pv-skt-row b { font-size: 2.3em; }
+/* 窄高卡：三行按高度均分铺满，而不是挤在中间一小块 */
+.pv-single-2x1 .pv-skt { justify-content: space-evenly; gap: 0; }
+.pv-single-2x2 .pv-skt-row b { font-size: 2.2em; }
+/* stackBars：四行横条按高度均分（space-evenly），窄高卡不挤、方卡不散 */
+.pv-sb { width: 100%; height: 100%; justify-content: space-evenly; gap: 0.2em; }
+.pv-sb-row { display: flex; align-items: center; gap: 0.4em; flex: 0 1 auto; }
+.pv-sb-k { flex: 0 0 auto; width: 1.1em; font-size: 0.6em; font-weight: 700; text-align: center; }
+.pv-sb-bar { flex: 1 1 auto; min-width: 0; height: 0.42em; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); overflow: hidden; }
+.pv-sb-bar i { display: block; height: 100%; border-radius: inherit; }
+.pv-sb-v { flex: 0 0 auto; width: 2.6em; text-align: right; font-size: 0.62em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pv-bt { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.28em; }
 .pv-bt-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; font-size: 0.5em; font-weight: 600; }
 /* v3.10：width:100% + 两侧 0.13em 边框（默认 content-box）会让电池壳比卡片宽 0.26em —— 审计在
