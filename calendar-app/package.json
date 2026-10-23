@@ -23,6 +23,11 @@
     "lint:fix": "eslint src config --fix",
     "check:css": "node scripts/check-css-mirror.mjs",
     "check:version": "node scripts/check-version.mjs",
+    "test:layout": "node scripts/test-layout.mjs",
+    "test:render": "node scripts/test-render.mjs",
+    "audit:matrix": "node scripts/audit-matrix.mjs",
+    "audit:single": "node scripts/audit-single.mjs",
+    "check": "npm run lint && npm run check:css && npm run check:version && npm run test:layout && npm run test:render",
     "preview:png": "node scripts/screenshot.mjs"
   },
   "devDependencies": {

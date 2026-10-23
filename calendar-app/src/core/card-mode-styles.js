@@ -278,7 +278,4 @@ export const CARD_MODE_CSS = `
 .pv-bt-nub { width: 0.2em; height: 0.3em; border-radius: 0 0.06em 0.06em 0; flex: 0 0 auto; align-self: center; margin-left: -0.03em; }
 .pv-single-1x2 .pv-bt, .pv-single-1xfull .pv-bt { gap: 0.2em; }
 .pv-single-4x4 .pv-bt-body { height: 1.2em; }
-
-.pv-d2 { gap: 0.06em; }
-.pv-d2-l { font-size: 1em; font-weight: 700; line-height: 1.12; white-space: nowrap; letter-spacing: -0.01em; }
 `;

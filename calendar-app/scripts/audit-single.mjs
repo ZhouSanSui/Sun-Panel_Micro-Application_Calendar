@@ -117,7 +117,7 @@ const MEASURE = `
       const ox = block.scrollWidth - block.clientWidth;
       const oy = block.scrollHeight - block.clientHeight;
       let clipped = 0; let minPrimary = 999; let minSecondary = 999; let outTag = ''; let svgOut = 0;
-      const PRIMARY = /(^|\\s)(pv-big|pv-mid|pv-vbig|pv-vline|pv-d2-l|pv-wd-sm|pv-rc-time|pv-dc-time|pv-bc-nums|pv-tg-days|pv-yb-v|pv-mb-v|pv-gl-val|pv-wc-main)(\\s|$)/;
+      const PRIMARY = /(^|\\s)(pv-big|pv-mid|pv-vbig|pv-vline|pv-wd-sm|pv-rc-time|pv-dc-time|pv-bc-nums|pv-tg-days|pv-yb-v|pv-mb-v|pv-gl-val|pv-wc-main)(\\s|$)/;
       block.querySelectorAll('*').forEach((n) => {
         const r = n.getBoundingClientRect();
         const isSvgPrim = !!n.closest('svg');

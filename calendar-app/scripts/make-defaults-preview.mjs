@@ -3,6 +3,7 @@
  * 复用 renderBlocksHTML 真实渲染 + 与组件一致的 em/网格 CSS。
  */
 import { writeFileSync } from 'node:fs';
+import { CARD_MODE_CSS } from '../src/core/card-mode-styles.js';
 import { renderBlocksHTML } from '../src/core/card-mode-render.js';
 import { layoutBlocks, gridForSize, sanitizeBlocks } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
@@ -98,67 +99,12 @@ const CSS = `
   .card-mode-wrap { flex:1; min-height:0; width:100%; display:flex; flex-direction:column;
                     align-items:center; justify-content:center; font-size:16px; }
   .text-light { color:#F5F5F7; text-shadow:0 1px 2px rgba(0,0,0,.35); }
-  .pv-center { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.375em; width:100%; text-align:center; }
-  .pv-center.pv-flat { flex-direction:row; align-items:center; justify-content:center; gap:.5em; }
-  .pv-fnum { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:0 1 auto; }
-  .pv-ftext { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.1875em; flex:0 1 auto; min-width:0; text-align:center; }
-  .pv-col { display:flex; flex-direction:column; gap:.3125em; width:100%; }
-  .pv-gap { height:.5em; }
-  .pv-big { font-size:1.875em; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
-  .pv-mid { font-size:1em; font-weight:700; line-height:1.25; }
-  .pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
-  .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0,0,0,.35); }
-  .pv-row2 { font-size:.75em; font-weight:600; }
-  .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: .5em; width: 100%; }
-  .pv-sch-name { font-size: .75em; font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pv-sch-meta { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; font-size: .5em; line-height: 1.25; white-space: nowrap; }
-  .pv-sch-date { opacity: .95; }
-  .pv-sch-time { opacity: .8; }
-  .pv-sub { font-size:.5625em; line-height:1.3; }
-  .pv-bar { height:.25em; border-radius:.125em; overflow:hidden; }
-  .pv-fill { height:100%; border-radius:.125em; }
-  .pv-chip2 { font-size:.6875em; padding:.25em .625em; border-radius:.5em; font-weight:600; display:inline-flex; gap:.375em; align-items:center; }
-  .pv-flip { display:inline-flex; gap:.25em; align-items:center; }
-  .pv-flip-box { font-size:1.375em; font-weight:800; padding:.25em .5em; border-radius:.375em; font-variant-numeric:tabular-nums; }
-  .pv-ap { font-size:.6875em; font-weight:600; }
-  .pv-wk { display:grid; grid-template-columns:repeat(7,1fr); gap:.125em; }
-  .pv-wk-cell { display:flex; flex-direction:column; align-items:center; border-radius:.375em; padding:.1875em 0; }
-  .pv-wk-d { font-size:.75em; font-weight:600; }
-  .pv-wk-w { font-size:.5em; }
-  .pv-mini-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:.125em; margin-top:0; }
-  .pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:.1875em; container-type:inline-size; }
-  .pv-vstack.t { gap:.125em; }
-  .pv-vline { font-size:1.25em; font-weight:700; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .pv-vline.wk { font-size:.7em; }
-  .pv-vline.fit { font-size:min(1.25em, calc(100cqw / var(--w, 4))); }
-  .pv-vline.wk.fit { font-size:min(0.7em, calc(100cqw / var(--w, 4))); }
-  .pv-vbig { font-size:1.875em; font-weight:800; line-height:1.1; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .pv-vrow { display:flex; align-items:baseline; justify-content:center; gap:.25em; width:100%; }
-  .pv-cal-head { text-align:center; color:inherit; line-height:1.2; }
-  .pv-cal-wd { font-size:.5625em; font-weight:600; margin-left:.3125em; }
-  .pv-wkv { display:grid; grid-template-rows:repeat(7,1fr); grid-template-columns:1fr; gap:.0625em; width:100%; }
-  .pv-wkv-cell { display:flex; align-items:center; justify-content:space-between; padding:.125em .375em; border-radius:.375em; }
-  .pv-wkv-d { font-size:.75em; font-weight:600; line-height:1.2; font-variant-numeric:tabular-nums; }
-  .pv-wkv-w { font-size:.5625em; line-height:1.3; text-align:right; }
-  .pv-wd-sm { font-size:0.9375em; font-weight:700; line-height:1.1; }
-  .pv-sub-sm { font-size:0.5em; }
-  .pv-c { aspect-ratio:1; border-radius:.25em; display:flex; align-items:center; justify-content:center; font-size:.5625em; font-weight:500; }
-  .pv-c.out { opacity:.35; }
-  .pv-yearcal { display:grid; grid-template-columns:repeat(3,1fr); gap:.3125em; }
-  .pv-block > .pv-col { align-self:stretch; flex:1 1 auto; min-height:0; }
-  .pv-block > .pv-col > .pv-mini-grid { flex:1 1 auto; min-height:0; grid-auto-rows:1fr; }
-  .pv-mini-grid > .pv-c { aspect-ratio:auto; min-height:0; line-height:1; }
-  .pv-blank { width:100%; height:100%; }
-  .pv-block.blank { outline-color:rgba(255,120,120,.35); }
-  .pv-blocks { position:relative; flex:1; min-height:0; width:100%; }
-  .pv-block { position:absolute; box-sizing:border-box; padding:.1875em; display:flex;
-              flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
-              outline:1px dashed rgba(255,255,255,.10); }
+${CARD_MODE_CSS}
 `;
 
 writeFileSync(new URL('./defaults-preview.html', import.meta.url),
   `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <title>7 种卡片规格 · 推荐默认样式预览</title><style>${CSS}</style></head>
-<body><h1>拼接模式 · 7 种卡片规格推荐默认样式（虚线为块边界）</h1>
+<body><h1>拼接模式 · 7 种卡片规格推荐默认样式</h1>
 <div class="grid-wrap">${cards}</div></body></html>`);
 console.log('✅ scripts/defaults-preview.html 已生成');
