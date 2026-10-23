@@ -24,6 +24,7 @@ scripts/audit-matrix.html
 scripts/audit-result.json
 scripts/audit-single-cases.html
 scripts/audit-single.json
+scripts/real-preview.html
 
 # Vite 构建临时文件
 vite.config.js.timestamp-*.mjs

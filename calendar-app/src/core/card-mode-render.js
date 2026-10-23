@@ -1041,15 +1041,26 @@ function renderInfoBlockInner(o) {
         const sn = Math.sin(a), cs = Math.cos(a);
         return html`<line x1="${(50 + sn * r1).toFixed(2)}" y1="${(50 - cs * r1).toFixed(2)}" x2="${(50 + sn * 39.5).toFixed(2)}" y2="${(50 - cs * 39.5).toFixed(2)}" stroke="currentColor" stroke-opacity="${i % 5 === 0 ? 0.55 : 0.24}" stroke-width="${i % 5 === 0 ? 1.1 : 0.6}" stroke-linecap="round" />`;
       });
+      // v3.10 指针：外圈刻度只表达「当日已过比例」，钟面本身必须有时针/分针才叫刻度钟。
+      // 指针长度控制在 26 以内（刻度内圈半径 30），避免与刻度/进度弧打架；数字下沉到 6 点位。
+      const handOf = (deg, len, w2, op) => {
+        const a = (deg * Math.PI) / 180;
+        return html`<line x1="50" y1="50" x2="${(50 + Math.sin(a) * len).toFixed(2)}" y2="${(50 - Math.cos(a) * len).toFixed(2)}" stroke="${ac}" stroke-opacity="${op}" stroke-width="${w2}" stroke-linecap="round" />`;
+      };
+      const hDeg = (((now.getHours() % 12) * 60 + now.getMinutes()) / 720) * 360;
+      const mDeg = ((now.getMinutes() * 60 + now.getSeconds()) / 3600) * 360;
       return html`<div class="pv-col pv-rc">
         <div class="pv-rc-ring">
           <svg viewBox="0 0 100 100" aria-hidden="true">
             ${ticks}
             <circle cx="50" cy="50" r="44" fill="none" stroke="${ac}" stroke-width="2.6" stroke-linecap="round"
               stroke-dasharray="${(C * ratio).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 50 50)" />
+            ${handOf(hDeg, 17, 3.4, 0.95)}
+            ${handOf(mDeg, 25.5, 2, 0.7)}
+            <circle cx="50" cy="50" r="3.2" fill="${ac}" />
           </svg>
-          <div class="pv-rc-time" style="color:${label}">${t}</div>
         </div>
+        <div class="pv-rc-time" style="color:${label}">${t}</div>
       </div>`;
     }
     // v2.9 dotClock：数码管风格（等宽数字 + 发光 + 顶部点阵条）
@@ -1133,8 +1144,9 @@ function renderInfoBlockInner(o) {
               ${ticks}
               <circle cx="50" cy="50" r="44" fill="none" stroke="${ac}" stroke-opacity="0.16" stroke-width="2"
                 stroke-dasharray="${(2 * Math.PI * 44 * (SWEEP / 360)).toFixed(2)} 999" transform="rotate(210 50 50)" />
-              <line x1="50" y1="50" x2="${nx.toFixed(2)}" y2="${ny.toFixed(2)}" stroke="${ac}" stroke-width="2.6" stroke-linecap="round" />
-              <circle cx="50" cy="50" r="2.6" fill="${ac}" />
+              <line x1="${(50 - Math.sin(rad) * 6).toFixed(2)}" y1="${(50 + Math.cos(rad) * 6).toFixed(2)}"
+                x2="${nx.toFixed(2)}" y2="${ny.toFixed(2)}" stroke="${ac}" stroke-width="2.8" stroke-linecap="round" />
+              <circle cx="50" cy="50" r="3.4" fill="${ac}" />
             </svg>
             <div class="pv-gl-val" style="color:${label}">${Math.round(yp0)}%</div>
           </div>
@@ -1500,37 +1512,51 @@ export function renderInfoBlock(o) {
   const narrowGeo = geo
     ? o.w < o.h
     : (sizeGeo ? sizeGeo.cols < sizeGeo.rows : o.narrow);
-  // v3.8：单独模式也把「块内可用空间（em）」传给渲染内核 —— 格阵/热力图按几何
+  // v3.8：单独模式也把「块内可用空间(em)」传给渲染内核 —— 格阵/热力图按几何
   // 自适应列行与格边长需要它（此前只有拼接模式传 availW/availH）。
-  // 根字号 = 该尺寸的 CSS 基准（1×FULL 按真实宽度换算），与下面 inline 的 font-size 同源。
   // v3.9：baseForAvail 必须计入 singleScale —— 缩放预览的「可用空间(em)」要与真实卡片同源，
   // 否则行数裁剪/格阵自适应等几何判定在预览里走另一条路（预览裁一处、实际裁另一处）。
+  // v3.10：基准字号改为「随真实卡片尺寸等比缩放」—— 宿主给小卡的布局尺寸可能远小于
+  // 设计基准（SINGLE_REF_PX），写死的 px 基准会让内容溢出/被裁（用户实测 1×1/2×1/1×2/
+  // 1×FULL 一批样式被切）。以 SINGLE_REF_PX 为 1.0，按 min(w/refW, h/refH) 缩放，
+  // 预览传的是同一套实测尺寸 → 预览与实际必然一致。
   const scaleForAvail = Number(o.singleScale);
+  const scaleOk = Number.isFinite(scaleForAvail) && scaleForAvail > 0 ? scaleForAvail : 1;
+  const refSingle = o.size ? SINGLE_REF_PX[o.size] : null;
+  const kCard = refSingle && geo ? Math.min(o.w / refSingle[0], o.h / refSingle[1]) : 1;
+  const kClamped = Math.max(0.35, Math.min(4, kCard));
+  // 1×FULL 的基准字号由「高度」决定，不能只看宽度：它是一行高的横条，内容按 6.7em 高排版
+  // （设计基准 1080×120 / 18px）。用户实测 1×FULL = 1386.88×346.72，旧公式 w/60=23.1px 只
+  // 相当于设计值的 1.28 倍，而实际高度是设计值的 2.89 倍 → 内容缩在中间一小块、四周大片留白。
+  // 取 min(h/6.7, w/24)：高度是硬约束，宽度只做上限兜底（防窄屏横排溢出）。
+  const baseFull = geo ? Math.min(56, Math.max(6, Math.min(o.h / 6.7, o.w / 24))) : 18;
   const baseForAvail = (o.size === '1xfull'
-    ? Math.min(34, Math.max(12, geo ? o.w / 60 : 18))
-    : (o.size ? SINGLE_BASE_PX[o.size] : 16))
-    * (Number.isFinite(scaleForAvail) && scaleForAvail > 0 ? scaleForAvail : 1);
+    ? baseFull
+    : (o.size ? SINGLE_BASE_PX[o.size] : 16) * kClamped)
+    * scaleOk;
+  // v3.10：可用空间要用「缩放后的盒子尺寸」—— 预览传的是未缩放实测尺寸 + singleScale，
+  // 若不乘 scaleOk，预览的 avail 会是真实卡片的两倍，行数裁剪/格阵自适应又会漂移。
   const availGeo = geo
-    ? { availW: o.w / baseForAvail - 2 * FIT_PAD, availH: o.h / baseForAvail - 2 * FIT_PAD }
+    ? {
+      availW: (o.w * scaleOk) / baseForAvail - 2 * FIT_PAD,
+      availH: (o.h * scaleOk) / baseForAvail - 2 * FIT_PAD,
+    }
     : {};
   const body = renderInfoBlockInner({ ...o, ...availGeo, tall: tallGeo, narrow: narrowGeo });
   const cls = o.size ? 'pv-single pv-single-' + o.size : 'pv-single';
   // 预览等比缩放：把 CSS 的根字号基准同比缩小，保证缩小后的预览与真实卡片同比例
-  // （scale 缺省 / =1 时不内联，交给 CSS 的 px 基准兜底）
-  // v3.3：1×FULL 的宽度随 SunPanel「内容区域最大宽度」（500~2000px）变化，
-  // 固定 18px 基准在 1600px 以上会显得过小 → 按真实宽度换算（12~34px 之间）
+  // 1×FULL 与 baseForAvail 同源（否则可用空间与真实字号两套基准，行数裁剪会漂）
   const base = o.size === '1xfull'
-    ? Math.min(34, Math.max(12, Number.isFinite(o.w) && o.w > 0 ? o.w / 60 : 18))
-    : (o.size ? SINGLE_BASE_PX[o.size] : 0);
-  const scale = Number(o.singleScale);
-  // 1×FULL 的字号基准按真实宽度算出（500~2000px 的内容区宽度），必须始终内联；
-  // 其余尺寸只在等比缩放预览时内联
-  const eff = o.size === '1xfull' && Number.isFinite(scale) && scale > 0 ? base * scale : base;
-  const inline = o.size === '1xfull' && eff
+    ? baseFull
+    : (o.size ? SINGLE_BASE_PX[o.size] : 0) * kClamped;
+  const eff = base * scaleOk;
+  // v3.10：SVG 表盘类的「容器 0 高度」问题改由 CSS 的 aspect-ratio 解决
+  // （见 card-mode-styles.js 的 .pv-rc-ring/.pv-rp-ring/.pv-gl-dial），不在这里硬塞高度——
+  // 实测内联 height 会破坏 yearGrid 的格阵自适应（参考尺寸下 4 处子元素越界）。
+  // 有实测几何（真实卡片/配置预览）或显式缩放时才内联字号；两者都没有（样式条小预览）交给 CSS 基准
+  const inline = eff && (geo || scaleOk !== 1)
     ? html` style="font-size:${eff.toFixed(2)}px"`
-    : base && Number.isFinite(scale) && scale > 0 && scale !== 1
-      ? html` style="font-size:${(base * scale).toFixed(2)}px"`
-      : '';
+    : '';
   if (!o.singleRow) return body;
   // v2.7：整卡装饰层（按尺寸自动加顶栏/底栏/纹理）已撤回 —— 版面差异改由用户点选的
   // 「显示样式」（SINGLE_CONTENTS 里的 chip）决定，外壳只负责尺寸类名与预览缩放

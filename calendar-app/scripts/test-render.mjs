@@ -690,15 +690,65 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
       ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
       singleRow: true, size: '1x1', w: 120, h: 120,
     })).join('');
+    // v3.10 新契约：预览传「未缩放实测尺寸 + singleScale」（kCard 由真实尺寸算，avail 用缩放后盒子）
     const scaled = flatten(renderInfoBlock({
       ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
-      singleRow: true, size: '1x1', w: 60, h: 60, singleScale: 0.5,
+      singleRow: true, size: '1x1', w: 120, h: 120, singleScale: 0.5,
     })).join('');
     ok(rows(real) === 4, `真实卡片 multiBars 应显示 4 行（实际 ${rows(real)}）`);
     ok(rows(scaled) === rows(real),
       `等比缩放预览的 multiBars 行数必须与真实卡片一致（实际 ${rows(scaled)} vs ${rows(real)}）`);
     // 预览容器必须内联等比缩小后的根字号
     ok(/font-size:8\.00px/.test(scaled), 'singleScale=0.5 时 1x1 预览根字号应为 16×0.5=8.00px');
+    // v3.10 关键不变量：预览(真实尺寸+singleScale) 与 真实卡片(singleScale=1) 必须同构 ——
+    // 基准字号线性缩放、avail 用「缩放后盒子 / 缩放后基准」相除，两者商恒等。
+    // 任何一边走另一条分支，就会出现用户报的「预览正常、实际被切」。
+    const layoutSig = (str) => [
+      (str.match(/pv-mb-row/g) || []).length,
+      (str.match(/pv-yg-grid/g) || []).length,
+      (str.match(/pv-rp-legend/g) || []).length,
+      (str.match(/pv-wg2-cell/g) || []).length,
+    ].join('|');
+    for (const [c, s, size, w, h] of [
+      ['progress', 'multiBars', '1xfull', 1386.88, 346.72],
+      ['progress', 'yearGrid', '2x2', 693.44, 693.44],
+      ['progress', 'weekGrid', '2x1', 346.72, 693.44],
+    ]) {
+      const f = (sc) => flatten(renderInfoBlock({
+        ...base, content: c, style: s, singleRow: true, size, w, h, ...(sc ? { singleScale: sc } : {}),
+      })).join('');
+      const a = f(0); const b = f(0.37); const d = f(1);
+      ok(layoutSig(a) === layoutSig(b) && layoutSig(b) === layoutSig(d),
+        `${c}.${s}@${size} 预览(0.37×)/真实(1×) 排版签名必须一致：${layoutSig(a)} vs ${layoutSig(b)} vs ${layoutSig(d)}`);
+      const px = (str) => Number((str.match(/font-size:([0-9.]+)px/) || [])[1]);
+      ok(Math.abs(px(b) - px(a) * 0.37) < 0.05,
+        `${c}.${s}@${size} 预览基准字号应严格等于真实字号×0.37（${px(a)} → ${px(b)}）`);
+    }
+    // 小卡（宿主给的布局尺寸小于设计基准）基准字号必须同比缩小，内容才不会溢出
+    const small = flatten(renderInfoBlock({
+      ...base, content: 'timeDate', style: 'dualZone', singleRow: true, size: '1x1', w: 60, h: 60,
+    })).join('');
+    ok(/font-size:8\.00px/.test(small), '1x1 卡片实测 60x60 时基准字号应缩到 16×0.5=8.00px');
+    // SVG 环形容器尺寸纪律：弹性占满剩余高度（flex:1 1 auto + min-height:0），
+    // 不许再写 aspect-ratio:1 —— 宽扁卡上「高=宽」会顶出卡片，窄高卡上会把图例挤出内容盒。
+    for (const sel of ['.pv-rc-ring', '.pv-rp-ring', '.pv-gl-dial']) {
+      const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rule = SHARED_CSS.match(new RegExp(esc + ' \\{[^}]*\\}'));
+      ok(rule && /flex: 1 1 auto/.test(rule[0]) && /min-height: 0/.test(rule[0]) && /width: 100%/.test(rule[0])
+        && !/aspect-ratio/.test(rule[0]),
+        `真源 ${sel} 应弹性占满剩余高度且不带 aspect-ratio（实际：${rule ? rule[0].slice(0, 90) : '未找到'}）`);
+      // SVG 绝对铺满容器，靠 viewBox + 默认 preserveAspectRatio 自动居正方
+      const svgRule = SHARED_CSS.match(new RegExp(esc + ' svg \\{[^}]*\\}'));
+      ok(svgRule && /position: absolute/.test(svgRule[0]) && /width: 100%/.test(svgRule[0]) && /height: 100%/.test(svgRule[0]),
+        `真源 ${sel} svg 应绝对铺满容器让 viewBox 自动居正方`);
+    }
+    // 环形刻度钟必须有指针（用户实测「环形刻度钟没有显示指针」）
+    {
+      const rc = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'ringClock', singleRow: true, size: '2x2', w: 252, h: 252 })).join('');
+      const hands = rc.match(/<line x1="50" y1="50"[^>]*stroke-width="(3\.4|2)"[^>]*>/g) || [];
+      ok(hands.length === 2, `ringClock 应渲染时针+分针两根指针（实际 ${hands.length} 根）`);
+      ok(/<circle cx="50" cy="50" r="3\.2" fill="[^"]+"\s*\/>/.test(rc), 'ringClock 应渲染中心轴帽');
+    }
     // 回写链路：store 就绪后必须补一次测量（否则 previewSize 永不写入）
     const wjs = readFileSync(new URL('../src/components/widget.js', import.meta.url), 'utf8');
     ok(/ensureAppState\(this\.spCtx\?\.api\)\.then\(\(\) => \{[\s\S]{0,200}this\._measure\(\)/.test(wjs),
@@ -1076,9 +1126,12 @@ console.log('');
     const h = flatten(renderInfoBlock({ ...base, content, style, singleRow: true, size })).join('');
     ok(h.includes(needle), `单独 ${content}:${style} 应渲染 .${needle}`);
   }
-  // 环形刻度钟：60 根刻度 + 进度弧
+  // 环形刻度钟：60 根刻度（stroke=currentColor）+ 时针/分针（stroke=主色）
   const ringHTML = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'ringClock', singleRow: true, size: '2x4' })).join('');
-  ok((ringHTML.match(/<line /g) || []).length === 60, `环形钟应有 60 根刻度，实际 ${(ringHTML.match(/<line /g) || []).length}`);
+  const tickN = (ringHTML.match(/<line [^>]*stroke="currentColor"/g) || []).length;
+  ok(tickN === 60, `环形钟应有 60 根刻度，实际 ${tickN}`);
+  const handN = (ringHTML.match(/<line x1="50" y1="50"/g) || []).length;
+  ok(handN === 2, `环形钟应有 2 根指针（时针+分针），实际 ${handN}`);
   ok(ringHTML.includes('stroke-dasharray'), '环形钟应有进度弧 stroke-dasharray');
   // 多进度条：4 行（年/月/周/日）
   const mbHTML = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'multiBars', singleRow: true, size: '2x4' })).join('');
@@ -1293,17 +1346,27 @@ const wideText = wideHTML.replace(/<[^>]+>/g, '');
 ok(!wideHTML.includes('pv-flip'), `宽扁块 年月日 不应走竖排两行，实际「${wideHTML.replace(/<[^>]+>/g, '').trim().slice(0, 40)}」`);
 ok(/2026|26/.test(wideText), `宽扁块 年月日 应保留年份，实际「${wideText.trim().slice(0, 40)}」`);
 
-// 1×FULL：SunPanel「内容区域最大宽度」500~2000px，字号须跟着走（夹取 12~34px）
+// 1×FULL：一行高的横条，内容高度是硬约束 → 基准字号由「高度」决定（h/6.7，设计基准 1080×120/18px），
+// 宽度只做上限兜底（w/24）。旧公式 w/60 只看宽度，真实 1386.88×346.72 上字号只有设计值的 1.28 倍
+// 而高度是 2.89 倍，内容缩成中间一小块（用户实测「1×FULL 一批样式变形」）。
 const pxOf = (htmlText) => {
   const m = htmlText.match(/font-size:([0-9.]+)px/);
   return m ? Number(m[1]) : NaN;
 };
-const full520 = pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w: 520, h: 120 })).join(''));
-const full1080 = pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w: 1080, h: 120 })).join(''));
-const full2000 = pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w: 2000, h: 120 })).join(''));
-ok(full520 >= 12 && full520 < full1080 && full1080 < full2000, `1×FULL 字号应随宽度递增，实际 ${full520}/${full1080}/${full2000}`);
-ok(full2000 <= 34, `1×FULL 字号上限 34px，实际 ${full2000}`);
-ok(full1080 >= 16 && full1080 <= 20, `1×FULL 在 1080px 应≈18px，实际 ${full1080}`);
+const fullPx = (w, h) => pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w, h })).join(''));
+const full1080h120 = fullPx(1080, 120);
+const full2000h120 = fullPx(2000, 120);
+const full520h120 = fullPx(520, 120);
+ok(Math.abs(full1080h120 - 17.91) < 0.05, `1×FULL 设计基准 1080×120 字号应为 120/6.7≈17.91px，实际 ${full1080h120}`);
+ok(Math.abs(full1080h120 - full2000h120) < 0.05 && Math.abs(full520h120 - full1080h120) < 0.05,
+  `1×FULL 同高不同宽字号应一致（高度决定），实际 520=${full520h120} 1080=${full1080h120} 2000=${full2000h120}`);
+const full1080h240 = fullPx(1080, 240);
+ok(full1080h240 > full1080h120 * 1.9, `1×FULL 高度翻倍字号应近似翻倍，实际 ${full1080h120} → ${full1080h240}`);
+const fullNarrow = fullPx(300, 120);
+ok(fullNarrow < full1080h120, `1×FULL 过窄时应被宽度兜底压小字号，实际 ${fullNarrow} vs ${full1080h120}`);
+ok(fullPx(1386.88, 346.72) > 45, `1×FULL 真实面板（1386.88×346.72）字号应约 51.7px，实际 ${fullPx(1386.88, 346.72)}`);
+ok(full1080h240 <= 56, `1×FULL 字号上限 56px，实际 ${full1080h240}`);
+ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，实际 ${full1080h120}`);
 
 // v3.5：进度格阵的行列数改为按容器宽高择优（格子接近正方形），因此恢复 1×FULL 档；
 // 年热力图是 12 列 × 各月天数的固定结构，宽扁卡里无法自洽，仍不提供 1×FULL。

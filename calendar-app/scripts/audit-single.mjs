@@ -122,10 +122,28 @@ const MEASURE = `
       const ox = block.scrollWidth - block.clientWidth;
       const oy = block.scrollHeight - block.clientHeight;
       let clipped = 0; let minPrimary = 999; let minSecondary = 999; let outTag = ''; let svgOut = 0;
+      let squeezed = 0; let sqTag = '';
       const PRIMARY = /(^|\\s)(pv-big|pv-mid|pv-vbig|pv-vline|pv-wd-sm|pv-rc-time|pv-dc-time|pv-bc-nums|pv-tg-days|pv-yb-v|pv-mb-v|pv-gl-val|pv-wc-main)(\\s|$)/;
       block.querySelectorAll('*').forEach((n) => {
         const r = n.getBoundingClientRect();
         const isSvgPrim = !!n.closest('svg');
+        // v3.10：容器内文字挤压检测 —— 只查块级越界抓不到「格子里的数字互相叠」（weekGrid 每列
+        // 只有约 1.1 个字宽，两位数字直接压在一起，但格子本身没越出 .pv-single）。这里对「有文本
+        // 且不裁剪」的叶子元素比 scrollWidth 与 clientWidth，超了算挤压。
+        // 内联元素的 clientWidth 恒为 0，所以不能用 scrollWidth，改比「子/父矩形」：
+        // 子元素横向溢出父元素、且父元素不裁剪 = 文字被挤出自己的格子（视觉上就是叠字）。
+        {
+          const p = n.parentElement;
+          if (!isSvgPrim && p && p !== block && r.width > 0) {
+            const pr = p.getBoundingClientRect();
+            const pcs = getComputedStyle(p);
+            const clips = pcs.overflowX !== 'visible';
+            if (!clips && pr.width > 0 && (r.right > pr.right + 1 || r.left < pr.left - 1)) {
+              squeezed += 1;
+              if (!sqTag) sqTag = n.tagName.toLowerCase() + '.' + (n.getAttribute('class') || '') + '「' + (n.textContent || '').trim().slice(0, 8) + '」溢出 ' + p.tagName.toLowerCase() + '.' + (p.getAttribute('class') || '') + ' +' + Math.round(Math.max(r.right - pr.right, pr.left - r.left)) + 'px';
+            }
+          }
+        }
         if (r.width > 0 && (r.right > br.right + 1.5 || r.bottom > br.bottom + 1.5
           || r.left < br.left - 1.5 || r.top < br.top - 1.5)) {
           if (isSvgPrim) { svgOut += 1; } else { clipped += 1; } if (!outTag) outTag = n.tagName.toLowerCase() + '.' + (n.getAttribute('class') || '') + '[p=' + (n.parentElement && (n.parentElement.getAttribute('class') || n.parentElement.tagName)) + ' r=' + n.getAttribute('r') + ' cx=' + n.getAttribute('cx') + ' cy=' + n.getAttribute('cy') + '] L' + Math.round(r.left - br.left) + ' T' + Math.round(r.top - br.top) + ' R' + Math.round(r.right - br.right) + ' B' + Math.round(r.bottom - br.bottom); }
@@ -144,7 +162,7 @@ const MEASURE = `
         rootPx: Math.round(u * 10) / 10,
         minPrimary: Math.round((minPrimary === 999 ? 0 : minPrimary) * 10) / 10,
         minSecondary: Math.round((minSecondary === 999 ? 0 : minSecondary) * 10) / 10,
-        overflowX: ox, overflowY: oy, clipped, svgOut, outTag,
+        overflowX: ox, overflowY: oy, clipped, svgOut, outTag, squeezed, sqTag,
       });
     });
     const pre = document.createElement('pre');
@@ -176,7 +194,7 @@ const rows = JSON.parse(decode(m[1]));
 
 const verdict = (r) => {
   if (r.missing) return 'MISS';
-  if (r.overflowX > 1 || r.overflowY > 1 || r.clipped > 0) return 'CLIP';
+  if (r.overflowX > 1 || r.overflowY > 1 || r.clipped > 0 || r.squeezed > 0) return 'CLIP';
   if (r.minPrimary > 0 && r.minPrimary < 9) return 'TINY';
   if (r.minSecondary > 0 && r.minSecondary < 5.5) return 'SUB';
   return 'OK';
@@ -195,7 +213,7 @@ if (bad.length) {
   for (const r of bad) {
     console.log(`  ${r.verdict.padEnd(4)} ${String(r.size).padEnd(6)} ${(r.c + '.' + r.s).padEnd(24)} `
       + `块${r.blockW}×${r.blockH} 根${r.rootPx} 主${r.minPrimary} 次${r.minSecondary} `
-      + `溢出${r.overflowX}/${r.overflowY} 越界${r.clipped} ${r.outTag || ""}`);
+      + `溢出${r.overflowX}/${r.overflowY} 越界${r.clipped} 挤压${r.squeezed} ${r.outTag || r.sqTag || ""}`);
   }
 }
 console.log(`\n图集：scripts/audit-single-cases.html（截图：node scripts/screenshot.mjs --html scripts/audit-single-cases.html --no-gen --width 1400 --dpr 1 --out .tmp/audit-single.png）`);

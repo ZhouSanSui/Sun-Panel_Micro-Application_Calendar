@@ -4,7 +4,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import { CARD_MODE_CSS } from '../src/core/card-mode-styles.js';
-import { renderBlocksHTML, renderInfoBlock } from '../src/core/card-mode-render.js';
+import { renderBlocksHTML, renderInfoBlock, SINGLE_REF_PX } from '../src/core/card-mode-render.js';
 import { layoutBlocks, comboGridFor } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
@@ -151,41 +151,44 @@ const cards = CASES.map(([size, w, h, list, cardCenter, note]) => {
 }).join('\n');
 
 // v1.40：单独模式按卡片尺寸版式预览（renderInfoBlock + pv-single-<size> 尺寸类名）
+//
+// v3.10：这里曾经混用两种元组格式 —— 前半段是 [content, style, size, opts]，后半段是
+// [size, w, h, content, style]，但解构统一按后者，于是前半段全部错位（size='important'、
+// w='targetDay'、content=undefined → 渲染成「未明内容」），而且 w/h 从来没传进 renderInfoBlock，
+// 预览页其实一直没按真实几何排版。统一成 [size, content, style, opts?]，宽高从
+// SINGLE_REF_PX（设计基准，与运行时同一张表）取，并显式传 w/h。
 const SINGLE_CASES = [
-  ['important', 'targetDay', '2x2', { text: '项目上线', date: '2026-11-11' }],
-  // v2.11：新内容「仪图」（指针 / 半环）、文字新增「时光倒计时」、格阵粒度与形状、生命进度条
-  ['gauge', 'dial', '2x2'], ['gauge', 'dial', '4x4'],
-  ['gauge', 'semiGauge', '1x2'], ['gauge', 'semiGauge', '2x2'],
-  ['progress', 'yearGrid', '2x2', { unit: 'week' }], ['progress', 'yearGrid', '2x4', { unit: 'day' }],
-  ['progress', 'yearGrid', '4x4', { shape: 'dot' }],
-  ['progress', 'multiBars', '2x4', { bars: 'y,m,w,d,life', age: 30, life: 85 }],
-  ['progress', 'multiBars', '2x2', { bars: 'life', age: 30, life: 85 }],
-  ['1x1', 120, 120, 'timeDate', 'boldClock'],
-  ['2x1', 120, 252, 'timeDate', 'stripeClock'],
-  ['1xfull', 1080, 120, 'timeDate', 'wordClock'],
-  ['1x2', 252, 120, 'timeDate', 'stripeClock'],
-  ['2x2', 252, 252, 'timeDate', 'ringClock'],
-  ['2x4', 516, 252, 'timeDate', 'wordClock'],
-  ['4x4', 516, 516, 'timeDate', 'stripeClock'],
-  ['1x1', 120, 120, 'schedule', 'bigDays'],
-  ['2x1', 120, 252, 'schedule', 'bigDays'],
-  ['1xfull', 1080, 120, 'schedule', 'capsule'],
-  // v2.7：新增「显示样式」—— 进度类三款图形版 + 时间双区
-  ['2x2', 252, 252, 'progress', 'yearGrid'],
-  ['4x4', 516, 516, 'progress', 'yearGrid'],
-  ['1x2', 252, 120, 'progress', 'yearBars'],
-  ['2x4', 516, 252, 'progress', 'yearBars'],
-  ['1xfull', 1080, 120, 'progress', 'weekGrid'],
-  ['2x4', 516, 252, 'progress', 'weekGrid'],
-  ['1x2', 252, 120, 'timeDate', 'dualZone'],
-  ['2x1', 120, 252, 'timeDate', 'dualZone'],
-  ['2x2', 252, 252, 'timeDate', 'dualZone'],
-  ['2x4', 516, 252, 'progress', 'ringProgress'],
-  ['4x4', 516, 516, 'progress', 'heatYear'],
-  ['2x2', 252, 252, 'schedule', 'bigDays'],
+  // targetDay 是 schedule 的样式（不是 important 的）——旧用例写错内容键，一直渲染成节日兜底
+  ['2x2', 'schedule', 'targetDay', { text: '项目上线', date: '2026-11-11' }],
+  ['2x2', 'important', 'holiday'], ['1xfull', 'important', 'holiday'],
+  // v2.11：仪图（指针 / 半环）、格阵粒度与形状、生命进度条
+  ['2x2', 'gauge', 'dial'], ['4x4', 'gauge', 'dial'],
+  ['1x2', 'gauge', 'semiGauge'], ['2x2', 'gauge', 'semiGauge'],
+  ['2x2', 'progress', 'yearGrid', { unit: 'week' }], ['2x4', 'progress', 'yearGrid', { unit: 'day' }],
+  ['4x4', 'progress', 'yearGrid', { shape: 'dot' }],
+  ['2x4', 'progress', 'multiBars', { bars: 'y,m,w,d,life', age: 30, life: 85 }],
+  ['2x2', 'progress', 'multiBars', { bars: 'life', age: 30, life: 85 }],
+  // v3.10：用户实测被切/变形的组合，逐条进图集便于回归肉眼校验
+  ['1x1', 'timeDate', 'dualZone'], ['1x1', 'timeDate', 'ringClock'], ['1x1', 'timeDate', 'dotClock'],
+  ['1x1', 'timeDate', 'stripeClock'], ['1x1', 'timeDate', 'boldClock'],
+  ['1x1', 'progress', 'yearBars'], ['1x1', 'progress', 'weekGrid'], ['1x1', 'progress', 'ringProgress'],
+  ['1x1', 'gauge', 'dial'],
+  ['2x1', 'timeDate', 'dualZone'], ['2x1', 'timeDate', 'ringClock'], ['2x1', 'timeDate', 'dotClock'],
+  ['2x1', 'timeDate', 'stripeClock'], ['2x1', 'schedule', 'targetDay'],
+  ['2x1', 'progress', 'yearBars'], ['2x1', 'progress', 'weekGrid'], ['2x1', 'important', 'festival'],
+  ['1x1', 'progress', 'yearGrid'], ['2x4', 'progress', 'multiBars'],
+  ['1x2', 'schedule', 'capsule'], ['1x2', 'important', 'festival'],
+  ['1x2', 'timeDate', 'stripeClock'], ['1x2', 'progress', 'yearBars'],
+  ['1xfull', 'timeDate', 'dualZone'], ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'timeDate', 'wordClock'],
+  ['1xfull', 'schedule', 'capsule'], ['1xfull', 'progress', 'multiBars'], ['1xfull', 'important', 'festival'],
+  ['2x2', 'timeDate', 'ringClock'], ['2x2', 'timeDate', 'dualZone'], ['2x2', 'schedule', 'bigDays'],
+  ['2x4', 'timeDate', 'wordClock'], ['2x4', 'progress', 'weekGrid'], ['2x4', 'progress', 'ringProgress'],
+  ['4x4', 'timeDate', 'stripeClock'], ['4x4', 'progress', 'heatYear'],
+  ['1x1', 'schedule', 'bigDays'], ['2x1', 'schedule', 'bigDays'],
 ];
-const singleCards = SINGLE_CASES.map(([size, w, h, c, s]) => {
-  const inner = toHTML(renderInfoBlock({ ...base, content: c, style: s, singleRow: true, size }));
+const singleCards = SINGLE_CASES.map(([size, c, s, opts]) => {
+  const [w, h] = SINGLE_REF_PX[size];
+  const inner = toHTML(renderInfoBlock({ ...base, content: c, style: s, opts, singleRow: true, size, w, h }));
   return `
   <figure>
     <figcaption>单独 ${size} · ${w}×${h}px · ${c}:${s} · pv-single-${size}</figcaption>

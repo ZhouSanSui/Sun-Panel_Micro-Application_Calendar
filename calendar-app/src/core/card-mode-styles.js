@@ -76,7 +76,10 @@ export const CARD_MODE_CSS = `
 @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
 /* v2.7：单独模式整卡根容器 = 与 .pv-block 同构（绝对定位块由内联样式给出尺寸，这里只补盒模型与居中） */
 .pv-single { box-sizing: border-box; padding: 0.1875em; display: flex; flex-direction: column; align-items: safe center; justify-content: safe center; width: 100%; height: 100%; overflow: hidden; }
-.pv-single > .pv-col { align-self: stretch; flex: 1 1 auto; min-height: 0; }
+/* v3.10：col 被 stretch 撑满整高后，内部默认 flex-start 会让内容贴顶 —— 2×1 这类高瘦卡
+   上就表现为「内容全挤在上三分之一、下面大片空白」。这里统一垂直居中；靠 flex:1 撑满的
+   子块（年格阵/周格/月历）本来就吃满剩余高度，居中不改变它们的排版。 */
+.pv-single > .pv-col { align-self: stretch; flex: 1 1 auto; min-height: 0; justify-content: center; }
 .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
 .pv-single-1x1 .pv-big, .pv-single-1x1 .pv-mid, .pv-single-1x1 .pv-vbig { font-size: 1.25em; }
 .pv-single-1x1 .pv-sub { display: none; }
@@ -131,10 +134,12 @@ export const CARD_MODE_CSS = `
 .pv-yb-foot b { font-weight: 800; font-size: 1.5em; }
 /* 周进度格：7 格（星期 + 日期），已过格加深、今天格用主题色实心 */
 .pv-wg2 { width: 100%; height: 100%; gap: 0.3em; align-items: stretch; }
-.pv-wg2-row { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; gap: 0.2em; }
-.pv-wg2-cell { flex: 1 1 0; min-width: 0; padding: 0.12em 0.05em; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12em; border-radius: 0.22em; background: color-mix(in srgb, currentColor 9%, transparent); }
-.pv-wg2-cell span { font-size: 0.44em; line-height: 1.2; }
-.pv-wg2-cell b { font-size: 0.9375em; line-height: 1.1; font-weight: 800; }
+.pv-wg2-row { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; gap: 0.1em; }
+.pv-wg2-cell { flex: 1 1 0; min-width: 0; padding: 0.1em 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em; border-radius: 0.22em; background: color-mix(in srgb, currentColor 9%, transparent); overflow: hidden; }
+.pv-wg2-cell span { font-size: 0.5em; line-height: 1.2; }
+/* v3.10：数字原来 0.9375em —— 7 列均分后每列只有约 1.1 个字宽，「20/21/22」直接叠在一起
+   （用户报 2×1 变形）。压到 0.72em + 等宽数字，两位数字宽 ≈1.0em < 列宽。 */
+.pv-wg2-cell b { font-size: 0.72em; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 .pv-wg2-cell.on { background: color-mix(in srgb, currentColor 16%, transparent); }
 .pv-wg2-cell.now { background: transparent; }
 .pv-wg2-foot { flex: 0 0 auto; font-size: 0.5em; line-height: 1.25; text-align: right; }
@@ -145,13 +150,26 @@ export const CARD_MODE_CSS = `
 .pv-dz-rule { flex: 0 0 auto; height: 0.07em; border-radius: 0.035em; background: currentColor; opacity: 0.3; margin: 0.04em 0.02em; }
 .pv-dz-date { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; gap: 0.4em; font-size: 0.5em; line-height: 1.3; }
 .pv-dz-date b { font-weight: 800; }
+/* v3.10 1×FULL：dualZone 原样是「上时间 / 横分割线 / 下日期+星期」的方形卡版式，横条卡上
+   分割线被拉成 1386px 横贯全宽、星期被甩到最右边（用户报「变形」）→ 改为竖线分隔的横排。 */
+.pv-single-1xfull .pv-dz { flex-direction: row; align-items: center; justify-content: center; gap: 0.55em; }
+.pv-single-1xfull .pv-dz-rule { flex: 0 0 auto; width: 0.07em; height: 2.1em; margin: 0; }
+.pv-single-1xfull .pv-dz-date { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.12em; }
 
 /* ===== v2.9 图像化样式（单独模式，"样式设置"可改主色 / 文案 / 目标日） ===== */
-/* ringClock：环形刻度钟（60 刻度 + 当日比例弧 + 中心时间） */
-.pv-rc { width: 100%; height: 100%; align-items: center; justify-content: center; }
-.pv-rc-ring { position: relative; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+/* ringClock：环形刻度钟（60 刻度 + 当日比例弧 + 时针/分针 + 时间窗） */
+.pv-rc { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.2em; }
+/* v3.10：环形指示器容器的尺寸纪律 ——
+   ① 不能用 aspect-ratio + width:100%：宽扁卡（1×FULL）上「高=宽」会顶出卡片，竖高卡上又会把
+      下方图例/说明挤出内容盒（实测 1×1 图例被挤到卡片外 9px）。
+   ② 不能用 flex:1 + min-height:0 的百分比高度链：宿主未给确定高度时整条链塌成 0，SVG 0×0
+      什么都不显示（用户报「指针/四环不显示」即此因）。
+   取法：容器弹性占满「剩余空间」，SVG 绝对铺满容器，靠 viewBox + 默认 preserveAspectRatio
+   （xMidYMid meet）自动居中保持正方 —— 既不抢高，也不会塌成 0。 */
+.pv-rc-ring { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
 .pv-rc-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.pv-rc-time { font-size: 0.78em; font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 时间数字放在环外下方：环内任何位置都会被 44 半径的进度弧穿过，只有环外是干净区 */
+.pv-rc-time { flex: 0 0 auto; font-size: 0.72em; font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1; }
 /* dotClock：数码管 */
 .pv-dc { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.2em; }
 .pv-dc-dots { display: flex; gap: 0.16em; justify-content: center; width: auto; max-width: 100%; }
@@ -182,8 +200,13 @@ export const CARD_MODE_CSS = `
 .pv-tg-date { font-size: 0.46em; letter-spacing: 0.03em; }
 /* multiBars：多条进度 */
 .pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
-.pv-single-1xfull .pv-mb { flex-direction: row; align-items: center; gap: 1em; }
-.pv-single-1xfull .pv-mb-row { flex: 1 1 0; min-width: 0; }
+/* v3.10 1×FULL：原来 4 条挤成一行，标签(1.7em)+百分比(3.1em) 两个定宽块吃掉大半，
+   真实卡（1386×347 / 51.7px 基准）上进度条只剩 ≈50px，等于没有条 → 改 2×2 并让两侧
+   定宽块各自按内容收窄。 */
+.pv-single-1xfull .pv-mb { flex-direction: row; flex-wrap: wrap; align-content: center; align-items: center; gap: 0.45em 1.4em; }
+.pv-single-1xfull .pv-mb-row { flex: 1 1 calc(50% - 0.7em); min-width: 0; }
+.pv-single-1xfull .pv-mb-k { width: auto; min-width: 1.1em; }
+.pv-single-1xfull .pv-mb-v { width: auto; }
 .pv-mb-row { display: flex; align-items: center; gap: 0.4em; }
 .pv-mb-k { flex: 0 0 auto; width: 1.7em; font-size: 0.56em; }
 .pv-mb-bar { flex: 1 1 auto; height: 0.5em; border-radius: 999px; background: currentColor; opacity: 0.14; overflow: hidden; }
@@ -218,14 +241,16 @@ export const CARD_MODE_CSS = `
 .pv-single-2x4 .pv-bd-num, .pv-single-4x4 .pv-bd-num { font-size: 2.8em; }
 
 .pv-rp { justify-content: center; gap: 0.3em; width: 100%; height: 100%; min-height: 0; }
-.pv-rp-ring { position: relative; flex: 1 1 0; min-height: 0; min-width: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* 同 .pv-rc-ring 的尺寸纪律：弹性占满剩余高度，SVG 靠 preserveAspectRatio 居正方 */
+.pv-rp-ring { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
 .pv-rp-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-rp-pct { font-size: 0.95em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pv-rp-legend { display: flex; flex-wrap: wrap; gap: 0.34em 0.6em; justify-content: center; font-size: 0.4em; opacity: 0.8; }
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
 .pv-rp-legend i { width: 0.5em; height: 0.5em; border-radius: 999px; display: block; }
 .pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; gap: 0.6em; }
-.pv-single-1xfull .pv-rp-ring { flex: 0 0 4em; width: 4em; }
+/* 1×FULL 横排：环固定 4em 见方（此处必须显式给高，容器已不再用 aspect-ratio） */
+.pv-single-1xfull .pv-rp-ring { flex: 0 0 4em; width: 4em; height: 4em; }
 
 .pv-hy-wrap { width: 100%; height: 100%; padding: 0.34em; box-sizing: border-box; }
 .pv-hy { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.14em; width: 100%; height: 100%; opacity: 0.92; }
@@ -246,8 +271,9 @@ export const CARD_MODE_CSS = `
 .pv-ls-days small { font-size: 0.42em; font-weight: 500; margin-left: 0.12em; }
 .pv-ls-date { font-size: 0.72em; opacity: 0.55; font-variant-numeric: tabular-nums; }
 .pv-gl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3em; overflow: hidden; }
-.pv-gl-dial { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 auto; min-height: 0; width: 100%; }
-.pv-gl-dial svg { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; overflow: hidden; }
+/* 同 .pv-rc-ring 的尺寸纪律：弹性占满剩余高度，SVG 靠 preserveAspectRatio 居正方 */
+.pv-gl-dial { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex: 1 1 auto; min-height: 0; min-width: 0; }
+.pv-gl-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: hidden; }
 .pv-gl-val { position: absolute; left: 50%; bottom: 0.1em; transform: translateX(-50%); font-size: 0.72em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .pv-gl-cap { font-size: 0.46em; opacity: 0.6; }
 .pv-sg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25em; }
@@ -272,7 +298,9 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-hd-days, .pv-single-2x1 .pv-hd-days, .pv-single-1xfull .pv-hd-days { font-size: 1.35em; }
 .pv-bt { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.28em; }
 .pv-bt-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; font-size: 0.5em; font-weight: 600; }
-.pv-bt-body { position: relative; width: 100%; flex: 0 1 auto; height: 0.9em; border: 0.13em solid; border-radius: 0.28em; overflow: hidden; display: flex; align-items: stretch; }
+/* v3.10：width:100% + 两侧 0.13em 边框（默认 content-box）会让电池壳比卡片宽 0.26em —— 审计在
+   1×2/2×1/2×2/2×4/4×4/1×FULL 六档都报横向溢出。改 border-box。 */
+.pv-bt-body { box-sizing: border-box; position: relative; width: 100%; flex: 0 1 auto; height: 0.9em; border: 0.13em solid; border-radius: 0.28em; overflow: hidden; display: flex; align-items: stretch; }
 .pv-bt-body i { display: block; border-radius: 0.14em; }
 .pv-bt-body u { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0, 0, 0, 0.28); }
 .pv-bt-nub { width: 0.2em; height: 0.3em; border-radius: 0 0.06em 0.06em 0; flex: 0 0 auto; align-self: center; margin-left: -0.03em; }
