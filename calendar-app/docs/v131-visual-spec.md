@@ -944,7 +944,7 @@ export function showCalTitle(content, style, span, opts) {
 
 - 渲染入口 `schedPick`（card-mode-render.js:398）：auto 分支过滤 `date >= 今天` 后按日期升序取首条；pick 分支按 id / date 命中用户 store。
 - **v3.5 yearly 映射今年**：选中日程日期若记录年份早于今年，把月日搬到今年（`2024-05-20` → `2026-05-20`），生日 / 纪念日类年循环日程显示「今年」那一天；今年内或未来的日期保持原样。
-- 仅 `targetDay` 的 opts 含 `schedMode`；`bigDays` 只有 `sched`、`capsule` 只有 `text`。
+- 仅 `targetDay` 的 opts 含 `schedMode`；`bigDays` 为 color+sched，`capsule` 为 color+text。
 - widgetConfig 渲染两个 chip（pick / auto）+ 下拉 + 「自定义新日程」表单；自定义保存时写回日历并选用，**不计入 schedMode 选项**（旧注释「三选一」已按实现修正）。
 
 ### ⑥ unit=month 月粒度（v2.11 引入粒度，v3.6 补月档）
