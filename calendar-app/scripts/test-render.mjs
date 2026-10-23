@@ -15,7 +15,7 @@ const cssOf = (f) => readFileSync(new URL(`../src/components/${f}`, import.meta.
 import { html, render } from '../node_modules/lit/index.js';
 import {
   renderBlocksHTML, renderInfoBlock, fitFor, fitFontU, renderSpanEditor,
-  isTallBlock, isSmallUnit, vertFitKey, singleLineDays, TALL_RATIO, SINGLE_BASE_PX,
+  isTallBlock, isSmallUnit, vertFitKey, singleLineDays, TALL_RATIO, SINGLE_BASE_PX, SIZE_ORIENT,
 } from '../src/core/card-mode-render.js';
 import {
   gridForSize, layoutBlocks, spanBounds, effectiveSpan, styleSpanDef,
@@ -198,12 +198,22 @@ for (const w of [520, 760, 1080, 1440]) {
   })).join('');
   ok(!one.includes('font-size:'), 'singleScale=1 时不内联 font-size');
 }
-// v1.40：三组件 CSS 镜像含按尺寸版式规则
-for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
-  const src = readFileSync(new URL('../src/components/' + f, import.meta.url), 'utf8');
-  ok(src.includes('.pv-single-1x1'), `${f} CSS 应含 .pv-single-1x1`);
-  ok(src.includes('.pv-single-1xfull'), `${f} CSS 应含 .pv-single-1xfull`);
-  ok((src + SHARED_CSS).includes('.pv-single-1x1 .pv-sub { display: none; }'), `${f} CSS 1x1 应隐藏 .pv-sub`);
+// v2.9 起按尺寸版式规则收编进共享真源 card-mode-styles.js；三组件改为插值引用
+{
+  const SHARED_SRC = readFileSync(new URL('../src/core/card-mode-styles.js', import.meta.url), 'utf8');
+  for (const f of ['widget.js', 'mainPage.js', 'widgetConfig.js']) {
+    const src = readFileSync(new URL('../src/components/' + f, import.meta.url), 'utf8');
+    ok(src.includes('CARD_MODE_CSS'), `${f} 必须插值共享真源 CARD_MODE_CSS（不得再手工拷贝）`);
+    ok(!/\.pv-single-1x1 \.pv-big/.test(src), `${f} 不得再残留 .pv-single 版式的手工拷贝`);
+  }
+  // 真源必须覆盖三种主文字类，否则单独模式的大数字/中号文字不按尺寸缩放
+  for (const size of ['1x1', '1x2', '2x1', '2x4', '4x4', '1xfull']) {
+    for (const cls of ['pv-big', 'pv-mid', 'pv-vbig']) {
+      ok(SHARED_SRC.includes(`.pv-single-${size} .${cls}`) || SHARED_SRC.includes(`.pv-single-${size} .pv-big, .pv-single-${size} .pv-mid, .pv-single-${size} .${cls}`),
+        `真源应含 .pv-single-${size} .${cls} 的字号规则`);
+    }
+  }
+  ok(SHARED_SRC.includes('.pv-single-1x1 .pv-sub { display: none; }'), '真源 1x1 应隐藏 .pv-sub');
 }
 // v1.46：卡片渲染容器必须在四处（三组件 + 预览生成器）都裁切，否则内容外溢压到卡片外
 for (const f of ['src/components/widget.js', 'src/components/mainPage.js', 'src/components/widgetConfig.js', 'scripts/make-preview.mjs']) {
@@ -547,9 +557,11 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
 
     // v1.34 需求 2：竖排日期串按实际渲染文案（后两位年「26年」）实测，宽度 3.7→2.9（旧值过保守、
     // 把字号压小一半）；.pv-vline 1em→1.25em 后高度按实测回写
-    ok(fitFor('time', 'dateFull', false, true, { tall: true }).w === 2.9, 'time:dateFull 竖排 fit.w=2.9');
-    ok(fitFor('time', 'dateFull', false, false, { tall: true }).w === 2.9, 'time:dateFull 竖排 en 取 max(w,wEn)=2.9');
-    ok(fitFor('time', 'dateFull', false, true, { tall: true }).h === 4.8, 'time:dateFull 竖排 fit.h=4.8');
+    // v3.8：dateFull 竖排改两排 + .fit 容器收缩，fitFor 的 w 只表达高度反推用的最小宽（2.0），
+    // h = 两排（3.25）；行宽上限由 CSS min(1.25em, 100cqw/--w) 接管，不再靠 fitFor 的 w 防溢出
+    ok(fitFor('time', 'dateFull', false, true, { tall: true }).w === 2.0, 'time:dateFull 竖排 fit.w=2.0（v3.8 两排+fit 收缩）');
+    ok(fitFor('time', 'dateFull', false, false, { tall: true }).w === 2.0, 'time:dateFull 竖排 en 同 w=2.0');
+    ok(fitFor('time', 'dateFull', false, true, { tall: true }).h === 3.25, 'time:dateFull 竖排 fit.h=3.25（两排）');
     ok(fitFor('time', 'dateMonthDay', false, true, { tall: true }).w === 2.9, 'time:dateMonthDay 竖排 fit.w=2.9');
     ok(fitFor('time', 'dateMonthDay', false, true, { tall: true }).h === 3.2, 'time:dateMonthDay 竖排 fit.h=3.2');
     ok(fitFor('time', 'dateWeekday', false, true, { tall: true }).h === 4.8, 'time:dateWeekday 竖排 fit.h=4.8');
@@ -1174,6 +1186,163 @@ console.log('');
   }
   ok(!(normalizeOpts({ sched: 'x'.repeat(60) }) || {}).sched, 'normalizeOpts 应丢弃过长日程 id');
   ok(Object.keys(normalizeOpts({ unit: 'x', shape: 'y', bars: 'zz' }) || {}).length === 0, 'normalizeOpts 应丢弃非法枚举值');
+}
+
+// ===== v3.1：新增样式的渲染与尺寸门控 =====
+{
+  const f = flatten(renderInfoBlock({ ...base, content: 'important', style: 'festival', singleRow: true, size: '2x2' })).join('');
+  ok(f.includes('pv-fe-name'), '节日卡应渲染 .pv-fe-name 主名');
+  ok(f.includes('pv-fe-gap'), '节日卡应渲染「N 天后」胶囊');
+  const hd = flatten(renderInfoBlock({ ...base, content: 'important', style: 'holiday', singleRow: true, size: '2x2' })).join('');
+  ok(hd.includes('pv-hd-days') || hd.includes('暂无假期'),
+    '假期倒计时应渲染天数或「暂无假期」空态（node 无节假日服务时走空态）');
+  const bt = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery', singleRow: true, size: '2x2' })).join('');
+  ok(bt.includes('pv-bt-body') && bt.includes('%'), '年电量应渲染电池主体与百分比');
+  ok(!stylesForSize('single', 'important', '1x1').some((x) => x.key === 'festival'),
+    '节日卡在 1x1 尺寸下应被隐藏（尺寸门控生效）');
+  ok(stylesForSize('single', 'important', '2x2').some((x) => x.key === 'festival'),
+    '节日卡在 2x2 尺寸下应可选');
+}
+
+// v3.2：拼接模式也必须能放「进图」内容（此前只有单独模式可选进度样式）
+const comboProg = COMBO_CONTENTS.find((x) => x.key === 'progress');
+ok(!!comboProg, '拼接模式已提供进图内容');
+ok(comboProg && comboProg.styles.length >= 4, `拼接模式进图样式应至少 4 款，实际 ${comboProg ? comboProg.styles.length : 0}`);
+const comboBattery = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery' })).join('');
+ok(comboBattery.includes('pv-bt'), '拼接模式 年电量 应渲染 .pv-bt');
+const comboBar = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'week' })).join('');
+ok(comboBar.includes('本周') || comboBar.includes('Week'), '拼接模式 周进度 应带周标签');
+// 方阵型样式（四环进度 / 进度格阵 / 多进度条）在拼接模式的一行高格子里会被裁切（矩阵审计实测），
+// 故只保留单行进度样式；这里锁死，防止以后又被顺手加回去。
+for (const dense of ['ringProgress', 'yearGrid', 'multiBars']) {
+  ok(!comboProg.styles.some((x) => x.key === dense), `拼接模式不应提供方阵型样式 ${dense}`);
+}
+
+// ---------------------------------------------------------------------------
+// v3.3：年月日「两行」与 1×FULL 字号随内容区宽度
+// 用户实测：1×2（窄高）卡片上「年月日」实际显示三排，预览只有两排 → 以预览为准。
+// 根因：日期串依赖自动折行，字号一变折行位置就变；窄块改为显式两行后与预览一致。
+const tallHTML = flatten(renderBlocksHTML({
+  ...base,
+  blocks: layoutBlocks([{ c: 'time', s: 'dateFull' }], 'combo', '2x1', { cols: 1, rows: 2 }),
+  grid: { cols: 1, rows: 2 },
+  cellW: 120,
+  cellH: 126,
+  size: '2x1',
+})).join('');
+const tallText = tallHTML.replace(/<[^>]+>/g, '');
+const y2 = String(base.now.getFullYear()).slice(-2);
+const moNow = base.now.getMonth() + 1;
+const dayNow = base.now.getDate();
+ok(tallText.includes(`${y2}年${moNow}月`), `窄高块 年月日 首行应为「${y2}年${moNow}月」，实际「${tallText.trim().slice(0, 40)}」`);
+ok(tallText.includes(`${dayNow}日`), `窄高块 年月日 次行应为「${dayNow}日」，实际「${tallText.trim().slice(0, 40)}」`);
+// v3.6：窄/高块回到竖排三行（pv-vstack + pv-vline），预览与实际同用真实像素几何。
+// 用户澄清 1×2 是窄高卡，三行「26年/10月/22日」是期望形态；预览与实际的不一致
+// 根源在预览框 cellH 估算（14px 内边距）与真实卡片（24px）不同，已在 widgetConfig 修正。
+ok(tallHTML.includes('pv-vstack'), '窄高块 年月日 应走竖排（pv-vstack）');
+ok((tallHTML.match(/pv-vline/g) || []).length >= 2, `窄高块 年月日 竖排至少两行，实际 ${(tallHTML.match(/pv-vline/g) || []).length}`);
+
+const wideHTML = flatten(renderBlocksHTML({
+  ...base,
+  blocks: layoutBlocks([{ c: 'time', s: 'dateFull' }], 'combo', '1x2', { cols: 2, rows: 1 }),
+  grid: { cols: 2, rows: 1 },
+  cellW: 126,
+  cellH: 120,
+  size: '1x2',
+})).join('');
+const wideText = wideHTML.replace(/<[^>]+>/g, '');
+ok(!wideHTML.includes('pv-flip'), `宽扁块 年月日 不应走竖排两行，实际「${wideHTML.replace(/<[^>]+>/g, '').trim().slice(0, 40)}」`);
+ok(/2026|26/.test(wideText), `宽扁块 年月日 应保留年份，实际「${wideText.trim().slice(0, 40)}」`);
+
+// 1×FULL：SunPanel「内容区域最大宽度」500~2000px，字号须跟着走（夹取 12~34px）
+const pxOf = (htmlText) => {
+  const m = htmlText.match(/font-size:([0-9.]+)px/);
+  return m ? Number(m[1]) : NaN;
+};
+const full520 = pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w: 520, h: 120 })).join(''));
+const full1080 = pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w: 1080, h: 120 })).join(''));
+const full2000 = pxOf(flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'dateFull', singleRow: true, size: '1xfull', w: 2000, h: 120 })).join(''));
+ok(full520 >= 12 && full520 < full1080 && full1080 < full2000, `1×FULL 字号应随宽度递增，实际 ${full520}/${full1080}/${full2000}`);
+ok(full2000 <= 34, `1×FULL 字号上限 34px，实际 ${full2000}`);
+ok(full1080 >= 16 && full1080 <= 20, `1×FULL 在 1080px 应≈18px，实际 ${full1080}`);
+
+// v3.5：进度格阵的行列数改为按容器宽高择优（格子接近正方形），因此恢复 1×FULL 档；
+// 年热力图是 12 列 × 各月天数的固定结构，宽扁卡里无法自洽，仍不提供 1×FULL。
+{
+  const ygDef = SINGLE_CONTENTS.find((c) => c.styles.some((s) => s.key === 'yearGrid'));
+  const ygSt = ygDef && ygDef.styles.find((s) => s.key === 'yearGrid');
+  ok(!!(ygSt && ygSt.sizes && ygSt.sizes.includes('1xfull')), '进度格阵应恢复 1xfull 尺寸档（行列自适应）');
+
+// ── v3.7：方向判定的单一来源 + 格子正方形 ──────────────────────────────
+// ① 缺像素几何（样式条小预览）时必须按尺寸名兜底，不能退化成「单行/双行」两套形态；
+//    否则又会出现「小预览两排、真实卡片三排」的反复回潮。
+{
+  const mk = (extra) => flatten(renderInfoBlock({
+    ...base, content: 'time', style: 'dateFull', singleRow: true, size: '2x1', ...extra,
+  })).join('');
+  const withPx = mk({ w: 120, h: 252 });
+  const noPx = mk({});
+  const vline = (h) => (h.match(/pv-vline/g) || []).length;
+  ok(vline(withPx) === vline(noPx),
+    `样式条小预览与真实卡片的竖排行数必须一致（带像素 ${vline(withPx)} / 无像素 ${vline(noPx)}）`);
+  ok(vline(withPx) >= 2, `2×1 窄高卡 年月日 应竖排（≥2 行），实际 ${vline(withPx)}`);
+  const wide = flatten(renderInfoBlock({
+    ...base, content: 'time', style: 'dateFull', singleRow: true, size: '1x2', w: 252, h: 120,
+  })).join('');
+  ok(vline(wide) === 0, `1×2 宽扁卡 年月日 应单行（无 .pv-vline），实际 ${vline(wide)}`);
+}
+
+// ② 尺寸方向表必须与 SunPanel 的「行×列」命名一致（1x2 宽扁 / 2x1 窄高）
+{
+  const o = SIZE_ORIENT;
+  ok(o['1x2'].rows === 1 && o['1x2'].cols === 2, '1x2 应为 1 行 2 列（宽扁）');
+  ok(o['2x1'].rows === 2 && o['2x1'].cols === 1, '2x1 应为 2 行 1 列（窄高）');
+  ok(isTallBlock(120, 252) === true && isTallBlock(252, 120) === false, 'isTallBlock 方向判定应正确');
+}
+
+// ③ v3.8：年格阵 / 年热力图的格子几何由渲染层按块内可用空间（em）择优后内联 em 轨道，
+//    CSS 真源只保留兜底轨道与「格子铺满轨道」的约束。锁死这些不变量：
+{
+  const css = SHARED_CSS;
+  ok(/\.pv-yg-grid \{[^}]*--cols:\s*31[^}]*--rows:\s*12/.test(css),
+    '年格阵容器应声明 --cols/--rows 兜底（31/12）');
+  ok(/\.pv-yg-grid \{[^}]*grid-template-columns:\s*repeat\(31, minmax\(0, 1fr\)\)/.test(css),
+    '年格阵容器应保留 31 列兜底轨道（渲染层内联覆盖）');
+  ok(/\.pv-yg-grid i \{[^}]*width:\s*100%[^}]*height:\s*100%/.test(css),
+    '年格阵格子应铺满 em 轨道（width/height 100%）');
+  ok(!/\.pv-yg-grid i \{[^}]*aspect-ratio/.test(css),
+    '年格阵格子不应再用 aspect-ratio（轨道本身是正方形 em 尺寸）');
+  ok(!/100cqw\s*\/\s*31/.test(css) && !/100cqh\s*\/\s*12/.test(css),
+    '年格阵不应再写死 31 列/12 行的容器查询分母（v3.8 已改渲染层择优）');
+  ok(/\.pv-hy i \{[^}]*width:\s*100%[^}]*height:\s*100%/.test(css),
+    '年热力图格子应铺满月份列（width/height 100%）');
+  ok(/\.pv-vstack \{[^}]*container-type:\s*inline-size/.test(css),
+    '竖排容器应声明 container-type: inline-size（供 .fit 行宽收缩）');
+  ok(/\.pv-vline\.fit \{ font-size:\s*min\(1\.25em, calc\(100cqw \/ var\(--w/.test(css),
+    '竖排行应有 .fit 宽度自适应规则（min(1.25em, 100cqw/--w)）');
+  // 渲染层：单独模式年格阵必须内联 --cols/--rows 与 em 轨道
+  const ygSingle = flatten(renderInfoBlock({
+    ...base, content: 'progress', style: 'yearGrid', singleRow: true, size: '2x2', w: 252, h: 252,
+  })).join('');
+  ok(/--cols:\d+;--rows:\d+;grid-template-columns:repeat\(\d+,[\d.]+em\)/.test(ygSingle),
+    '单独模式年格阵应内联 --cols/--rows 与 em 轨道');
+  const ygFull = flatten(renderInfoBlock({
+    ...base, content: 'progress', style: 'yearGrid', singleRow: true, size: '1xfull', w: 1080, h: 120,
+  })).join('');
+  const colsFull = Number((ygFull.match(/--cols:(\d+)/) || [])[1]);
+  ok(colsFull >= 30, `1×FULL 年格阵列数应随宽扁几何增多（≥30），实际 ${colsFull}`);
+  // 窄高卡年月日：两排 + .fit + 容器 --w，且竖排内不得出现 <wbr>（折行根因）
+  const tallV = flatten(renderInfoBlock({
+    ...base, content: 'time', style: 'dateFull', singleRow: true, size: '2x1', w: 120, h: 252,
+  })).join('');
+  ok(tallV.includes('pv-vstack" style="--w:'), '窄高卡年月日竖排容器应写 --w（行宽模型）');
+  ok((tallV.match(/pv-vline fit/g) || []).length === 2, '窄高卡年月日应为两排 .pv-vline.fit');
+  ok(!/<wbr>/.test(tallV), '窄高卡年月日竖排不得含 <wbr>（nowrap 下仍会断行 → 三排）');
+}
+
+  const hyDef = SINGLE_CONTENTS.find((c) => c.styles.some((s) => s.key === 'heatYear'));
+  const hySt = hyDef && hyDef.styles.find((s) => s.key === 'heatYear');
+  ok(!(hySt && hySt.sizes && hySt.sizes.includes('1xfull')), '年热力图不应提供 1xfull 尺寸档');
 }
 
 if (fails.length) {

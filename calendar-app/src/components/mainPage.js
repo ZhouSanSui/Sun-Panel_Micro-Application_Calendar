@@ -1795,7 +1795,16 @@ export class MainPage extends SunPanelPageElement {
         size,
       })
       : renderInfoBlock({
-        ...common, content: blocks[0].c, style: blocks[0].s, opts: blocks[0].opts, singleRow: true, size, singleScale: pvScale,
+        ...common,
+        content: blocks[0].c,
+        style: blocks[0].s,
+        opts: blocks[0].opts,
+        singleRow: true,
+        size,
+        singleScale: pvScale,
+        // v3.3：方向判定与 1×FULL 字号都用真实像素，预览/实际必须同源
+        w: pvReal && pvReal.w ? pvReal.w : 0,
+        h: pvReal && pvReal.h ? pvReal.h : 0,
       });
 
     return html`
@@ -1848,28 +1857,7 @@ ${CARD_MODE_CSS}
         /* 拼接模式：网格布局（绝对定位，坐标/尺寸由 JS 按 span 百分比内联） */
 
 
-        /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
-           与 widget / widgetConfig / make-preview / measure.html 五处镜像，改规则必须同步） */
-        .pv-single-1x1 .pv-big,
-        .pv-single-1x1 .pv-mid,
-
-        .pv-single-1x2 .pv-big,
-        .pv-single-1x2 .pv-mid,
-
-        .pv-single-2x1 .pv-big,
-        .pv-single-2x1 .pv-mid,
-
-        .pv-single-2x4 .pv-big,
-        .pv-single-2x4 .pv-mid,
-
-        .pv-single-4x4 .pv-big,
-        .pv-single-4x4 .pv-mid,
-
-        .pv-single-1xfull .pv-big,
-        .pv-single-1xfull .pv-mid,
-
-        /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
-
+        /* 单独模式版式规则见共享真源 card-mode-styles.js（CARD_MODE_CSS 插值） */
       </style>
     `;
   }
@@ -1939,6 +1927,11 @@ ${CARD_MODE_CSS}
     const cfgSettings = this._settings();
     const frameVisual = cardThemeVisual(cfgSettings.cardTheme, dark);
     const frameTextMode = frameVisual.textLight ? 'text-light' : 'text-dark';
+    // v3.8：样式条小预览与真实卡片/大预览同源 —— 补传 size 与真实像素几何，
+    // 否则方向判定（窄高竖排 vs 宽扁横排）与 1×FULL 字号自适应在这里拿不到输入，
+    // 会出现「小预览单行、真实窄高卡竖排」的不一致（用户 m03530 反馈③的实锤）。
+    const pvRealStrip = cfgSettings.previewSize;
+    const stripReal = !!(pvRealStrip && pvRealStrip.size === size && pvRealStrip.w > 0 && pvRealStrip.h > 0);
     const frameInner = curStyle ? renderInfoBlock({
       content: cd.key,
       style: curStyle.key,
@@ -1950,6 +1943,9 @@ ${CARD_MODE_CSS}
       weekStart: cfgSettings.weekStart ?? 1,
       hour12: cfgSettings.hour12,
       t: (k) => this.t(k),
+      size,
+      w: stripReal ? pvRealStrip.w : size === '1xfull' ? 1080 : 0,
+      h: stripReal ? pvRealStrip.h : 0,
     }) : '';
     const styleSection = html`
       <div class="style-sec">

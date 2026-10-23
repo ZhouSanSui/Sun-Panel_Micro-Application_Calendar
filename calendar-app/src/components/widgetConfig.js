@@ -347,12 +347,20 @@ export class WidgetConfig extends SunPanelPageElement {
     }
     if (meta.type === 'schedule') {
       // v2.12：从日历里挑一条日程；也可在这里自定义一条 —— 保存时自动写回日历
+      // v3.6：日程来源三选一 —— 顺序显示（自动取最近）/ 选择日程（下拉）/ 新建（下方表单）
+      const modeMeta = STYLE_OPT_FIELDS.schedMode;
+      const modeVal = vals.schedMode || modeMeta.def;
       const list = (getUserStore()?.getSchedules() || []).slice(0, 40);
       const cur2 = typeof v === 'string' ? v : '';
       const draft = this._optDraft || {};
       return html`<div class="style-opt-row style-opt-row-wrap">
             <span class="style-opt-label">${label}</span>
             <div class="style-opt-col">
+              <div class="style-opt-chips" style="margin-bottom:4px">
+                ${(modeMeta.choices || []).map(([mv, mt]) => html`<button
+                  class="style-opt-chip ${modeVal === mv ? 'active' : ''}"
+                  @click=${() => { this._setPendingOpt('schedMode', mv); }}>${mt}</button>`)}
+              </div>
               <select class="style-opt-input" @change=${(e) => this._setPendingOpt(k, e.target.value)}>
                 <option value="" ?selected=${!cur2}>${isZh ? '不指定（用下面的目标日）' : 'None'}</option>
                 ${list.map((it) => html`<option value=${String(it.id)}
@@ -857,7 +865,10 @@ export class WidgetConfig extends SunPanelPageElement {
     const blocks = sanitizeBlocks(this.cardBlocks, this.displayMode, this._size);
     const grid = isReal ? comboGridFor(this._size, pvReal.w, pvReal.h) : gridForSize(this._size);
     // 单元格像素宽/高：有实测尺寸时按真实内边距缩放，否则按预览框等比估算
-    const padPx = isReal ? 24 * pvScale : 14;
+    // v3.6：无实测时也用 24px 等比折算（与真实卡片同源）——14px 会让窄高卡的
+    // cellH 偏大，拼接块的 tall 判定随之漂移（预览 2 排 / 实际 3 排的直接原因）
+    const pvScaleEst = isReal ? pvScale : Math.min(1, w / 252, h / 252);
+    const padPx = 24 * (isReal ? pvScale : Math.max(0.3, pvScaleEst));
     const cellW = (w - padPx) / (grid.cols || 1);
     const cellH = (h - padPx) / (grid.rows || 1);
     const inner = this.displayMode === 'combo'
@@ -870,7 +881,16 @@ export class WidgetConfig extends SunPanelPageElement {
         size: this._size,
       })
       : renderInfoBlock({
-        ...common, content: blocks[0].c, style: blocks[0].s, singleRow: true, size: this._size, singleScale: pvScale,
+        ...common,
+        content: blocks[0].c,
+        style: blocks[0].s,
+        opts: this._pendingOptsOf(blocks[0].c, blocks[0].s),
+        singleRow: true,
+        size: this._size,
+        singleScale: pvScale,
+        // v3.3：方向判定与 1×FULL 字号都用真实像素，预览/实际必须同源
+        w: isReal ? pvReal.w : this._size === '1xfull' ? 1080 : 0,
+        h: isReal ? pvReal.h : 0,
       });
     return html`
       <div class="pv-size-box mode-pv ${textMode}" style="${visual.bg};width:${w}px;height:${h}px;">
@@ -1011,6 +1031,10 @@ export class WidgetConfig extends SunPanelPageElement {
     const dark = this.spCtx?.darkMode ?? false;
     const visual = cardThemeVisual(this.cardTheme, dark);
     const textMode = visual.textLight ? 'text-light' : 'text-dark';
+    // v3.3：样式条预览也带上尺寸与真实像素几何 —— 否则 1×FULL 的字号自适应、
+    // 窄高/宽扁的方向判定在这块预览里都拿不到输入，会和上方大预览不一致
+    const pvRealStrip = getUserStore()?.getSettings()?.previewSize;
+    const stripReal = !!(pvRealStrip && pvRealStrip.size === this._size && pvRealStrip.w > 0 && pvRealStrip.h > 0);
     const frameInner = renderInfoBlock({
       content: cd.key,
       style: cur.key,
@@ -1022,6 +1046,9 @@ export class WidgetConfig extends SunPanelPageElement {
       weekStart: this.weekStart,
       hour12: this.hour12,
       t: (k) => this.t(k),
+      size: this._size,
+      w: stripReal ? pvRealStrip.w : this._size === '1xfull' ? 1080 : 0,
+      h: stripReal ? pvRealStrip.h : 0,
     });
     const frameSpan = styleSpanDef(this.displayMode, cd.key, cur.key).span;
     return html`
@@ -1924,11 +1951,14 @@ ${CARD_MODE_CSS}
         /* v1.31：间距统一由 .pv-col 的 gap(.3125em) 提供，不再叠加 margin-top */
         .pv-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; margin-top: 0; }
         /* ---- v1.31 新增：窄高块竖排容器 ---- */
-        .pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; }
+        .pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; container-type: inline-size; }
         .pv-vstack.t { gap: 0.125em; }
         .pv-vline { font-size: 1.25em; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
         /* v1.35 反馈 1：竖排简约的星期行降为说明级字号，使数字行与无星期样式字号相等 */
         .pv-vline.wk { font-size: 0.7em; }
+        /* v3.8：竖排行按容器宽缩字号（--w = 行文字固有宽度 em），替代 <wbr> 折行 */
+        .pv-vline.fit { font-size: min(1.25em, calc(100cqw / var(--w, 4))); }
+        .pv-vline.wk.fit { font-size: min(0.7em, calc(100cqw / var(--w, 4))); }
         .pv-vbig { font-size: 1.875em; font-weight: 800; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; }
         .pv-vrow { display: flex; align-items: baseline; justify-content: center; gap: 0.25em; width: 100%; }
         /* ---- v1.31 新增：日历日期标题 ---- */
@@ -1965,43 +1995,7 @@ ${CARD_MODE_CSS}
           overflow: hidden;
         }
         @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
-        /* 单独模式：整卡内容一行排列 */
-        .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
-        /* v1.40：单独模式按卡片尺寸的版式规则（只作用于 .pv-single，不影响拼接模式；
-           与 widget / mainPage / make-preview / measure.html 五处镜像，改规则必须同步） */
-        .pv-single-1x1 .pv-big,
-        .pv-single-1x1 .pv-mid,
-        .pv-single-1x1 .pv-vbig { font-size: 1.25em; }
-        .pv-single-1x1 .pv-sub { display: none; }
-        .pv-single-1x2 .pv-center { gap: 0.75em; }
-        .pv-single-1x2 .pv-big,
-        .pv-single-1x2 .pv-mid,
-        .pv-single-1x2 .pv-vbig { font-size: 1.15em; }
-        .pv-single-2x1 .pv-center { flex-direction: column; gap: 0.375em; }
-        .pv-single-2x1 .pv-big,
-        .pv-single-2x1 .pv-mid,
-        .pv-single-2x1 .pv-vbig { font-size: 1.1em; }
-        .pv-single-2x2 .pv-center { gap: 0.5em; }
-        .pv-single-2x4 .pv-center { gap: 0.875em; }
-        .pv-single-2x4 .pv-big,
-        .pv-single-2x4 .pv-mid,
-        .pv-single-2x4 .pv-vbig { font-size: 1.2em; }
-        .pv-single-4x4 .pv-big,
-        .pv-single-4x4 .pv-mid,
-        .pv-single-4x4 .pv-vbig { font-size: 1.25em; }
-        .pv-single-4x4 .pv-sub { font-size: 0.6875em; }
-        .pv-single-1xfull .pv-center { align-items: center; gap: 1em; }
-        .pv-single-1xfull .pv-big,
-        .pv-single-1xfull .pv-mid,
-        .pv-single-1xfull .pv-vbig { font-size: 1.3em; }
-        /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
-        .pv-single-1x1 { font-size: 16px; }
-        .pv-single-1x2 { font-size: 17px; }
-        .pv-single-2x1 { font-size: 17px; }
-        .pv-single-2x2 { font-size: 22px; }
-        .pv-single-2x4 { font-size: 26px; }
-        .pv-single-4x4 { font-size: 34px; }
-        .pv-single-1xfull { font-size: 18px; }
+        /* 单独模式版式规则见共享真源 card-mode-styles.js（v2.7 起由 CARD_MODE_CSS 插值） */
         .pv-size-box svg { max-width: 80%; max-height: 80%; }
       </style>
       <div class="page" style="${appleThemeVars(dark)}">

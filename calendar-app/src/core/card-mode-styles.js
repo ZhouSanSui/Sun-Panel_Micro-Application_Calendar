@@ -3,8 +3,8 @@
 // 目的：7 处 CSS 镜像收敇为 1 处，避免预览与线上样式漂移。
 // 校验：node scripts/check-css-mirror.mjs
 export const CARD_MODE_CSS = `
-.pv-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.375em; width: 100%; text-align: center; }
-.pv-center.pv-flat { flex-direction: row; align-items: center; justify-content: center; gap: 0.5em; }
+.pv-center { display: flex; flex-direction: column; align-items: safe center; justify-content: safe center; gap: 0.375em; width: 100%; text-align: center; }
+.pv-center.pv-flat { flex-direction: row; align-items: safe center; justify-content: safe center; gap: 0.5em; }
 .pv-fnum { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 1 auto; }
 .pv-ftext { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1875em; flex: 0 1 auto; min-width: 0; text-align: center; }
 .pv-col { display: flex; flex-direction: column; gap: 0.3125em; width: 100%; }
@@ -35,10 +35,15 @@ export const CARD_MODE_CSS = `
 .pv-wk-d { font-size: 0.75em; font-weight: 600; }
 .pv-wk-w { font-size: 0.5em; }
 .pv-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; margin-top: 0; }
-.pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; }
+.pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; container-type: inline-size; }
 .pv-vstack.t { gap: 0.125em; }
 .pv-vline { font-size: 1.25em; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pv-vline.wk { font-size: 0.7em; }
+/* v3.8：窄高卡竖排行的「宽度自适应」—— 行内文字比容器宽时按容器宽度缩字号，
+   而不是让它折行（折行会把「26年10月 / 21日」变成 3 排，与预览不一致）。
+   --w = 该行文字的固有宽度（em，按自身字号），100cqw = 竖排容器的内容宽。 */
+.pv-vline.fit { font-size: min(1.25em, calc(100cqw / var(--w, 4))); }
+.pv-vline.wk.fit { font-size: min(0.7em, calc(100cqw / var(--w, 4))); }
 .pv-vbig { font-size: 1.875em; font-weight: 800; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pv-vrow { display: flex; align-items: baseline; justify-content: center; gap: 0.25em; width: 100%; }
 .pv-cal-head { text-align: center; color: inherit; line-height: 1.2; }
@@ -64,28 +69,28 @@ export const CARD_MODE_CSS = `
         padding: 0.1875em;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        align-items: safe center;
+        justify-content: safe center;
         overflow: hidden;
       }
 @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
 /* v2.7：单独模式整卡根容器 = 与 .pv-block 同构（绝对定位块由内联样式给出尺寸，这里只补盒模型与居中） */
-.pv-single { box-sizing: border-box; padding: 0.1875em; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; overflow: hidden; }
+.pv-single { box-sizing: border-box; padding: 0.1875em; display: flex; flex-direction: column; align-items: safe center; justify-content: safe center; width: 100%; height: 100%; overflow: hidden; }
 .pv-single > .pv-col { align-self: stretch; flex: 1 1 auto; min-height: 0; }
 .pv-single .pv-center { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.5em; }
-.pv-single-1x1 .pv-vbig { font-size: 1.25em; }
+.pv-single-1x1 .pv-big, .pv-single-1x1 .pv-mid, .pv-single-1x1 .pv-vbig { font-size: 1.25em; }
 .pv-single-1x1 .pv-sub { display: none; }
 .pv-single-1x2 .pv-center { gap: 0.75em; }
-.pv-single-1x2 .pv-vbig { font-size: 1.15em; }
+.pv-single-1x2 .pv-big, .pv-single-1x2 .pv-mid, .pv-single-1x2 .pv-vbig { font-size: 1.15em; }
 .pv-single-2x1 .pv-center { flex-direction: column; gap: 0.375em; }
-.pv-single-2x1 .pv-vbig { font-size: 1.1em; }
+.pv-single-2x1 .pv-big, .pv-single-2x1 .pv-mid, .pv-single-2x1 .pv-vbig { font-size: 1.1em; }
 .pv-single-2x2 .pv-center { gap: 0.5em; }
 .pv-single-2x4 .pv-center { gap: 0.875em; }
-.pv-single-2x4 .pv-vbig { font-size: 1.2em; }
-.pv-single-4x4 .pv-vbig { font-size: 1.25em; }
+.pv-single-2x4 .pv-big, .pv-single-2x4 .pv-mid, .pv-single-2x4 .pv-vbig { font-size: 1.2em; }
+.pv-single-4x4 .pv-big, .pv-single-4x4 .pv-mid, .pv-single-4x4 .pv-vbig { font-size: 1.25em; }
 .pv-single-4x4 .pv-sub { font-size: 0.6875em; }
 .pv-single-1xfull .pv-center { align-items: center; gap: 1em; }
-.pv-single-1xfull .pv-vbig { font-size: 1.3em; }
+.pv-single-1xfull .pv-big, .pv-single-1xfull .pv-mid, .pv-single-1xfull .pv-vbig { font-size: 1.3em; }
 .pv-single-1x1 { font-size: 16px; }
 .pv-single-1x2 { font-size: 17px; }
 .pv-single-2x1 { font-size: 17px; }
@@ -103,9 +108,16 @@ export const CARD_MODE_CSS = `
 .pv-yg { width: 100%; height: 100%; gap: 0.3em; align-items: stretch; }
 .pv-yg-head { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.5em; line-height: 1.25; }
 .pv-yg-head b { font-weight: 800; }
-/* 31 列固定 = 每个月一列宽度的视觉隐喻；365/366 自然折成 12 行，行高由 aspect-ratio 定 */
-.pv-yg-grid { flex: 1 1 auto; min-height: 0; width: 100%; display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: 0.1em; align-content: center; overflow: hidden; }
-.pv-yg-grid i { aspect-ratio: 1 / 1; border-radius: 0.12em; background: currentColor; opacity: 0.13; }
+/* v3.8：格阵的列数/行数/格边长改由渲染层按块内可用几何（em）择优后内联
+   （--cols/--rows + grid-template-columns/rows 的 em 轨道）。
+   旧写法把分母写死成 31 列 / 12 行、再用容器查询算格边 → 1×FULL（宽扁）按「高/12」
+   封顶成几个像素的细线，大卡上的月/周/日格阵又被固定列数摊在一角（看着稀疏）。
+   现在轨道本身就是正方形 em 尺寸，格子铺满轨道即可；整组由 justify/align-content 居中。 */
+.pv-yg-grid { flex: 1 1 auto; min-height: 0; width: 100%; display: grid; gap: 0.1em; justify-content: center; align-content: center; overflow: hidden;
+  --cols: 31; --rows: 12;
+  grid-template-columns: repeat(31, minmax(0, 1fr)); grid-template-rows: repeat(12, minmax(0, 1fr)); }
+.pv-yg-grid i { border-radius: 0.12em; background: currentColor; opacity: 0.13;
+  width: 100%; height: 100%; }
 .pv-yg-grid i.on { opacity: 0.34; }
 .pv-yg-grid i.now { opacity: 1; }
 /* 年月条阵：12 根竖条（过去满高、当月按日进度、未来留空），底部年度百分比 */
@@ -155,7 +167,8 @@ export const CARD_MODE_CSS = `
 .pv-single-1x1 .pv-bc-nums b { font-size: 1.1em; }
 .pv-bc-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.16em; font-size: 0.5em; }
 /* capsule：胶囊倒计时 */
-.pv-cp { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.4em; }
+.pv-cp { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.4em; overflow: hidden; }
+.pv-single-1x1 .pv-cp-row, .pv-single-2x1 .pv-cp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.15em 0.5em; }
 .pv-cp-pill { border: 1px solid currentColor; border-radius: 999px; padding: 0.12em 0.7em; font-size: 0.56em; letter-spacing: 0.04em; white-space: nowrap; }
 .pv-cp-row { display: flex; align-items: baseline; justify-content: center; gap: 0.36em; }
 .pv-cp-cell { display: flex; align-items: baseline; gap: 0.1em; }
@@ -168,12 +181,14 @@ export const CARD_MODE_CSS = `
 .pv-tg-days { font-size: 2.1em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-tg-date { font-size: 0.46em; letter-spacing: 0.03em; }
 /* multiBars：多条进度 */
-.pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; }
+.pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
+.pv-single-1xfull .pv-mb { flex-direction: row; align-items: center; gap: 1em; }
+.pv-single-1xfull .pv-mb-row { flex: 1 1 0; min-width: 0; }
 .pv-mb-row { display: flex; align-items: center; gap: 0.4em; }
-.pv-mb-k { flex: 0 0 auto; width: 1.6em; font-size: 0.5em; }
+.pv-mb-k { flex: 0 0 auto; width: 1.7em; font-size: 0.56em; }
 .pv-mb-bar { flex: 1 1 auto; height: 0.5em; border-radius: 999px; background: currentColor; opacity: 0.14; overflow: hidden; }
 .pv-mb-bar i { display: block; height: 100%; border-radius: inherit; }
-.pv-mb-v { flex: 0 0 auto; width: 3.1em; text-align: right; font-size: 0.46em; font-variant-numeric: tabular-nums; }
+.pv-mb-v { flex: 0 0 auto; width: 3.1em; text-align: right; font-size: 0.62em; font-variant-numeric: tabular-nums; }
 
 /* ===== v2.10 新增样式：极简条钟 / 文字时钟 / 巨型天数 / 四环进度 / 年热力图 ===== */
 .pv-st { justify-content: center; gap: 0.18em; width: 100%; }
@@ -202,9 +217,9 @@ export const CARD_MODE_CSS = `
 .pv-single-1x1 .pv-bd-tail { display: none; }
 .pv-single-2x4 .pv-bd-num, .pv-single-4x4 .pv-bd-num { font-size: 2.8em; }
 
-.pv-rp { justify-content: center; gap: 0.3em; width: 100%; }
-.pv-rp-ring { position: relative; flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
-.pv-rp-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pv-rp { justify-content: center; gap: 0.3em; width: 100%; height: 100%; min-height: 0; }
+.pv-rp-ring { position: relative; flex: 1 1 0; min-height: 0; min-width: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.pv-rp-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-rp-pct { font-size: 0.95em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pv-rp-legend { display: flex; flex-wrap: wrap; gap: 0.34em 0.6em; justify-content: center; font-size: 0.4em; opacity: 0.8; }
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
@@ -215,7 +230,12 @@ export const CARD_MODE_CSS = `
 .pv-hy-wrap { width: 100%; height: 100%; padding: 0.34em; box-sizing: border-box; }
 .pv-hy { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.14em; width: 100%; height: 100%; opacity: 0.92; }
 .pv-hy b { display: grid; grid-auto-rows: minmax(0, 1fr); gap: 0.08em; min-height: 0; }
-.pv-hy i { display: block; width: 100%; height: 100%; border-radius: 0.06em; background: currentColor; opacity: 0.04; }
+/* v3.8：热力图格子铺满当月的列宽（原来是「按行高取方块 + 列内居中」，
+   列比格子宽时整列右侧留一大片空白 —— 大卡上看起来非常稀疏）。
+   现在宽度 = 100% 列宽、高度 = 1fr 行高，12 个月份列整块铺满卡片。 */
+.pv-hy i { display: block; border-radius: 0.06em; background: currentColor; opacity: 0.04;
+  width: 100%; height: 100%;
+  align-self: stretch; justify-self: stretch; }
 .pv-hy i.on { opacity: 0.13; }
 .pv-hy i.now { opacity: 0.95; }
 /* v2.11 仪图/文字/进度新增：时光倒计时列表、指针与半环仪表、格阵粒度与形状 */
@@ -225,18 +245,40 @@ export const CARD_MODE_CSS = `
 .pv-ls-days { font-size: 1.5em; font-weight: 700; line-height: 1; }
 .pv-ls-days small { font-size: 0.42em; font-weight: 500; margin-left: 0.12em; }
 .pv-ls-date { font-size: 0.72em; opacity: 0.55; font-variant-numeric: tabular-nums; }
-.pv-gl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3em; }
+.pv-gl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3em; overflow: hidden; }
 .pv-gl-dial { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 auto; min-height: 0; width: 100%; }
-.pv-gl-dial svg { height: 100%; width: auto; max-width: 100%; overflow: visible; }
-.pv-gl-val { position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%); font-size: 0.72em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.pv-gl-dial svg { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; overflow: hidden; }
+.pv-gl-val { position: absolute; left: 50%; bottom: 0.1em; transform: translateX(-50%); font-size: 0.72em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .pv-gl-cap { font-size: 0.46em; opacity: 0.6; }
 .pv-sg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25em; }
 .pv-sg-wrap { position: relative; display: flex; align-items: flex-end; justify-content: center; flex: 1 1 auto; min-height: 0; width: 100%; }
 .pv-sg-wrap svg { height: 100%; width: auto; max-width: 100%; }
 .pv-sg-val { position: absolute; left: 50%; bottom: 2%; transform: translateX(-50%); font-size: 0.92em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pv-sg-cap { font-size: 0.46em; opacity: 0.6; }
-.pv-yg-w7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-.pv-yg-h24 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 .pv-yg-grid.dot i { border-radius: 50%; }
+/* ===== v3.1 新增：节日卡 / 假期倒计时 / 年电量 ===== */
+.pv-fe { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.2em; }
+.pv-fe-top { flex: 0 0 auto; display: flex; justify-content: center; }
+.pv-fe-gap { font-size: 0.46em; font-weight: 700; color: #fff; padding: 0.2em 0.7em; border-radius: 1em; letter-spacing: 0.02em; white-space: nowrap; }
+.pv-fe-name { font-size: 1.32em; font-weight: 800; line-height: 1.15; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pv-fe-date { font-size: 0.52em; opacity: 0.6; font-variant-numeric: tabular-nums; }
+.pv-single-1x2 .pv-fe-name, .pv-single-2x1 .pv-fe-name { font-size: 1.05em; }
+.pv-single-2x4 .pv-fe-name, .pv-single-4x4 .pv-fe-name { font-size: 1.5em; }
+.pv-hd { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.12em; }
+.pv-hd-days { font-size: 1.9em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 0.08em; justify-content: center; }
+.pv-hd-days small { font-size: 0.32em; font-weight: 600; opacity: 0.75; }
+.pv-hd-name { font-size: 0.62em; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pv-hd-date { font-size: 0.48em; opacity: 0.55; font-variant-numeric: tabular-nums; }
+.pv-single-1x2 .pv-hd-days, .pv-single-2x1 .pv-hd-days, .pv-single-1xfull .pv-hd-days { font-size: 1.35em; }
+.pv-bt { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.28em; }
+.pv-bt-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; font-size: 0.5em; font-weight: 600; }
+.pv-bt-body { position: relative; width: 100%; flex: 0 1 auto; height: 0.9em; border: 0.13em solid; border-radius: 0.28em; overflow: hidden; display: flex; align-items: stretch; }
+.pv-bt-body i { display: block; border-radius: 0.14em; }
+.pv-bt-body u { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0, 0, 0, 0.28); }
+.pv-bt-nub { width: 0.2em; height: 0.3em; border-radius: 0 0.06em 0.06em 0; flex: 0 0 auto; align-self: center; margin-left: -0.03em; }
+.pv-single-1x2 .pv-bt, .pv-single-1xfull .pv-bt { gap: 0.2em; }
+.pv-single-4x4 .pv-bt-body { height: 1.2em; }
 
+.pv-d2 { gap: 0.06em; }
+.pv-d2-l { font-size: 1em; font-weight: 700; line-height: 1.12; white-space: nowrap; letter-spacing: -0.01em; }
 `;

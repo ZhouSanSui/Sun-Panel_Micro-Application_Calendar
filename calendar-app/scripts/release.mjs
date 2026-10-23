@@ -61,7 +61,14 @@ function writeVersion(v) {
   const pj = JSON.parse(readFileSync(pjPath, 'utf8'));
   pj.version = v;
   writeFileSync(pjPath, `${JSON.stringify(pj, null, 2)}\n`);
-  console.log(`  版本写入：config/app.config.js + package.json → ${v}`);
+  // app.json 由构建生成，但版本 bump 后必须同步，否则「版本号入库、清单还是旧版」
+  const ajPath = path.join(APP_DIR, 'app.json');
+  if (existsSync(ajPath)) {
+    const aj = JSON.parse(readFileSync(ajPath, 'utf8'));
+    aj.version = v;
+    writeFileSync(ajPath, `${JSON.stringify(aj, null, 2)}\n`);
+  }
+  console.log(`  版本写入：config/app.config.js + package.json + app.json → ${v}`);
 }
 const parseVer = (raw) => {
   const m = raw.match(/^(\d+)\.(\d+)\.(\d{6})(-beta)?$/);
@@ -226,6 +233,15 @@ console.log(`  GitHub：${isRelease ? 'push main + tag + Release' : '仅本地 c
 if (!EXECUTE) {
   console.log('\n（dry-run 未做任何修改；加 --execute 执行）\n');
   process.exit(0);
+}
+
+// v2.9：发布前工作区必须干净——否则会出现「版本号进了 git、源码只在工作区」的不可回溯状态
+if (EXECUTE) {
+  const dirty = out('git status --porcelain', REPO_DIR);
+  if (dirty) {
+    console.error('\n工作区有未提交改动，先提交源码再发布：\n' + dirty);
+    process.exit(1);
+  }
 }
 
 if (isRelease) {

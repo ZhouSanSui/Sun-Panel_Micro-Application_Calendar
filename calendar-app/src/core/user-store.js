@@ -131,6 +131,17 @@ export const COMBO_CONTENTS = [
     // v1.40：多个日程水平最低 2、垂直可到 1（用户要求「少显示一点就好」）
     { key: 'multiple', zh: '多个日程', en: 'Multiple', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 } },
   ] },
+  // v3.2：拼接模式新增「进图」内容类——此前只有单独模式能放进度，拼接模式只能放日期/日程
+  // 每个样式都有独立的尺寸档，避免在某些卡片里挤成一团
+  { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
+    { key: 'month', zh: '月进度', en: 'Month', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
+    { key: 'week', zh: '周进度', en: 'Week', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
+    { key: 'day', zh: '今日进度', en: 'Today', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
+    // 多进度条 4 行在 1xfull 拼接块（1080×120 拆成 211×96）里仍会溢出 11px，\n    // 矩阵审计判为裁切，故拼接模式只保留单行进度（月/周/日/年电量），多行版本留在单独模式。
+    { key: 'battery', zh: '年电量', en: 'Year Battery', span: { cols: 2, rows: 1 }, minSpan: { cols: 2, rows: 1 }, sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
+    // 四环进度 / 进度格阵 是需要近正方形大面积的密集图形，拼接模式的格子常只有 1 行高，
+    // 强行放入会被裁切（矩阵审计实测溢出 60~157px），故只在单独模式提供。
+  ] },
   // 空白填充：只占位不显示内容，可重复添加（用 n 序号区分）
   { key: 'blank', zh: '空白', en: 'Blank', icon: '⬚', styles: [
     { key: 'space', zh: '空白', en: 'Blank', span: { cols: 1, rows: 1 } },
@@ -156,21 +167,26 @@ export const SINGLE_CONTENTS = [
   ] },
   { key: 'schedule', zh: '日程', en: 'Schedule', icon: '🗓', styles: [
     { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x4', '1xfull'], opts: ['color', 'text'] },
-    { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', opts: ['color', 'sched'] },
+    { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', opts: ['color', 'sched', 'schedMode'] },
     { key: 'bigDays', zh: '巨型天数', en: 'Big Days', sizes: ['1x1', '2x2', '2x4', '4x4'], opts: ['color', 'sched'] },
   ] },
   { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
-    { key: 'yearGrid', zh: '进度格阵', en: 'Grid', opts: ['unit', 'shape', 'color'] },
+    { key: 'yearGrid', zh: '进度格阵', en: 'Grid', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['unit', 'shape', 'color'] },
     { key: 'yearBars', zh: '年月条阵', en: 'Month Bars' },
     { key: 'weekGrid', zh: '周进度格', en: 'Week Grid' },
     { key: 'multiBars', zh: '多进度条', en: 'Multi Bars', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'bars', 'age', 'life'] },
     { key: 'ringProgress', zh: '四环进度', en: 'Ring Progress', opts: ['color'] },
-    { key: 'heatYear', zh: '年热力图', en: 'Heat Year', sizes: ['2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'heatYear', zh: '年热力图', en: 'Heat Year', sizes: ['2x2', '2x4', '4x4'], opts: ['color'] },
+    { key: 'battery', zh: '年电量', en: 'Year Battery', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
   ] },
   { key: 'gauge', zh: '仪表', en: 'Gauge', icon: '◎', styles: [
     // v2.11：仪表类内容（指针 / 半环），读的是年初或当日进度
     { key: 'dial', zh: '指针仪表', en: 'Dial', opts: ['color'] },
     { key: 'semiGauge', zh: '半环仪表', en: 'Semi Gauge', opts: ['color'] },
+  ] },
+  { key: 'important', zh: '重要日期', en: 'Important', icon: '◆', styles: [
+    { key: 'festival', zh: '节日卡', en: 'Festival', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'holiday', zh: '假期倒计时', en: 'Holiday Count', opts: ['color'] },
   ] },
 ];
 
@@ -180,13 +196,15 @@ export const STYLE_OPT_FIELDS = {
   text: { type: 'text', zh: '文案', en: 'Text', def: '', max: 24 },
   date: { type: 'date', zh: '目标日', en: 'Target date', def: '' },
   // v2.11：不同样式各自需要的设置
-  unit: { type: 'select', zh: '统计粒度', en: 'Unit', def: 'year', choices: [['year', '年'], ['week', '周'], ['day', '日']] },
+  unit: { type: 'select', zh: '统计粒度', en: 'Unit', def: 'year', choices: [['year', '年'], ['month', '月'], ['week', '周'], ['day', '日']] },
   shape: { type: 'select', zh: '格子形状', en: 'Shape', def: 'square', choices: [['square', '方块'], ['dot', '圆点']] },
   bars: { type: 'multi', zh: '进度条', en: 'Bars', def: 'y,m,w,d', choices: [['y', '年'], ['m', '月'], ['w', '周'], ['d', '日'], ['life', '生命']] },
   age: { type: 'number', zh: '当前年龄', en: 'Age', min: 0, max: 120, def: '' },
   life: { type: 'number', zh: '预计年龄', en: 'Life span', min: 1, max: 130, def: 85 },
   // v2.12：从日历里挑一条日程（或下面自定义一条，自定义会写回日历）
   sched: { type: 'schedule', zh: '关联日程', en: 'Schedule', def: '' },
+  // v3.6：关联日程的三种模式 —— 顺序（自动取最近）/ 选中 / 新建
+  schedMode: { type: 'select', zh: '日程来源', en: 'Source', def: 'pick', choices: [['pick', '选择日程'], ['auto', '顺序显示（最近的日程）']] },
 };
 
 /**
@@ -437,7 +455,7 @@ export function normalizeOpts(v) {
     if (t) out.text = t;
   }
   // v2.11：样式设置扩展 —— 粒度 / 形状（枚举）、进度条组合（多选）、年龄与预计年龄（数值）、日程挑选（id 列表）
-  if (v.unit === 'year' || v.unit === 'week' || v.unit === 'day') out.unit = v.unit;
+  if (['year', 'month', 'week', 'day'].includes(v.unit)) out.unit = v.unit;
   if (v.shape === 'square' || v.shape === 'dot') out.shape = v.shape;
   {
     const raw = Array.isArray(v.bars) ? v.bars.join(',') : typeof v.bars === 'string' ? v.bars : '';
@@ -450,6 +468,7 @@ export function normalizeOpts(v) {
     if (Number.isFinite(n) && n >= 0 && n <= 130) out[k] = Math.round(n);
   }
   if (typeof v.sched === 'string' && v.sched && v.sched.length <= 40) out.sched = v.sched;
+  if (v.schedMode === 'pick' || v.schedMode === 'auto') out.schedMode = v.schedMode;
   if (typeof v.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.date)) {
     const [y, m, d] = v.date.split('-').map(Number);
     const dt = new Date(y, m - 1, d);

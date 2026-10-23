@@ -234,19 +234,7 @@ ${CARD_MODE_CSS}
               flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
               outline:1px dashed rgba(255,255,255,.10); }
   @media (prefers-reduced-motion: no-preference) { .pv-block { transition:left .16s ease, top .16s ease; } }
-  /* v1.40：单独模式按卡片尺寸的版式规则（与三组件 CSS 同源，改规则必须同步） */
-
-  .pv-single-1x1 .pv-big, .pv-single-1x1 .pv-mid, .pv-single-1x1 .pv-vbig { font-size:1.25em; }
-
-  .pv-single-1x2 .pv-big, .pv-single-1x2 .pv-mid, .pv-single-1x2 .pv-vbig { font-size:1.15em; }
-
-  .pv-single-2x1 .pv-big, .pv-single-2x1 .pv-mid, .pv-single-2x1 .pv-vbig { font-size:1.1em; }
-
-  .pv-single-2x4 .pv-big, .pv-single-2x4 .pv-mid, .pv-single-2x4 .pv-vbig { font-size:1.2em; }
-  .pv-single-4x4 .pv-big, .pv-single-4x4 .pv-mid, .pv-single-4x4 .pv-vbig { font-size:1.25em; }
-
-  .pv-single-1xfull .pv-big, .pv-single-1xfull .pv-mid, .pv-single-1xfull .pv-vbig { font-size:1.3em; }
-  /* v1.43：单独模式字号基准随卡片尺寸放大（16px 基准在大卡上显得过小） */
+  /* 单独模式版式规则由共享真源 CARD_MODE_CSS 插值（见文件顶部 import） */
 
 `;
 

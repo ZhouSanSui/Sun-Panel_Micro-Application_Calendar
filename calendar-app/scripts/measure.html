@@ -8,18 +8,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFa
 .pv-center.pv-flat { flex-direction:row; align-items:center; justify-content:center; gap:0.5em; }
 .pv-fnum { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:0 1 auto; }
 .pv-ftext { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.1875em; flex:0 1 auto; min-width:0; text-align:center; }
-/* v1.40：单独模式按卡片尺寸的版式规则（与三组件 CSS 同源，改规则必须同步） */
-.pv-single .pv-center{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.5em}
-.pv-single-1x1 .pv-big,.pv-single-1x1 .pv-mid,.pv-single-1x1 .pv-vbig{font-size:1.25em}
-.pv-single-1x1 .pv-sub{display:none}
-.pv-single-1x2 .pv-center{gap:.75em}
-.pv-single-1x2 .pv-big,.pv-single-1x2 .pv-mid,.pv-single-1x2 .pv-vbig{font-size:1.15em}
-.pv-single-2x1 .pv-center{flex-direction:column;gap:.375em}
-.pv-single-2x1 .pv-big,.pv-single-2x1 .pv-mid,.pv-single-2x1 .pv-vbig{font-size:1.1em}
-.pv-single-2x2 .pv-center{gap:.5em}
-.pv-single-2x4 .pv-center{gap:.875em}
-.pv-single-2x4 .pv-big,.pv-single-2x4 .pv-mid,.pv-single-2x4 .pv-vbig{font-size:1.2em}
-.pv-single-4x4 .pv-big,.pv-single-4x4 .pv-mid,.pv-single-4x4 .pv-vbig{font-size:1.25em}
+/* 单独模式版式规则见共享真源 card-mode-styles.js */
 .pv-single-4x4 .pv-sub{font-size:.6875em}
 .pv-single-1xfull .pv-center{align-items:center;gap:1em}
 .pv-single-1xfull .pv-big,.pv-single-1xfull .pv-mid,.pv-single-1xfull .pv-vbig{font-size:1.3em}
@@ -35,11 +24,14 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFa
 .pv-wd-sm { font-size:0.9375em; font-weight:700; line-height:1.1; }
 .pv-sub-sm { font-size:0.5em; line-height:1.3; }
 .pv-ap { font-size:0.6875em; font-weight:600; }
-.pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:0.1875em; }
+.pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:0.1875em; container-type:inline-size; }
 .pv-vstack.t { gap:0.125em; }
 .pv-vline { font-size:1.25em; font-weight:700; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
 /* v1.35 反馈 1：竖排简约的星期行（.pv-vline.wk 0.7em），与组件三处 CSS 一致 */
 .pv-vline.wk { font-size:.7em; }
+/* v3.8：竖排行按容器宽缩字号（--w = 行文字固有宽度 em） */
+.pv-vline.fit { font-size:min(1.25em, calc(100cqw / var(--w, 4))); }
+.pv-vline.wk.fit { font-size:min(0.7em, calc(100cqw / var(--w, 4))); }
 .pv-vbig  { font-size:1.875em; font-weight:800; line-height:1.1; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .pv-cal-head { text-align:center; color:inherit; line-height:1.2; }
 .pv-cal-wd { font-size:0.5625em; font-weight:600; margin-left:0.3125em; }

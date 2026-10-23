@@ -147,10 +147,12 @@ const CASES_CSS = `
   .pv-wk-d { font-size:.75em; font-weight:600; }
   .pv-wk-w { font-size:.5em; }
   .pv-mini-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:.125em; margin-top:0; }
-  .pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:.1875em; }
+  .pv-vstack { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; gap:.1875em; container-type:inline-size; }
   .pv-vstack.t { gap:.125em; }
   .pv-vline { font-size:1.25em; font-weight:700; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .pv-vline.wk { font-size:.7em; }
+  .pv-vline.fit { font-size:min(1.25em, calc(100cqw / var(--w, 4))); }
+  .pv-vline.wk.fit { font-size:min(0.7em, calc(100cqw / var(--w, 4))); }
   .pv-vbig { font-size:1.875em; font-weight:800; line-height:1.1; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .pv-vrow { display:flex; align-items:baseline; justify-content:center; gap:.25em; width:100%; }
   .pv-cal-head { text-align:center; color:inherit; line-height:1.2; }
@@ -195,7 +197,7 @@ const MEASURE = `
       let clipped = 0;
       let minPrimary = 999;
       let minSecondary = 999;
-      const PRIMARY = /(^|\\s)(pv-big|pv-mid|pv-vbig|pv-vline|pv-wd-sm|pv-sch-name|pv-flip-box|pv-big)(\\s|$)/;
+      const PRIMARY = /(^|\\s)(pv-big|pv-mid|pv-vbig|pv-vline|pv-d2-l|pv-wd-sm|pv-sch-name|pv-flip-box|pv-big)(\\s|$)/;
       block.querySelectorAll('*').forEach((n) => {
         const r = n.getBoundingClientRect();
         if (r.width > 0 && (r.right > br.right + 1 || r.bottom > br.bottom + 1 || r.left < br.left - 1 || r.top < br.top - 1)) clipped += 1;
