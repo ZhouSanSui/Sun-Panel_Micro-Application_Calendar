@@ -347,7 +347,8 @@ export class WidgetConfig extends SunPanelPageElement {
     }
     if (meta.type === 'schedule') {
       // v2.12：从日历里挑一条日程；也可在这里自定义一条 —— 保存时自动写回日历
-      // v3.6：日程来源三选一 —— 顺序显示（自动取最近）/ 选择日程（下拉）/ 新建（下方表单）
+      // v3.6：日程来源两项（schedMode：pick 选择日程 / auto 顺序显示取最近）；
+      // 下方表单可自定义一条新日程，保存时写回日历并选用（不计入 schedMode 选项）
       const modeMeta = STYLE_OPT_FIELDS.schedMode;
       const modeVal = vals.schedMode || modeMeta.def;
       const list = (getUserStore()?.getSchedules() || []).slice(0, 40);

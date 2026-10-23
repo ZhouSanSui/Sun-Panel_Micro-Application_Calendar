@@ -11,6 +11,9 @@ calendar-app/scripts/preview.html
 calendar-app/scripts/preview-single.html
 calendar-app/scripts/defaults-preview.html
 
+# 本地验收截图与图像工程文件（UI 截图 + .posf），仅本机留存，不入库
+图集/
+
 # 凭据与密钥（绝不入库）
 .env
 .env.*

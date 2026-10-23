@@ -137,7 +137,8 @@ export const COMBO_CONTENTS = [
     { key: 'month', zh: '月进度', en: 'Month', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
     { key: 'week', zh: '周进度', en: 'Week', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
     { key: 'day', zh: '今日进度', en: 'Today', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
-    // 多进度条 4 行在 1xfull 拼接块（1080×120 拆成 211×96）里仍会溢出 11px，\n    // 矩阵审计判为裁切，故拼接模式只保留单行进度（月/周/日/年电量），多行版本留在单独模式。
+    // 多进度条 4 行在 1xfull 拼接块（1080×120 拆成 211×96）里仍会溢出 11px，
+    // 矩阵审计判为裁切，故拼接模式只保留单行进度（月/周/日/年电量），多行版本留在单独模式。
     { key: 'battery', zh: '年电量', en: 'Year Battery', span: { cols: 2, rows: 1 }, minSpan: { cols: 2, rows: 1 }, sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
     // 四环进度 / 进度格阵 是需要近正方形大面积的密集图形，拼接模式的格子常只有 1 行高，
     // 强行放入会被裁切（矩阵审计实测溢出 60~157px），故只在单独模式提供。
