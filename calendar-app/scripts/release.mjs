@@ -244,6 +244,57 @@ if (EXECUTE) {
   }
 }
 
+// ---------- 发布前门禁 ----------
+// 原则：任何版本号写入之前必须全绿；任一步非零退出即中止，不留下半写状态。
+// modify（beta）跑基础五项；minor/major（归档）额外跑两个矩阵审计，CLIP/TINY/MISS 必须为 0。
+const GATE_STEPS = MODE === 'modify'
+  ? ['test:layout', 'test:render', 'lint', 'check:css', 'check:version']
+  : ['test:layout', 'test:render', 'lint', 'check:css', 'check:version', 'audit:matrix', 'audit:single'];
+
+/** 审计汇总行：`正常 N · 主文字过小 N · 次要注意 N · 裁切 N [· 缺失 N]`；取不到汇总行视为失败 */
+function auditVerdict(text) {
+  const m = text.match(/正常\s+(\d+)\s*·\s*主文字过小\s+(\d+)\s*·\s*次要注意\s+(\d+)\s*·\s*裁切\s+(\d+)(?:\s*·\s*缺失\s+(\d+))?/);
+  if (!m) return '未取到汇总行';
+  const bad = [];
+  if (Number(m[2]) > 0) bad.push(`主文字过小 ${m[2]}`);
+  if (Number(m[4]) > 0) bad.push(`裁切 ${m[4]}`);
+  if (m[5] && Number(m[5]) > 0) bad.push(`缺失 ${m[5]}`);
+  return bad.join('、');
+}
+
+function runGates() {
+  console.log('\n=== 发布前门禁 ===');
+  for (const step of GATE_STEPS) {
+    const isAudit = step.startsWith('audit:');
+    console.log(`\n[门禁] npm run ${step}`);
+    try {
+      if (isAudit) {
+        // 审计要解析汇总行：先捕获输出、透传打印，再判 CLIP/TINY/MISS
+        const text = execSync(`npm run ${step}`, { cwd: APP_DIR, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        process.stdout.write(text.endsWith('\n') ? text : `${text}\n`);
+        const verdict = auditVerdict(text);
+        if (verdict) {
+          console.error(`门禁未通过：${step} 报告 ${verdict}`);
+          return false;
+        }
+      } else {
+        sh(`npm run ${step}`);
+      }
+    } catch (e) {
+      const tail = [e.stdout, e.stderr].filter(Boolean).join('\n').trim().split('\n').slice(-12).join('\n');
+      console.error(`门禁未通过：npm run ${step} 退出码非零${tail ? `\n${tail}` : ''}`);
+      return false;
+    }
+  }
+  console.log('\n门禁全部通过。');
+  return true;
+}
+
+if (EXECUTE && !runGates()) {
+  console.error('\n门禁未通过，已中止发布');
+  process.exit(1);
+}
+
 if (isRelease) {
   const tags = out('git tag -l', REPO_DIR).split('\n');
   if (tags.includes(plan.release)) throw new Error(`tag ${plan.release} 已存在，不能重复归档`);

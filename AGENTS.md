@@ -36,28 +36,38 @@
 | 依赖安装 | `npm install` |
 | 本地开发 | `npm run dev` |
 | 代码检查 | `npm run lint`（门禁：0 error） |
-| 布局回归 | `node scripts/test-layout.mjs`（约 3377 断言） |
-| 渲染回归 | `node scripts/test-render.mjs`（约 395 断言） |
+| 布局回归 | `npm run test:layout`（3876 断言） |
+| 渲染回归 | `npm run test:render`（592 断言） |
+| CSS 镜像校验 | `npm run check:css`（选择器 + 声明块级，见 §5） |
+| 版本号一致性 | `npm run check:version` |
+| 一键门禁 | `npm run check` = lint + check:css + check:version + test:layout + test:render |
 | 排版预览 | `node scripts/make-preview.mjs` → `scripts/preview.html`、`preview-single.html` |
 | 默认样式预览 | `node scripts/make-defaults-preview.mjs` → `scripts/defaults-preview.html` |
-| 显示能力矩阵 | `node scripts/audit-matrix.mjs` → `scripts/audit-matrix.html` |
+| 显示能力矩阵（拼接） | `npm run audit:matrix` → `scripts/audit-matrix.html` |
+| 显示能力矩阵（单独） | `npm run audit:single` → `scripts/audit-single-cases.html` |
 | 打包 | `npm run pack` → `packages/<name>-<version>.zip` |
 | 部署 | `SP_USER=… SP_PASS=… node deploy.mjs`（脚本不入库，见 §6） |
-| 发布 | `node scripts/release.mjs [--mode=modify|minor|major] [--execute]` |
+| 发布 | `node scripts/release.mjs [--mode=modify|minor|major] [--execute]`（`--execute` 先跑门禁，见 §4） |
 
 ## 4. 交付门禁（缺一不可）
 
-1. `node scripts/test-layout.mjs` 全绿
-2. `node scripts/test-render.mjs` 全绿
-3. `npm run lint` 0 error
-4. 改了渲染/尺寸 → `node scripts/audit-matrix.mjs` 结果中 `CLIP`（裁切）与 `TINY`（主文字 <9px）必须为 **0**
-5. 改了视觉 → 生成预览 + 无头截图肉眼核对，报告里写明看了哪些尺寸
+1. `npm run check`（lint + check:css + check:version + test:layout + test:render）全绿
+2. 改了渲染/尺寸 → `npm run audit:matrix` 结果中 `CLIP`（裁切）与 `TINY`（主文字 <9px）必须为 **0**
+3. 改了单独模式 → `npm run audit:single` 同样要求 CLIP/TINY/MISS 为 **0**
+4. 改了视觉 → 生成预览 + 无头截图肉眼核对，报告里写明看了哪些尺寸
+5. 发布脚本 `release.mjs --execute` 在写版本号**之前**自动重跑门禁：`modify` 跑第 1 组五项；
+   `minor`/`major` 额外跑两个审计并解析汇总行（CLIP/TINY/MISS 非零、或取不到汇总行）即中止，
+   打印「门禁未通过，已中止发布」，不留下半写状态
 
 ## 5. 架构不变量（改之前必须知道）
 
-- **一套渲染、五处 CSS 镜像**：`src/core/card-mode-render.js` 产出 DOM；样式同时存在于
-  `src/components/widget.js` / `mainPage.js` / `widgetConfig.js` / `scripts/make-preview.mjs` / `scripts/measure.html`。
-  **改一条 CSS 规则必须五处同步**，否则预览与实际不一致。
+- **一套渲染、一处 CSS 真源**：`src/core/card-mode-render.js` 产出 DOM；`.pv-*` 规则唯一真源是
+  `src/core/card-mode-styles.js`（导出 `CARD_MODE_CSS`）。运行时三组件（widget 用 `unsafeCSS`，
+  mainPage / widgetConfig 在 render 的 `<style>` 里插值）与预览/审计生成器（make-preview、make-defaults-preview、
+  audit-matrix、audit-single）**一律插值引用，不得手工拷贝**。`scripts/check-css-mirror.mjs` 按
+  「选择器(规范化) → 声明块(规范化)」校验每个镜像与真源一致（缺选择器、声明体不一致/为空都算漂移）；
+  生成器若含手工 `.pv-*` 规则同样报错。`measure.html` 是字号标定页（有意只复刻文字规则、不插值），
+  差异按信息级处理，`--strict` 才计入失败。
 - **字号靠 FIT 反推**：块根字号 `u = fitFontU(blockW, blockH, fit)`，块内全用 `em`。
   `CONTENT_FIT` 是每种样式的最坏情况实测值（`scripts/measure.html` 是测量台），**改它必须实测回写**，不能拍脑袋。
 - **网格坐标一律「列×行」**：`span = {cols, rows}`。SunPanel 的 `gridSize` 是「行×列」，口语 1×2 = 宽扁、2×1 = 窄高。
@@ -94,6 +104,10 @@
 6. **小文字**：块根字号 <10px 时加 `.pv-tight` 隐藏副标题（48px 小块里副标题只有 ~5px）。
 7. **面积下限**：`hms`、`dateFullWeekday`、四样式（节日/节气/距放假/最近日程）有 `minArea: 2`，禁 1×1 占格。
 8. **测试里的 `base.now` 是固定历史日期**；涉及「今天」要显式传 `now: new Date()`。
+9. **审计台 CSS 必须插值真源**：audit-matrix.mjs 曾长期手持一份缺 `.pv-seg{white-space:nowrap}`（v1.44 起生产就有）
+   的旧拷贝，导致 `time.dateWeekday` 在 1×2 / 2×4 最小占格下的竖向裁切**长期测不出**（2026-10 改插值真源后暴露，
+   CLIP=2）。修它要动 `CONTENT_FIT` 标定或渲染层（`src/core/user-store.js` / `card-mode-render.js`），
+   在修好之前 `minor`/`major` 门禁会正确地拦着不许归档。
 
 ## 9. 接手后的第一个任务（建议）
 
