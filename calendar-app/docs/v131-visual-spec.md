@@ -864,6 +864,182 @@ export function showCalTitle(content, style, span, opts) {
 
 ---
 
+## v2.0–v3.8 单独模式 / 拼接进图 / 几何自适应（2026-10-21~23）
+
+> 背景：v1.45 之后，dsh 于 2026-10-21~23 完成 v2.0 归档与 2.1~3.7 共 7 个「修改」类 beta
+> （未归档，按 `docs/VERSIONS.md` 规则台账不加行）。本章补录该阶段的规格事实，
+> 数值全部以当前代码为准：`src/core/user-store.js`（SINGLE/CONTENT 定义、STYLE_OPT_FIELDS）、
+> `src/core/card-mode-render.js`（渲染与判定）、`src/core/card-mode-styles.js`（CSS 真源）。
+
+### ① 单独模式 17 款全清单与分类
+
+**2.0.261021 归档时为 17 款**（以 tag `2.0.261021` 的 `SINGLE_CONTENTS` 为准）：文字 6 / 日程 3 / 进图 6 / 仪表 2。
+`sizes` 未声明 = 全部尺寸可选（`styleSizesOf` 返回 null）；opts 未列 = 无样式设置项。
+
+| 内容类 | 样式 key | 名称 | 尺寸档 sizes | 样式设置 opts |
+|---|---|---|---|---|
+| 文字 timeDate | `dualZone` | 双区时间 | 全部 | — |
+| | `ringClock` | 环形刻度钟 | 全部 | color |
+| | `dotClock` | LED数码管 | 全部 | color |
+| | `boldClock` | 粗体大字钟 | 1x1/2x2/2x4/4x4 | color |
+| | `stripeClock` | 极简条钟 | 全部 | color |
+| | `wordClock` | 文字时钟 | 2x2/2x4/4x4/1xfull | color |
+| 日程 schedule | `capsule` | 胶囊倒计时 | 1x2/2x4/1xfull | color、text |
+| | `targetDay` | 目标倒计时 | 全部 | color、sched、schedMode |
+| | `bigDays` | 巨型天数 | 1x1/2x2/2x4/4x4 | color、sched |
+| 进图 progress | `yearGrid` | 进度格阵 | 全部 | unit、shape、color |
+| | `yearBars` | 年月条阵 | 全部 | — |
+| | `weekGrid` | 周进度格 | 全部 | — |
+| | `multiBars` | 多进度条 | 2x2/2x4/4x4/1xfull | color、bars、age、life |
+| | `ringProgress` | 四环进度 | 全部 | color |
+| | `heatYear` | 年热力图 | 2x2/2x4/4x4 | color |
+| | `battery` | 年电量 | 1x2/2x1/2x2/2x4/4x4/1xfull | color |
+| 仪表 gauge | `dial` | 指针仪表 | 全部 | color |
+| | `semiGauge` | 半环仪表 | 全部 | color |
+| 重要日期 important | `festival` | 节日卡 | 1x2/2x1/2x2/2x4/4x4/1xfull | color |
+| | `holiday` | 假期倒计时 | 全部 | color |
+
+说明：
+
+- v2.7~v2.10 按需求**移除了旧文字款**，文字类只保留上表 6 款图形化样式；单独模式**不含「日历」**（已移除）。
+- **「每款可改主色 / 文案 / 目标日 / 关联日程」是过期表述**：只有 opts 列非空的款才有设置项（`dualZone` / `yearBars` / `weekGrid` 无任何设置项）。
+- 2.0 之后（v3.1 beta）新增 3 款：`battery` 年电量、`festival` 节日卡、`holiday` 假期倒计时，**当前代码共 20 款 / 5 类**；另 `heatYear` 尺寸档由 2x4/4x4/1xfull 调整为 2x2/2x4/4x4、`targetDay` 增加 `schedMode`。文中「17 款」均指 2.0 归档时点数。
+
+### ② 节日卡 / 假期倒计时（v3.1，important 类）
+
+- **数据源**：节日卡 `getNextFestival(now)`（内置节日表）；假期倒计时 `getNextHoliday(getHolidayService(), now)`（节假日服务，取不到走 `holiday-fallback.js`）。无数据显示「暂无节日 / 暂无假期」。
+- **节日卡**（`.pv-fe`）：顶部主色胶囊「N 天后 / 今天 / in Nd」（`.pv-fe-gap`，白字）→ 节日名（`.pv-fe-name` 1.32em/800，溢出省略）→ 日期 `MM/DD`（`.pv-fe-date` 0.52em）。1×2 / 2×1 名称降 1.05em；2×4 / 4×4 升 1.5em。
+- **假期倒计时**（`.pv-hd`）：大天数（`.pv-hd-days` 1.9em/800 + `small` 0.32em 单位「天」；假期中显示「假期中 / ON」）→ 假期名（`.pv-hd-name` 0.62em/700）→ 日期。1×2 / 2×1 / 1×FULL 大天数降 1.35em。
+- 两者 `opts: ['color']`；强调色由 `accentOf(theme)` 从主色派生。`CONTENT_FIT.important.holiday = { w: 5.4, wEn: 6.2, h: 4.0 }`。
+- **为什么沿用 em**：与全部 `.pv-*` 一致，块根字号由 `fitFontU` 从块像素反推，卡片越大字号同比放大，无需为每个尺寸重写数值。
+
+### ③ 年电量（battery，v3.1）
+
+- 形态：电池外框（`.pv-bt-body`：`border: 0.13em solid 主色`、圆角 0.28em、高 0.9em，4×4 升 1.2em）+ 填充条（宽 = 年进度%，下限 2%）+ 10 等分刻度线（9 条 `<u>`）+ 右侧电极（`.pv-bt-nub`）；头部「今年已过 + 百分比」。
+- 数据：`yearProgress(now)`；`CONTENT_FIT.progress.battery = { w: 6.4, h: 3.2 }`；`opts: ['color']`。
+- 尺寸档：1×2 / 2×1 / 2×2 / 2×4 / 4×4 / 1×FULL，拼接模式同样提供（`minSpan 2×1`）。
+
+### ④ 拼接模式「进图」内容（v3.2）
+
+`COMBO_CONTENTS.progress` 共 4 款，均为「标签 + 进度条 + 百分比」单行形态（`bar()` = `.pv-row2` + `.pv-bar` + `.pv-fill`）：
+
+| 样式 | 说明 | span | minSpan |
+|---|---|---|---|
+| `month` 月进度 | 当月已过比例 | 2×1 | 1×1 |
+| `week` 周进度 | 本周已过比例 | 2×1 | 1×1 |
+| `day` 今日进度 | 当日已过比例 | 2×1 | 1×1 |
+| `battery` 年电量 | 同 ③ | 2×1 | 2×1 |
+
+- **为什么拼接只有这 4 款**：四环进度 / 进度格阵是需要近正方形大面积的密集图形，拼接模式的格子常只有 1 行高，强行放入被矩阵审计实测溢出 60~157px 判裁切，故只在单独模式提供；multiBars 4 行在 1×FULL 拼接块（1080×120 拆成 211×96）里仍溢出 11px 亦判裁切，拼接侧只保留单行进度。
+- `CONTENT_FIT.progress.__default = { w: 7.0, h: 2.0 }`。
+
+### ⑤ schedMode 日程来源（v3.6）
+
+`STYLE_OPT_FIELDS.schedMode`：`type: 'select'`，默认 `pick`，**choices 仅两项**：
+
+| 值 | 文案 | 行为 |
+|---|---|---|
+| `pick` | 选择日程 | 用下拉选中那条；v3.3 起「选中即锁定」——即使已过期也不改选其它日程，只有选中项被删除才回落 `opt.text` / `opt.date` 兜底 |
+| `auto` | 顺序显示（最近的日程） | 忽略选中项，取「日期 ≥ 今天」的最近一条 |
+
+- 渲染入口 `schedPick`（card-mode-render.js:398）：auto 分支过滤 `date >= 今天` 后按日期升序取首条；pick 分支按 id / date 命中用户 store。
+- **v3.5 yearly 映射今年**：选中日程日期若记录年份早于今年，把月日搬到今年（`2024-05-20` → `2026-05-20`），生日 / 纪念日类年循环日程显示「今年」那一天；今年内或未来的日期保持原样。
+- 仅 `targetDay` 的 opts 含 `schedMode`；`bigDays` 只有 `sched`、`capsule` 只有 `text`。
+- widgetConfig 渲染两个 chip（pick / auto）+ 下拉 + 「自定义新日程」表单；自定义保存时写回日历并选用，**不计入 schedMode 选项**（旧注释「三选一」已按实现修正）。
+
+### ⑥ unit=month 月粒度（v2.11 引入粒度，v3.6 补月档）
+
+`STYLE_OPT_FIELDS.unit` choices：`year` 年（默认）/ `month` 月 / `week` 周 / `day` 日；`shape`：`square` 方块（默认）/ `dot` 圆点。
+`yearGrid` 按 unit 渲染「头部 + 格阵」，今天格 `now` 主题色实心、已过格 `on`（opacity .34）、未来格 .13：
+
+| unit | 格数 | 头部右侧 |
+|---|---|---|
+| year | 当年天数（365/366） | `第几天/总天数 天` |
+| month | 本月天数（28~31） | `今日/月总天数` |
+| week | 7 | `(周几+1)/7` |
+| day | 24 | `(小时+1)/24` |
+
+- 月粒度即「本月日历格阵」：今天点亮、已过加深，头部显示「年 + 今日/月总天数」。
+- 格阵列 / 行 / 格边长由 v3.8 按几何择优内联（见 ⑧.b），不再写死 31 列 / 12 行。
+
+### ⑦ 真实像素方向判定 SIZE_ORIENT 与 1×FULL 宽度自适应字号
+
+**SIZE_ORIENT**（card-mode-render.js:175）：尺寸名 → `{ rows, cols }`。SunPanel 尺寸名是「行×列」：`1x2` = 1 行 2 列（宽扁）、`2x1` = 2 行 1 列（窄高）、`1xfull` = 1 行 4 列（横向占满）。
+
+**renderInfoBlock 方向判定优先级**（v3.3 引入真实像素、v3.7 补尺寸名兜底）：
+
+1. **真实像素**：`o.w` / `o.h` 均有效且 > 0 → `tall = isTallBlock(w, h)`（块高 ≥ 2×块宽）、`narrow = w < h`；
+2. **尺寸名**：缺几何（样式条小预览）时按 `SIZE_ORIENT` 推（`rows >= cols × TALL_RATIO` / `cols < rows`）；
+3. **调用方显式传入**：`o.tall` / `o.narrow`（测试 / 自定义场景兜底）。
+
+- **为什么真实像素优先**：预览框按 `real × pvScale` 缩小，只要两边都传 w/h，预览与真机判定完全一致；v1.31 §3.1 的反例（1×FULL 1×2 占格按格数比误判窄高、字号反降）正是像素比判定的动因。widget.js 自 P0 起把宿主实测 `_hostW/_hostH` 传给 `renderInfoBlock`。
+- **1×FULL 宽度自适应字号**：根字号基准 = `clamp(12, 34, w / 60)`（w = 宿主实测宽度，SunPanel 内容区约 500~2000px）：
+
+| 宿主宽度 | 600px | 1080px | 1600px | 2000px | 2040px+ |
+|---|---|---|---|---|---|
+| 基准字号 | 12px（下限） | 18px | 26.7px | 33.3px | 34px（上限） |
+
+  - 固定 18px 在 1600px 以上会显得过小，故按宽度换算；该基准**始终内联** `style="font-size:…px"`（其余尺寸只在等比缩放预览时内联），并同式参与 `availW/availH` 计算（`baseForAvail`）。
+  - 预览等比缩放：`singleScale` 时内联字号 = 基准 × scale，保证缩小后的预览与真实卡片同比例。
+
+### ⑧ v3.8 几何自适应（四项）
+
+**a. 竖排 `.pv-vline.fit` 容器查询收缩**
+
+- `.pv-vstack` 加 `container-type: inline-size`；非 tight（日期串类）每行挂 `.fit`，容器内联 `--w = 各行文字固有宽度最大值 × 1.02`。
+- CSS：`.pv-vline.fit { font-size: min(1.25em, calc(100cqw / var(--w, 4))) }`；星期行 `.pv-vline.wk.fit { font-size: min(0.7em, …) }`。
+- 文字宽度模型 `lineWidthEm`（无头 Chrome 实测）：数字 0.6167em、CJK 1.0em、空格 0.2979em、拉丁字母逐字符表；组合串已交叉验证（「26年」2.2334、「10月22日」4.4668、「Oct 22」3.2803、「Mon」2.3335）。
+- **为什么**：旧的 `<wbr>` 方案在 `white-space:nowrap` 下仍是合法断点，会把「26年 / 10月22日」两排渲染成三排——即用户反馈「1×2 年月日还是 3 排」的根因。现在行宽超过容器时整组同字号收缩、绝不折行。
+
+**b. 年格阵 `--cols/--rows` em 轨道择优**
+
+- `ygLayout(n)` 枚举列数 1..n，格边长 `cell = min((boxW-(cols-1)×gap)/cols, (boxH-(rows-1)×gap)/rows)` 取最大者；内联 `--cols/--rows` + `grid-template-columns/rows: repeat(n, cell em)`，格恒正方形，整组 `justify/align-content: center` 居中。
+- 可用盒 = `availW × (availH - YG_HEAD_EM 0.925)`（头部 0.5em×1.25 + 容器 gap 0.3em），gap 0.1em，cell 下限 0.18em；缺几何（样式条小预览）回退 `CONTENT_FIT.yearGrid` 声明值 10.0×9.0。
+- **为什么**：旧写法把分母写死 31 列 / 12 行再用容器查询算格边 → 1×FULL（宽扁）按「高/12」封顶成 2~6px 细线「基本看不到」；大卡上的月 / 周 / 日格阵又被固定列数摊在一角「稀疏」。
+
+**c. 热力图铺满**
+
+- `.pv-hy i { width: 100%; height: 100%; align-self: stretch; justify-self: stretch }`：格子铺满当月列宽与行高，12 个月份列整块铺满卡片。
+- **为什么**：原来是「按行高取方块 + 列内居中」，列比格子宽时整列右侧留一大片空白，大卡上看起来非常稀疏。
+
+**d. multiBars 按 availH 裁行**
+
+- `maxRows = max(1, floor(availH / 1.15))`，行列表 `slice(0, maxRows)`。
+- **为什么**：v3.2 起拼接模式块高度受限，4 行在 211×96 的 1×FULL 拼接块里溢出 11px 被判裁切；按可用高度裁行后溢出归零。
+
+### ⑨ 共享 CSS 真源架构（含 P0 修复说明）
+
+- **真源**：`src/core/card-mode-styles.js` 导出 `CARD_MODE_CSS`，所有 `.pv-*` 规则只在这里写（含按尺寸版式 `.pv-single-<size>` 与 v3.8 新规则）。
+- **插值方**：三组件 `widget.js`（`unsafeCSS(CARD_MODE_CSS)`）/ `mainPage.js` / `widgetConfig.js`，脚本 `make-preview.mjs` / `audit-single.mjs`；**手工拷贝已删**，组件内只留注释指向真源。`make-defaults-preview.mjs` / `audit-matrix.mjs` 收编中；`measure.html` 仅保留文字标定所需规则（结构性规则本就用不到，差异只提示不计失败）。
+- **校验**：`npm run check:css`（`scripts/check-css-mirror.mjs`：比对 `.pv-*` 选择器集合，并把真源并入每个文件的集合避免误报）+ `test-render.mjs` 断言三组件必须插值 `CARD_MODE_CSS`（不得手工拷贝）。
+- **P0 bug 与修法**（74f095b）：三组件里 `.pv-single-<size> .pv-big / .pv-mid` 的镜像规则只剩**空选择器列表、没有声明体**（历次手工同步中被掏空），真机单独模式按尺寸缩放主文字字号**完全失效**（只有 `.pv-vbig` 生效），而预览是对的——「预览对、真机不对」。修法：按尺寸版式规则整体收进共享真源（如 `.pv-single-1x1 .pv-big, .pv-mid, .pv-vbig { font-size: 1.25em }` 整组规则），三组件改为插值、删手工拷贝，test-render 补插值断言防复发；同提交还把 `align-items` 统一为 `safe center`、v3.8 规则随真源一次到位。
+
+### ⑩ yearly 日程映射今年（v3.5）
+
+- `schedPick`：选中日程日期 `YYYY-MM-DD` 的记录年份 < 今年 → 改写为 `${今年}-MM-DD`；今年内或未来日期原样（card-mode-render.js:415-424）。
+- `getNextOccurrence`（schedule.js:35）：年循环项公历从今年起找第一个 ≥ 今天的候选（2 月 29 日在非闰年落 2 月 28 日）；农历按月日逐年反推；一次性 `event` / 关闭年循环的 `countdown`（`yearly === false`）不循环、过期即返回 null。
+- `upcoming`（recent / 多个日程用的近→远列表）同样经过 `getNextOccurrence`，因此节日 / 生日类日程永远显示「下一次发生（多在今年）」。
+
+### ⑪ 各尺寸单独模式字号基准与主文字倍率
+
+`SINGLE_BASE_PX`（card-mode-render.js:205）与 CSS `.pv-single-<size> { font-size }` **同源**，改一处必须改另一处：
+
+| 尺寸 | 根字号基准（px） | 主文字倍率（.pv-big/.pv-mid/.pv-vbig） | 版式 |
+|---|---|---|---|
+| 1×1 | 16 | 1.25em（且 `.pv-sub` 隐藏） | 横排（默认 gap 0.5em） |
+| 1×2 | 17 | 1.15em | 横排 gap 0.75em |
+| 2×1 | 17 | 1.1em | 纵排 gap 0.375em |
+| 2×2 | 22 | 不覆盖（用默认 1.875em / 1em） | 居中 gap 0.5em |
+| 2×4 | 26 | 1.2em | 横排 gap 0.875em |
+| 4×4 | 34 | 1.25em（副标题放大 0.6875em） | 居中 |
+| 1×FULL | 18（CSS 兜底）/ `clamp(12,34,w/60)`（自适应） | 1.3em | 横排 gap 1em |
+
+- 只作用于 `.pv-single`，不影响拼接模式（拼接块字号由 `fitFontU` 按块像素反推）。
+- 1×FULL 例外：CSS 的 18px 只是兜底，运行时按真实宽度换算并始终内联（见 ⑦）。
+- 预览框会按几何等比缩小（`pvScale`），字号必须同比缩小，否则「预览 = 实际」失守（缩到 0.56× 而字号仍按 17px，肉眼会比实际卡片大 ~1.8×）。
+
+---
+
 ---
 
 ## 附录 C：决策速查（给 team-lead 的一页纸）
