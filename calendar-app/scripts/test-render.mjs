@@ -666,6 +666,19 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     }
   }
 
+  // v2.9：横排日期段放不下时丢弃末段（星期），避免换行成 3 行撑爆块高
+  {
+    const mk = (extra) => flatten(renderInfoBlock({ ...base, ...extra })).join('');
+    const roomy = mk({ content: 'time', style: 'dateWeekday', availW: 8, availH: 8 });
+    ok(roomy.includes('pv-seg') && /周[一二三四五六日天]/.test(roomy), '空间充足时保留星期段');
+    const tight = mk({ content: 'time', style: 'dateWeekday', availW: 3.9, availH: 3.3 });
+    ok(!/周[一二三四五六日天]/.test(tight), '窄块（1x2 最小占格量级）应丢弃星期段');
+    ok((tight.match(/pv-seg/g) || []).length === 2, '丢弃后应剩 2 个段（月/日）');
+    const tightFull = mk({ content: 'time', style: 'dateFullWeekday', availW: 4.0, availH: 3.3 });
+    ok(!/周[一二三四五六日天]/.test(tightFull), 'dateFullWeekday 窄块同样丢弃星期段');
+    ok((tightFull.match(/pv-seg/g) || []).length >= 3, 'dateFullWeekday 至少保留年/月/日三段');
+  }
+
   // v1.45：配置页预览复现 widget 实测尺寸与运行时网格
   {
     const mp = readFileSync(new URL('../src/components/mainPage.js', import.meta.url), 'utf8');

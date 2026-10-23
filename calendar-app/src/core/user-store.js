@@ -204,7 +204,7 @@ export const STYLE_OPT_FIELDS = {
   life: { type: 'number', zh: '预计年龄', en: 'Life span', min: 1, max: 130, def: 85 },
   // v2.12：从日历里挑一条日程（或下面自定义一条，自定义会写回日历）
   sched: { type: 'schedule', zh: '关联日程', en: 'Schedule', def: '' },
-  // v3.6：关联日程的三种模式 —— 顺序（自动取最近）/ 选中 / 新建
+  // v3.6：关联日程的两种来源 —— pick 手动选一条 / auto 顺序显示（自动取最近）
   schedMode: { type: 'select', zh: '日程来源', en: 'Source', def: 'pick', choices: [['pick', '选择日程'], ['auto', '顺序显示（最近的日程）']] },
 };
 

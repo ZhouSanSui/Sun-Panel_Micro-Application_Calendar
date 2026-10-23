@@ -470,6 +470,34 @@ function renderInfoBlockInner(o) {
     : cur), '');
 
   /**
+   * v2.9：横排日期段的「原子段」行数估算与降级。
+   * 段（数值+单位）不可断行、只能整段换行；用实测字宽模型 lineWidthEm 估每段宽度，
+   * 贪心装行得行数，再按行高 1.3em + 内边距估算所需高度；放不下就丢弃末段（星期）。
+   * 背景：v1.44 段不可断行后，dateWeekday 在 1×2/2×4 最小占格会换成 3 行撑爆块高
+   * （audit-matrix 实测溢出 6px/2px）；此前审计台自身 CSS 缺 .pv-seg 规则而长期失明。
+   * 未取到可用空间（如单独模式某些调用）时不做降级，保持原行为。
+   */
+  const segsFit = (parts) => {
+    if (!Number.isFinite(o.availW) || !Number.isFinite(o.availH)) return true;
+    let lines = 1;
+    let cur = 0;
+    for (const p of parts) {
+      const w = lineWidthEm(p);
+      if (cur === 0) { cur = w; continue; }
+      if (cur + w <= o.availW) { cur += w; continue; }
+      lines += 1;
+      cur = w;
+    }
+    return lines * 1.3 + 2 * FIT_PAD <= o.availH;
+  };
+  /** 从末段起丢弃，直到放得下或到达最小段数（月日 / 年月日） */
+  const trimSegs = (parts, min) => {
+    const list = parts.slice();
+    while (list.length > min && !segsFit(list)) list.pop();
+    return list;
+  };
+
+  /**
    * v3.8：竖排行「文字固有宽度」模型（line-em = 宽度 / 该行自身字号）。
    * 字符宽度为无头 Chrome 实测（.tmp/probe-vw2.mjs：与 widget.js 同源字体栈、
    * font-weight:700 + tabular-nums、root=200px），组合串实测交叉验证：
@@ -720,7 +748,7 @@ function renderInfoBlockInner(o) {
         return tall
           ? vstack(isZh ? [`${mo}月`, `${d}日`, wdZh] : [moEn, `${d}`, wdEnShort], false)
           : mid(isZh
-            ? joinSegs([seg(`${mo}月`), seg(`${d}日`), seg(wdZh)])
+            ? joinSegs(trimSegs([`${mo}月`, `${d}日`, wdZh], 2).map(seg))
             : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'long' }));
       }
       case 'dateFullWeekday': {
@@ -732,7 +760,7 @@ function renderInfoBlockInner(o) {
         return tall
           ? vstack(isZh ? [`${yS}年`, `${mo}月`, `${d}日`, wdZh] : [`${yS}`, moEn, `${d}`, wdEnShort], false)
           : mid(isZh
-            ? joinSegs([seg(`${isShortYear ? yS : y}年`), seg(`${mo}月`), seg(`${d}日`), seg(wdZh)])
+            ? joinSegs(trimSegs([`${isShortYear ? yS : y}年`, `${mo}月`, `${d}日`, wdZh], 3).map(seg))
             : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
       }
       case 'hm':
