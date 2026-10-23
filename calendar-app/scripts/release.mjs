@@ -315,6 +315,9 @@ writeVersion(plan.target);
 
 if (!flag('skip-pack')) {
   console.log('\n[1/6] 打包…');
+  // v3.9：Vite 的 emptyOutDir 走 node 的 rmSync；沙箱 safe-delete 代理调 genie-trash.exe
+  // 偶发超时（ETIMEDOUT）直接让 build 失败。先用 shell 删掉 dist，让 Vite 无目录可清。
+  try { sh('rm -rf dist'); } catch { /* dist 不存在时忽略 */ }
   sh('npm run pack');
 }
 if (!flag('skip-deploy')) {
