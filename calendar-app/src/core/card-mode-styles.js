@@ -107,19 +107,34 @@ export const CARD_MODE_CSS = `
 /* 窄块「今天」半号主字：避免 2 字折行把总高顶出一行 */
 .pv-big-sm { font-size: 0.9375em; }
 /* ===== v2.7 单独模式新增「显示样式」（用户可在配置页 chip 中点选） ===== */
-/* 年进度格阵：365/366 格，min 格宽 0.42em 决定列数，格间距 0.16em；今日格用主题色实心 */
+/* 年进度格阵：365/366 格，格边长由 CSS 从容器真实尺寸推出，JS 只给 --cols/--rows 两个整数 */
 .pv-yg { width: 100%; height: 100%; gap: 0.3em; align-items: stretch; }
-.pv-yg-head { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.5em; line-height: 1.25; }
+.pv-yg-head { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.375em; line-height: 1.2; }
 .pv-yg-head b { font-weight: 800; }
-/* v3.8：格阵的列数/行数/格边长改由渲染层按块内可用几何（em）择优后内联
-   （--cols/--rows + grid-template-columns/rows 的 em 轨道）。
-   旧写法把分母写死成 31 列 / 12 行、再用容器查询算格边 → 1×FULL（宽扁）按「高/12」
-   封顶成几个像素的细线，大卡上的月/周/日格阵又被固定列数摊在一角（看着稀疏）。
-   现在轨道本身就是正方形 em 尺寸，格子铺满轨道即可；整组由 justify/align-content 居中。 */
-.pv-yg-grid { flex: 1 1 auto; min-height: 0; width: 100%; display: grid; gap: 0.1em; justify-content: center; align-content: center; overflow: hidden;
-  --cols: 31; --rows: 12;
-  grid-template-columns: repeat(31, minmax(0, 1fr)); grid-template-rows: repeat(12, minmax(0, 1fr)); }
-.pv-yg-grid i { border-radius: 0.12em; background: currentColor; opacity: 0.13;
+/* v3.12：格阵区独立成 body 并开启 container-type:size ——
+   这样 100cqw / 100cqh 拿到的是**格阵区的真实像素**，而不是 JS 用设计基准预测出来的 em 值。
+   头部高度由 CSS 自己决定（flex:0 0 auto），格阵区 flex:1 取剩余 → 改头部字号不会挤坏格阵。 */
+.pv-yg-body { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; container-type: size; }
+/* v3.12：格边长由 --cell 单标量同时定义行/列轨道 → 格子恒正方形，且
+   总宽 = cols×cell + (cols−1)×gap ≤ 100cqw 恒成立 → **永远不会越界被裁**。
+   --cols/--rows 由 JS 按「卡片宽高比 × 粒度」查表给出（都是整数）；--gap/--cap 按粒度给。
+   旧写法是 JS 内联「grid-template-columns: repeat(cols, X em)」的固定 em 轨道，
+   真实卡片一旦小于设计基准就必然溢出 → 用户截图的裁切。 */
+.pv-yg-grid { display: grid; gap: var(--gap, 0.10em); justify-content: center; align-content: center; overflow: hidden;
+  --cols: 31; --rows: 12; --gap: 0.10em; --cap: 0.90em;
+  --cell: min(
+    calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)),
+    calc((100cqh - (var(--rows) - 1) * var(--gap)) / var(--rows)),
+    var(--cap)
+  );
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-template-rows: repeat(var(--rows), var(--cell)); }
+/* 粒度专属的间距与格边长上限（--cap 生效时格阵会小于内容盒 → 只留白、不溢出） */
+.pv-yg-grid.m { --gap: 0.16em; --cap: 1.60em; }
+.pv-yg-grid.w { --gap: 0.14em; --cap: 1.60em; }
+.pv-yg-grid.d { --gap: 0.16em; --cap: 2.00em; }
+/* 圆角改百分比，使大小卡上的格子圆角视觉一致（替代旧的 0.12em） */
+.pv-yg-grid i { border-radius: 20%; background: currentColor; opacity: 0.13;
   width: 100%; height: 100%; }
 .pv-yg-grid i.on { opacity: 0.34; }
 .pv-yg-grid i.now { opacity: 1; }
@@ -151,10 +166,12 @@ export const CARD_MODE_CSS = `
 .pv-dz-date { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; gap: 0.4em; font-size: 0.5em; line-height: 1.3; }
 .pv-dz-date b { font-weight: 800; }
 /* v3.10 1×FULL：dualZone 原样是「上时间 / 横分割线 / 下日期+星期」的方形卡版式，横条卡上
-   分割线被拉成 1386px 横贯全宽、星期被甩到最右边（用户报「变形」）→ 改为竖线分隔的横排。 */
-.pv-single-1xfull .pv-dz { flex-direction: row; align-items: center; justify-content: center; gap: 0.55em; }
-.pv-single-1xfull .pv-dz-rule { flex: 0 0 auto; width: 0.07em; height: 2.1em; margin: 0; }
-.pv-single-1xfull .pv-dz-date { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.12em; }
+   分割线被拉成 1386px 横贯全宽、星期被甩到最右边（用户报「变形」）→ 改为竖线分隔的横排。
+   v3.12：后半段（日期块 .pv-dz-date）加大一倍 0.5em → 1.0em；分隔线随右块增高；
+   容器改 space-evenly —— 时间落在卡的 1/4 处、日期落在 3/4 处，不再挤在中间一小块。 */
+.pv-single-1xfull .pv-dz { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
+.pv-single-1xfull .pv-dz-rule { flex: 0 0 auto; width: 0.07em; height: 2.8em; margin: 0; }
+.pv-single-1xfull .pv-dz-date { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.12em; font-size: 1em; }
 
 /* ===== v2.9 图像化样式（单独模式，"样式设置"可改主色 / 文案 / 目标日） ===== */
 /* ringClock：环形刻度钟（60 刻度 + 当日比例弧 + 时针/分针 + 时间窗） */
@@ -171,11 +188,14 @@ export const CARD_MODE_CSS = `
 /* 时间数字放在环外下方：环内任何位置都会被 44 半径的进度弧穿过，只有环外是干净区 */
 .pv-rc-time { flex: 0 0 auto; font-size: 0.72em; font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1; }
 /* dotClock：数码管 */
+/* v3.12：DOM 拆成 left / right 两栏（基础版仍是竖排，1×FULL 才改横排） */
 .pv-dc { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.2em; }
+.pv-dc-left { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2em; }
+.pv-dc-right { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .pv-dc-dots { display: flex; gap: 0.16em; justify-content: center; width: auto; max-width: 100%; }
 .pv-dc-dots i { width: 0.16em; aspect-ratio: 1 / 1; border-radius: 50%; background: currentColor; }
 .pv-dc-time { font-size: 1.1em; font-weight: 800; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; text-shadow: 0 0 0.16em currentColor, 0 0 0.02em currentColor; }
-.pv-dc-date { font-size: 0.5em; letter-spacing: 0.04em; }
+.pv-dc-date { font-size: 0.5em; letter-spacing: 0.04em; white-space: nowrap; }
 .pv-single-2x4 .pv-dc-time { font-size: 1.6em; }
 .pv-single-4x4 .pv-dc-time { font-size: 1.8em; }
 /* boldClock：粗体大字 + 主色色块 */
@@ -185,7 +205,10 @@ export const CARD_MODE_CSS = `
 .pv-single-1x1 .pv-bc-nums b { font-size: 1.1em; }
 .pv-bc-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.16em; font-size: 0.5em; }
 /* capsule：胶囊倒计时 */
+/* v3.12：DOM 拆成 left（倒计时格）/ right（标题胶囊），基础版竖排、1×FULL 横排 */
 .pv-cp { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.4em; overflow: hidden; }
+.pv-cp-left { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pv-cp-right { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .pv-single-1x1 .pv-cp-row, .pv-single-2x1 .pv-cp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.15em 0.5em; }
 .pv-cp-pill { border: 1px solid currentColor; border-radius: 999px; padding: 0.12em 0.7em; font-size: 0.56em; letter-spacing: 0.04em; white-space: nowrap; }
 .pv-cp-row { display: flex; align-items: baseline; justify-content: center; gap: 0.36em; }
@@ -193,33 +216,47 @@ export const CARD_MODE_CSS = `
 .pv-cp-cell b { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pv-cp-cell i { font-size: 0.46em; font-style: normal; }
 /* targetDay：目标倒计时卡 */
+/* v3.12：DOM 拆成 left（天数组）/ right（标题 + 目标日），基础版竖排、1×FULL 横排 */
 .pv-tg { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.22em; }
+.pv-tg-left { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pv-tg-right { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em; }
 .pv-tg-title { font-size: 0.6em; font-weight: 700; letter-spacing: 0.02em; }
 .pv-tg-pre, .pv-tg-unit { font-size: 0.5em; }
 .pv-tg-days { font-size: 2.1em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
-.pv-tg-date { font-size: 0.46em; letter-spacing: 0.03em; }
+.pv-tg-date { font-size: 0.46em; letter-spacing: 0.03em; white-space: nowrap; }
 /* multiBars：多条进度 */
 .pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
 /* v3.10 1×FULL：原来 4 条挤成一行，标签(1.7em)+百分比(3.1em) 两个定宽块吃掉大半，
    真实卡（1386×347 / 51.7px 基准）上进度条只剩 ≈50px，等于没有条 → 改 2×2 并让两侧
-   定宽块各自按内容收窄。 */
-.pv-single-1xfull .pv-mb { flex-direction: row; flex-wrap: wrap; align-content: center; align-items: center; gap: 0.45em 1.4em; }
-.pv-single-1xfull .pv-mb-row { flex: 1 1 calc(50% - 0.7em); min-width: 0; }
+   定宽块各自按内容收窄。
+   v3.12：5 项要 2 列 × 3 行（末格空），行宽固定 50% − 沟槽/2；行内标签与数值仍按内容收窄，
+   条才有足够长度（5.861em 高的横条里，单列 5 行会把条拉成 24em 的细线，读起来不像分组）。
+   落单的末行（第 5 项）显式跨两列 —— flex-wrap 下 flex-grow 会把它拉成整行宽，
+   与其它 4 行的 50% 宽不一致；grid + :last-child:nth-child(odd) 让「5 项跨整行、
+   4 项各占半行」都确定可控。 */
+.pv-single-1xfull .pv-mb { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4em 1.6em; align-content: space-evenly; align-items: center; }
+.pv-single-1xfull .pv-mb-row:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .pv-single-1xfull .pv-mb-k { width: auto; min-width: 1.1em; }
 .pv-single-1xfull .pv-mb-v { width: auto; }
 .pv-mb-row { display: flex; align-items: center; gap: 0.4em; }
-.pv-mb-k { flex: 0 0 auto; width: 1.7em; font-size: 0.56em; }
-.pv-mb-bar { flex: 1 1 auto; height: 0.5em; border-radius: 999px; background: currentColor; opacity: 0.14; overflow: hidden; }
+/* v3.12：标签框加宽到 2.2em —— 「生命」是 2 个汉字 = 1.12em 根，原 1.7em 框（0.95em 根）
+   装不下 → 文字换行 → 该行高度变成其他行的 1.8 倍 → 5 行放不下被裁（用户截图实锤）。 */
+.pv-mb-k { flex: 0 0 auto; width: 2.2em; font-size: 0.56em; white-space: nowrap; }
+.pv-mb-bar { flex: 1 1 auto; height: 0.5em; border-radius: 999px; background: currentColor; opacity: 0.14; overflow: hidden; min-width: 0; }
 .pv-mb-bar i { display: block; height: 100%; border-radius: inherit; }
-.pv-mb-v { flex: 0 0 auto; width: 3.1em; text-align: right; font-size: 0.62em; font-variant-numeric: tabular-nums; }
+/* v3.12：数值框加宽到 3.4em + nowrap —— 原 3.1em 框（1.92em 根）装不下「100%」（1.70em 根）+ 余量，
+   「%」被裁。整数百分比后 3.4em 留约 24% 余量。 */
+.pv-mb-v { flex: 0 0 auto; width: 3.4em; text-align: right; font-size: 0.62em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ===== v2.10 新增样式：极简条钟 / 文字时钟 / 巨型天数 / 四环进度 / 年热力图 ===== */
 .pv-st { justify-content: center; gap: 0.18em; width: 100%; }
 .pv-st-time { font-size: 2.1em; font-weight: 200; letter-spacing: 0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-st-rule { width: 1.6em; height: 0.12em; border-radius: 999px; opacity: 0.9; }
 .pv-st-date { font-size: 0.5em; letter-spacing: 0.08em; opacity: 0.7; white-space: nowrap; }
-.pv-single-1xfull .pv-st { flex-direction: row; align-items: center; gap: 0.5em; }
-.pv-single-1xfull .pv-st-rule { width: 0.12em; height: 1.4em; }
+.pv-single-1xfull .pv-st { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.8em; }
+/* v3.12：后半段（日期行 .pv-st-date）加大一倍 0.5em → 1.0em；分隔线随日期行增高 */
+.pv-single-1xfull .pv-st-rule { width: 0.12em; height: 1.6em; }
+.pv-single-1xfull .pv-st-date { font-size: 1em; letter-spacing: 0.02em; }
 .pv-single-2x4 .pv-st-time { font-size: 2.6em; }
 .pv-single-4x4 .pv-st-time { font-size: 3.2em; }
 
@@ -228,8 +265,11 @@ export const CARD_MODE_CSS = `
 .pv-wc-sub { font-size: 0.48em; letter-spacing: 0.14em; opacity: 0.62; white-space: nowrap; }
 .pv-single-2x4 .pv-wc-main { font-size: 2.1em; }
 .pv-single-4x4 .pv-wc-main { font-size: 2.4em; }
-.pv-single-1xfull .pv-wc { flex-direction: row; align-items: baseline; gap: 0.6em; }
+/* v3.12：后半段（副行 .pv-wc-sub）加大一倍 0.48em → 0.96em；
+   align-items 从 baseline 改 center —— 副行放大后 baseline 对齐会让主字下沉。 */
+.pv-single-1xfull .pv-wc { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
 .pv-single-1xfull .pv-wc-main { font-size: 1.5em; }
+.pv-single-1xfull .pv-wc-sub { font-size: 0.96em; letter-spacing: 0.06em; }
 
 /* v3.11：补 align-items/text-align —— 单独模式里 .pv-single > .pv-col 被 stretch 撑满整宽，
    缺这两条时标题与尾行会贴左边（用户截图 1×1 巨型天数「倒计时」在左上角）。 */
@@ -250,18 +290,20 @@ export const CARD_MODE_CSS = `
 .pv-rp-legend { display: flex; flex-wrap: wrap; gap: 0.34em 0.6em; justify-content: center; font-size: 0.4em; opacity: 0.8; }
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
 .pv-rp-legend i { width: 0.5em; height: 0.5em; border-radius: 999px; display: block; }
-.pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; gap: 0.6em; }
+.pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
 /* 1×FULL 横排：环固定 5.2em 见方（此处必须显式给高，容器已不再用 aspect-ratio）。
    v3.11：4em 在真实卡（1387×347 / 基准 51.7px）上环直径仅 207px，整卡看着空 —— 抬到 5.2em。 */
 .pv-single-1xfull .pv-rp-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
-.pv-single-1xfull .pv-rp { gap: 0.9em; }
-.pv-single-1xfull .pv-rp-legend { font-size: 0.46em; gap: 0.4em 0.9em; }
+/* v3.12：后半段（图例 .pv-rp-legend）加大一倍 0.46em → 0.92em，
+   并从 4 行竖排改成 2 列 × 2 行网格（图例块高 ≈2.6em，在 5.861em 的卡内放得下）。 */
+.pv-single-1xfull .pv-rp-legend { font-size: 0.92em; display: grid; grid-template-columns: repeat(2, auto); gap: 0.3em 0.9em; justify-content: start; }
 /* v3.11 1×FULL ringClock：原来是「环在上、时间在下」的方卡版式，横条卡上环被限高到 ≈2em、
    两侧全是空的。改成横排：环固定 5.2em 见方（不能留 width:100% —— 横排里 100% 宽会把
-   时间挤出卡片右侧），时间放大贴右侧。 */
-.pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; gap: 0.7em; }
+   时间挤出卡片右侧），时间放大贴右侧。
+   v3.12：后半段（时间读数 .pv-rc-time）加大一倍 1.6em → 3.2em；容器改 space-evenly。 */
+.pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
 .pv-single-1xfull .pv-rc-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
-.pv-single-1xfull .pv-rc-time { font-size: 1.6em; }
+.pv-single-1xfull .pv-rc-time { font-size: 3.2em; letter-spacing: 0; }
 /* v3.11 1×FULL yearBars：12 根竖条原本长到 347px 卡高，像 12 根柱子；改成
    「左侧条带 + 右侧年度读数」的横排，把 1387px 的横向空间用起来。 */
 .pv-single-1xfull .pv-yb { flex-direction: row; align-items: center; gap: 0.7em; }
@@ -304,18 +346,61 @@ export const CARD_MODE_CSS = `
 .pv-yg-grid.dot i { border-radius: 50%; }
 /* ===== v3.1 新增：节日卡 / 假期倒计时 / 年电量 ===== */
 .pv-fe { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.2em; }
+/* v3.12：DOM 拆成 left（节日名 + 日期）/ right（状态徽标），基础版竖排、1×FULL 横排 */
+.pv-fe-left { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06em; min-width: 0; }
+.pv-fe-right { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .pv-fe-top { flex: 0 0 auto; display: flex; justify-content: center; }
 .pv-fe-gap { font-size: 0.46em; font-weight: 700; color: #fff; padding: 0.2em 0.7em; border-radius: 1em; letter-spacing: 0.02em; white-space: nowrap; }
 .pv-fe-name { font-size: 1.32em; font-weight: 800; line-height: 1.15; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pv-fe-date { font-size: 0.52em; opacity: 0.6; font-variant-numeric: tabular-nums; }
 .pv-single-1x2 .pv-fe-name, .pv-single-2x1 .pv-fe-name { font-size: 1.05em; }
 .pv-single-2x4 .pv-fe-name, .pv-single-4x4 .pv-fe-name { font-size: 1.5em; }
+/* v3.12：DOM 拆成 left（假期天数）/ right（假期名 + 日期），基础版竖排、1×FULL 横排 */
 .pv-hd { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.12em; }
+.pv-hd-left { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pv-hd-right { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06em; min-width: 0; }
 .pv-hd-days { font-size: 1.9em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 0.08em; justify-content: center; }
 .pv-hd-days small { font-size: 0.32em; font-weight: 600; opacity: 0.75; }
 .pv-hd-name { font-size: 0.62em; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pv-hd-date { font-size: 0.48em; opacity: 0.55; font-variant-numeric: tabular-nums; }
 .pv-single-1x2 .pv-hd-days, .pv-single-2x1 .pv-hd-days, .pv-single-1xfull .pv-hd-days { font-size: 1.35em; }
+
+/* ===== v3.12：1×FULL 的五款「改为左右结构」 =====
+   通则：左栏 = 主视觉（数字 / 主体文字），右栏 = 辅助信息（状态 / 标题 / 日期）。
+   容器 justify-content: space-between → 两块贴卡片左右边缘，中间留白成为「沟槽」而非「空洞」。
+   左栏宽度上限 = 内容宽的 46%（1×FULL 内容宽 25.961em → 11.94em）；
+   右栏内部上下堆叠且右对齐（贴在卡片右缘，右对齐才不会在边缘留一道无意义的内缩）。 */
+.pv-single-1xfull .pv-dc, .pv-single-1xfull .pv-cp,
+.pv-single-1xfull .pv-fe, .pv-single-1xfull .pv-tg,
+.pv-single-1xfull .pv-hd {
+  flex-direction: row; align-items: center; justify-content: space-between; gap: 1em;
+}
+.pv-single-1xfull .pv-dc-left, .pv-single-1xfull .pv-cp-left,
+.pv-single-1xfull .pv-fe-left, .pv-single-1xfull .pv-tg-left,
+.pv-single-1xfull .pv-hd-left { flex: 0 1 auto; max-width: 46%; min-width: 0; align-items: flex-start; }
+.pv-single-1xfull .pv-dc-right, .pv-single-1xfull .pv-cp-right,
+.pv-single-1xfull .pv-fe-right, .pv-single-1xfull .pv-tg-right,
+.pv-single-1xfull .pv-hd-right { flex: 0 1 auto; max-width: 46%; min-width: 0; align-items: flex-end; }
+/* 各款的字号与内部对齐 */
+.pv-single-1xfull .pv-dc-left { align-items: center; }
+.pv-single-1xfull .pv-dc-dots { width: 100%; justify-content: flex-start; }
+.pv-single-1xfull .pv-dc-time { font-size: 1.6em; }
+.pv-single-1xfull .pv-dc-date { font-size: 0.8em; }
+.pv-single-1xfull .pv-cp-left { align-items: center; }
+.pv-single-1xfull .pv-cp-row { display: flex; flex-wrap: nowrap; gap: 0.3em; }
+.pv-single-1xfull .pv-cp-pill { font-size: 0.7em; }
+.pv-single-1xfull .pv-fe-name { font-size: 1.8em; text-align: right; }
+.pv-single-1xfull .pv-fe-date { font-size: 0.7em; text-align: right; }
+.pv-single-1xfull .pv-fe-gap { font-size: 0.62em; }
+.pv-single-1xfull .pv-tg-left { align-items: center; }
+.pv-single-1xfull .pv-tg .pv-center { flex-direction: row; flex-wrap: nowrap; gap: 0.24em; }
+.pv-single-1xfull .pv-tg-days { font-size: 2.8em; }
+.pv-single-1xfull .pv-tg-pre, .pv-single-1xfull .pv-tg-unit { font-size: 0.5em; }
+.pv-single-1xfull .pv-tg-title { font-size: 0.9em; text-align: right; }
+.pv-single-1xfull .pv-tg-date { font-size: 0.7em; text-align: right; }
+.pv-single-1xfull .pv-hd-days { font-size: 2.6em; }
+.pv-single-1xfull .pv-hd-name { font-size: 0.9em; text-align: right; }
+.pv-single-1xfull .pv-hd-date { font-size: 0.7em; text-align: right; }
 
 /* ===== v3.11 方卡/窄高卡专用样式：今日大数字 / 小月历 / 竖排时间 / 分层进度条 ===== */
 /* dayNum：日数独占视觉重心。方形卡与窄高卡都不存在「横向长文本」，天然不会被裁。 */
@@ -359,4 +444,90 @@ export const CARD_MODE_CSS = `
 .pv-bt-nub { width: 0.2em; height: 0.3em; border-radius: 0 0.06em 0.06em 0; flex: 0 0 auto; align-self: center; margin-left: -0.03em; }
 .pv-single-1x2 .pv-bt, .pv-single-1xfull .pv-bt { gap: 0.2em; }
 .pv-single-4x4 .pv-bt-body { height: 1.2em; }
+
+/* ===== v3.12：专为 1×1 方卡 / 2×1 窄高卡新设计的 8 款样式 =====
+   排版铁律（docs/v312-visual-spec.md §8）：
+   1×1 内容盒 6.6em 见方 → 1 个主数字（≤3.4em）+ 极少量辅助；
+   2×1 内容盒仅 6.52em 宽 → 任何横排长文本都不可行，一律纵向堆叠（每行 ≤ 4 字）。 */
+
+/* ① lunarDate 农历日（1×1）：三行竖排 —— 干支年 / 农历日大字 / 公历
+   1×1 内容盒 = 6.61em 见方。农历日「廿三」2 字 × 2.6em ≈ 5.2em ✓；「三十」同宽。
+   最坏「廿三」3 字宽的情况不存在（农历日最多 3 字如「廿三」），按 3 字 × 2.6em = 7.8em 会超，
+   故字号取 2.2em（3 字 ≈ 6.6em，刚好卡边）。 */
+.pv-ld { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
+.pv-ld-top { font-size: 0.44em; font-weight: 700; white-space: nowrap; }
+.pv-ld-day { font-size: 2.2em; font-weight: 800; line-height: 1.05; letter-spacing: 0.02em; white-space: nowrap; }
+.pv-ld-bot { font-size: 0.42em; white-space: nowrap; }
+
+/* ② dayStack 日时堆叠（1×1）：左列 4 行时刻 + 右列巨大「日」
+   1×1 内容盒 6.61em 宽。左列「HH:MM」在 0.36em 字号下 ≈ 5 字 × 0.2em = 1.9em；
+   右列「日」3em 字号下两位数字 ≈ 2×0.6×3 = 3.6em。3.6 + 1.9 + 沟槽 0.5 = 6.0em ✓ */
+.pv-ds { width: 100%; height: 100%; flex-direction: row; align-items: center; justify-content: center; gap: 0.4em; }
+.pv-ds-left { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.14em; }
+.pv-ds-row { display: flex; align-items: baseline; gap: 0.08em; font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
+.pv-ds-row b { font-size: 0.36em; font-weight: 700; }
+.pv-ds-row i { font-size: 0.36em; font-style: normal; opacity: 0.6; }
+.pv-ds-right { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+.pv-ds-day { font-size: 3em; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+
+/* ③ tallClock 竖向大钟（2×1）：超大时分（主行）+ 次级秒（次行）+ 当日进度条 + 日期
+   2×1 内容盒 = 6.52em 宽（= 305px @ 46.78px 根字号）。
+   「14:05」5 个字符，数字宽 ≈ 0.55em、冒号 ≈ 0.28em → 总宽 ≈ 0.55×4 + 0.28 = 2.48em。
+   要在 6.52em 内留 1em 余量 → 字号 ≤ (6.52−1)/2.48 = 2.2em。取 2.2em。
+   秒单独一行（1.1em），形成「主行超大 + 次行次级」的层级。 */
+.pv-tc { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.3em; }
+.pv-tc-time { display: flex; align-items: baseline; gap: 0.02em; white-space: nowrap; letter-spacing: -0.04em; }
+.pv-tc-time b { font-size: 2.2em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.pv-tc-time i { font-size: 2.2em; font-weight: 700; font-style: normal; line-height: 1; font-variant-numeric: tabular-nums; }
+.pv-tc-sec { display: flex; align-items: baseline; gap: 0.14em; font-size: 1.1em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.pv-tc-sec em { font-size: 0.55em; font-weight: 600; font-style: normal; }
+.pv-tc-bar { width: 100%; height: 0.16em; border-radius: 999px; background: color-mix(in srgb, currentColor 16%, transparent); overflow: hidden; }
+.pv-tc-bar i { display: block; height: 100%; border-radius: inherit; }
+.pv-tc-date { font-size: 0.42em; white-space: nowrap; }
+
+/* ④ weekColumn 竖向星期条（2×1）：7 行，每行「星期字 + 大日期数字」，今天整行高亮 */
+.pv-wc2 { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
+.pv-wc2-head { flex: 0 0 auto; font-size: 0.44em; font-weight: 700; }
+.pv-wc2-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.06em; }
+.pv-wc2-row { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 0.3em; border-radius: 0.2em; }
+.pv-wc2-row span { font-size: 0.52em; font-weight: 700; }
+.pv-wc2-row b { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* ⑤ nextUp 下一件事（1×1）：剩余时间大数字 + 事件名 + 相对时间
+   宽度实测：tabular-nums 下「00:00」字宽 ≈ 2.75 × 自身字号，「:00」≈ 1.52 × 自身字号。
+   1×1 内容盒 ≈ 7.1em（根字号 16px、内容盒 114px），所以主数字「HH:MM」取 1.85em
+   （2.75 × 1.85 = 5.09em），秒「:SS」取 0.78em（1.52 × 0.78 = 1.19em），
+   合计 ≈ 6.28em，留 0.8em 余量 —— 不再出现秒被裁。 */
+.pv-nu { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.12em; }
+.pv-nu-when { font-size: 0.44em; font-weight: 700; white-space: nowrap; }
+.pv-nu-time { display: flex; align-items: baseline; white-space: nowrap; font-variant-numeric: tabular-nums; line-height: 1; }
+.pv-nu-time b { font-size: 1.85em; font-weight: 800; letter-spacing: -0.02em; }
+.pv-nu-time i { font-size: 0.78em; font-weight: 800; font-style: normal; letter-spacing: -0.02em; margin-left: 0.04em; }
+.pv-nu-name { font-size: 0.62em; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ⑥ verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」 */
+.pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
+.pv-vl-head { flex: 0 0 auto; font-size: 0.42em; font-weight: 700; }
+.pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; }
+.pv-vl-row { flex: 1 1 0; min-height: 0; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); }
+.pv-vl-row span { flex: 0 0 auto; font-size: 0.46em; font-variant-numeric: tabular-nums; }
+.pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.72em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-vl-next { flex: 0 0 auto; font-size: 0.42em; font-weight: 700; white-space: nowrap; }
+
+/* ⑦ dayRing 日环进度（1×1）：单环 + 环内大百分比 + 底部时刻 */
+.pv-dr { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.16em; }
+.pv-dr-ring { position: relative; width: 3.4em; height: 3.4em; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+.pv-dr-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pv-dr-pct { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.pv-dr-time { font-size: 0.44em; white-space: nowrap; }
+
+/* ⑧ lifeBar 生命刻度尺（2×1）：20 个刻度块，已过的填主色
+   刻度尺本身是「竖向的一列窄条」—— 宽度只占卡宽的一部分（60%），居中；
+   20 个块竖排，每块高 ≈ 0.28em，间距 0.06em，总高 ≈ 6.8em，在 13.9em 里够用。 */
+.pv-lb { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
+.pv-lb-head { flex: 0 0 auto; font-size: 0.52em; font-weight: 700; white-space: nowrap; }
+.pv-lb-scale { flex: 1 1 auto; min-height: 0; width: 60%; max-width: 3.2em; display: flex; flex-direction: column; gap: 0.06em; }
+.pv-lb-scale i { flex: 1 1 0; min-height: 0; display: block; border-radius: 0.08em; background: color-mix(in srgb, currentColor 16%, transparent); }
+.pv-lb-scale i.on { opacity: 1; }
+.pv-lb-foot { flex: 0 0 auto; font-size: 0.42em; white-space: nowrap; }
 `;

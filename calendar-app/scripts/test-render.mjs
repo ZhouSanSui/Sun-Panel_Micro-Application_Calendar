@@ -1119,11 +1119,13 @@ console.log('');
     ['timeDate', 'dotClock', 'pv-dc-time', '2x4'],
     ['timeDate', 'boldClock', 'pv-bc-nums', '2x2'],
     ['schedule', 'capsule', 'pv-cp-pill', '2x4'],
-    ['schedule', 'targetDay', 'pv-tg-title', '2x2'],
+    // v3.12：targetDay 的 DOM 拆成 left（天数组）/ right（标题 + 目标日），
+    // 未设置目标日时走空态（不渲染标题）→ 这条要带一个目标日才看得到 .pv-tg-title
+    ['schedule', 'targetDay', 'pv-tg-title', '2x2', { date: '2026-12-31' }],
     ['progress', 'multiBars', 'pv-mb-row', '2x4'],
   ];
-  for (const [content, style, needle, size] of cases) {
-    const h = flatten(renderInfoBlock({ ...base, content, style, singleRow: true, size })).join('');
+  for (const [content, style, needle, size, extraOpts] of cases) {
+    const h = flatten(renderInfoBlock({ ...base, content, style, singleRow: true, size, ...(extraOpts ? { opts: extraOpts } : {}) })).join('');
     ok(h.includes(needle), `单独 ${content}:${style} 应渲染 .${needle}`);
   }
   // 环形刻度钟：60 根刻度（stroke=currentColor）+ 时针/分针（stroke=主色）
@@ -1133,9 +1135,9 @@ console.log('');
   const handN = (ringHTML.match(/<line x1="50" y1="50"/g) || []).length;
   ok(handN === 2, `环形钟应有 2 根指针（时针+分针），实际 ${handN}`);
   ok(ringHTML.includes('stroke-dasharray'), '环形钟应有进度弧 stroke-dasharray');
-  // 多进度条：4 行（年/月/周/日）
+  // 多进度条：v3.12 起默认 5 行（年/月/周/日/生命，生命按 age/life 默认 18/120）
   const mbHTML = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'multiBars', singleRow: true, size: '2x4' })).join('');
-  ok((mbHTML.match(/pv-mb-row/g) || []).length === 4, `多进度条应有 4 行，实际 ${(mbHTML.match(/pv-mb-row/g) || []).length}`);
+  ok((mbHTML.match(/pv-mb-row/g) || []).length === 5, `多进度条应有 5 行（含生命），实际 ${(mbHTML.match(/pv-mb-row/g) || []).length}`);
   // 胶囊倒计时：天/时/分/秒 4 个数值格
   const cpHTML = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'capsule', singleRow: true, size: '2x4' })).join('');
   ok((cpHTML.match(/pv-cp-cell/g) || []).length === 4, `胶囊倒计时应有 4 个数值格，实际 ${(cpHTML.match(/pv-cp-cell/g) || []).length}`);
@@ -1253,8 +1255,14 @@ console.log('');
   const mbLife = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'multiBars', size: '2x2', opts: { bars: 'life', age: 30, life: 85 } })).join('');
   ok(mbLife.includes('生命') || mbLife.includes('Life'), 'multiBars 勾选 life 时应出现生命进度');
   ok((mbLife.match(/pv-mb-row/g) || []).length === 1, `multiBars 只勾 life 时应仅 1 行，实际 ${(mbLife.match(/pv-mb-row/g) || []).length}`);
+  // v3.12：未显式配置 age/life 时，按 STYLE_OPT_FIELDS 默认值（18/120）渲染生命行；
+  // 只有 age/life 显式填成非法值（如 0 或空）时才不出现。
   const mbNoAge = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'multiBars', size: '2x2', opts: { bars: 'life' } })).join('');
-  ok(!mbNoAge.includes('生命'), '未填年龄时不应出现生命进度');
+  ok(mbNoAge.includes('生命'), 'v3.12：未填 age/life 时生命行按默认 18/120 渲染');
+  const mbBadLife = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'multiBars', size: '2x2', opts: { bars: 'life', age: '', life: '' } })).join('');
+  ok(!mbBadLife.includes('生命'), 'age/life 显式为空时不应出现生命进度');
+  const mbZeroLife = flatten(renderInfoBlock({ ...b0, content: 'progress', style: 'multiBars', size: '2x2', opts: { bars: 'life', age: 30, life: 0 } })).join('');
+  ok(!mbZeroLife.includes('生命'), '预计年龄为 0（非法）时不应出现生命进度');
 
   const listEmpty = flatten(renderInfoBlock({ ...b0, content: 'schedule', style: 'list', size: '2x2' })).join('');
 
@@ -1290,9 +1298,14 @@ console.log('');
     '假期倒计时应渲染天数或「暂无假期」空态（node 无节假日服务时走空态）');
   const bt = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery', singleRow: true, size: '2x2' })).join('');
   ok(bt.includes('pv-bt-body') && bt.includes('%'), '年电量应渲染电池主体与百分比');
-  ok(!stylesForSize('single', 'important', '1x1').some((x) => x.key === 'festival'),
-    '节日卡在 1x1 尺寸下应被隐藏（尺寸门控生效）');
-  ok(stylesForSize('single', 'important', '2x2').some((x) => x.key === 'festival'),
+  // v3.12：1×2 去掉了 festival + holiday；1×1 整块清空（改由新款式承担）。
+  // 注意：stylesForSize 在「一个都不适配」时会回落到该内容的第一个样式（不留给用户空白），
+  // 所以尺寸门控必须用 styleFitsSize 断言（chip 可见性的唯一真源）。
+  ok(styleFitsSize('single', 'important', 'festival', '1x2') === false,
+    '节日卡在 1x2 尺寸下应被隐藏（v3.12 移除矩阵）');
+  ok(styleFitsSize('single', 'important', 'holiday', '1x2') === false,
+    '假期倒计时在 1x2 尺寸下应被隐藏（v3.12 移除矩阵）');
+  ok(styleFitsSize('single', 'important', 'festival', '2x2') === true,
     '节日卡在 2x2 尺寸下应可选');
 }
 
@@ -1402,14 +1415,22 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   ok(isTallBlock(120, 252) === true && isTallBlock(252, 120) === false, 'isTallBlock 方向判定应正确');
 }
 
-// ③ v3.8：年格阵 / 年热力图的格子几何由渲染层按块内可用空间（em）择优后内联 em 轨道，
-//    CSS 真源只保留兜底轨道与「格子铺满轨道」的约束。锁死这些不变量：
+// ③ v3.12：年格阵的格子几何**已由 JS 内联 em 轨道改为 CSS 用 --cell 推导** ——
+//    JS 只传 --cols/--rows 两个整数，CSS 从容器真实尺寸（100cqw/100cqh）算正方形格边长。
+//    这样「不裁切」成为结构性保证：总宽 = cols×cell + (cols−1)×gap ≤ 100cqw 恒成立。
 {
   const css = SHARED_CSS;
   ok(/\.pv-yg-grid \{[^}]*--cols:\s*31[^}]*--rows:\s*12/.test(css),
     '年格阵容器应声明 --cols/--rows 兜底（31/12）');
-  ok(/\.pv-yg-grid \{[^}]*grid-template-columns:\s*repeat\(31, minmax\(0, 1fr\)\)/.test(css),
-    '年格阵容器应保留 31 列兜底轨道（渲染层内联覆盖）');
+  ok(/\.pv-yg-grid \{[^}]*--cell:\s*min\(/.test(css),
+    '年格阵容器应由 --cell 的 min() 推导格边长（宽度解/高度解/上限三值齐全）');
+  ok(/\.pv-yg-grid \{[^}]*100cqw[^}]*100cqh/.test(css),
+    '年格阵的 --cell 应用容器查询单位（真实内容盒，不是 JS 预测值）');
+  ok(/\.pv-yg-body \{[^}]*container-type:\s*size/.test(css),
+    '年格阵区（.pv-yg-body）应声明 container-type:size（提供 100cqw/100cqh）');
+  ok(/\.pv-yg-grid \{[^}]*grid-template-columns:\s*repeat\(var\(--cols\),\s*var\(--cell\)\)/.test(css)
+    && /\.pv-yg-grid \{[^}]*grid-template-rows:\s*repeat\(var\(--rows\),\s*var\(--cell\)\)/.test(css),
+  '年格阵行/列轨道应由同一个 --cell 定义（格子恒正方形）');
   ok(/\.pv-yg-grid i \{[^}]*width:\s*100%[^}]*height:\s*100%/.test(css),
     '年格阵格子应铺满 em 轨道（width/height 100%）');
   ok(!/\.pv-yg-grid i \{[^}]*aspect-ratio/.test(css),
@@ -1422,12 +1443,15 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     '竖排容器应声明 container-type: inline-size（供 .fit 行宽收缩）');
   ok(/\.pv-vline\.fit \{ font-size:\s*min\(1\.25em, calc\(100cqw \/ var\(--w/.test(css),
     '竖排行应有 .fit 宽度自适应规则（min(1.25em, 100cqw/--w)）');
-  // 渲染层：单独模式年格阵必须内联 --cols/--rows 与 em 轨道
+  // 渲染层：单独模式年格阵只内联 --cols/--rows（**不得**再内联 grid-template 轨道）
   const ygSingle = flatten(renderInfoBlock({
     ...base, content: 'progress', style: 'yearGrid', singleRow: true, size: '2x2', w: 252, h: 252,
   })).join('');
-  ok(/--cols:\d+;--rows:\d+;grid-template-columns:repeat\(\d+,[\d.]+em\)/.test(ygSingle),
-    '单独模式年格阵应内联 --cols/--rows 与 em 轨道');
+  ok(/--cols:\d+;--rows:\d+/.test(ygSingle),
+    '单独模式年格阵应内联 --cols/--rows（两个整数）');
+  ok(!/grid-template-columns/.test(ygSingle),
+    '单独模式年格阵不得再内联 grid-template 轨道（真源只有 CSS 一处，否则两个真源打架）');
+  ok(ygSingle.includes('pv-yg-body'), '年格阵应包在 .pv-yg-body 里（container-type:size 的载体）');
   const ygFull = flatten(renderInfoBlock({
     ...base, content: 'progress', style: 'yearGrid', singleRow: true, size: '1xfull', w: 1080, h: 120,
   })).join('');
@@ -1445,6 +1469,92 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   const hyDef = SINGLE_CONTENTS.find((c) => c.styles.some((s) => s.key === 'heatYear'));
   const hySt = hyDef && hyDef.styles.find((s) => s.key === 'heatYear');
   ok(!(hySt && hySt.sizes && hySt.sizes.includes('1xfull')), '年热力图不应提供 1xfull 尺寸档');
+}
+
+// ---------- v3.12 移除矩阵 / 新增样式尺寸门控 ----------
+// 用户明确要求下线的「尺寸 × 样式」组合：这些组合在单独模式里必须不可选（styleFitsSize=false）。
+{
+  const MUST_NOT = [
+    // 1×1：清空全部原有选项（只保留 v3.12 新做的 4 款）
+    ['1x1', 'timeDate', 'dayNum'], ['1x1', 'timeDate', 'miniMonth'], ['1x1', 'timeDate', 'stackTime'],
+    ['1x1', 'timeDate', 'dualZone'], ['1x1', 'timeDate', 'ringClock'], ['1x1', 'timeDate', 'dotClock'],
+    ['1x1', 'timeDate', 'boldClock'], ['1x1', 'timeDate', 'stripeClock'], ['1x1', 'timeDate', 'wordClock'],
+    ['1x1', 'schedule', 'capsule'], ['1x1', 'schedule', 'targetDay'], ['1x1', 'schedule', 'bigDays'],
+    ['1x1', 'progress', 'yearGrid'], ['1x1', 'progress', 'yearBars'], ['1x1', 'progress', 'weekGrid'],
+    ['1x1', 'progress', 'multiBars'], ['1x1', 'progress', 'ringProgress'], ['1x1', 'progress', 'heatYear'],
+    ['1x1', 'progress', 'battery'], ['1x1', 'progress', 'stackBars'],
+    ['1x1', 'gauge', 'dial'], ['1x1', 'gauge', 'semiGauge'],
+    ['1x1', 'important', 'festival'], ['1x1', 'important', 'holiday'],
+    // 1×2：ringClock / targetDay / dial / festival / holiday
+    ['1x2', 'timeDate', 'ringClock'], ['1x2', 'schedule', 'targetDay'], ['1x2', 'gauge', 'dial'],
+    ['1x2', 'important', 'festival'], ['1x2', 'important', 'holiday'],
+    // 2×1：清空全部原有选项（只保留 v3.12 新做的 4 款）
+    ['2x1', 'timeDate', 'dualZone'], ['2x1', 'timeDate', 'ringClock'], ['2x1', 'timeDate', 'dotClock'],
+    ['2x1', 'timeDate', 'boldClock'], ['2x1', 'timeDate', 'stripeClock'], ['2x1', 'timeDate', 'wordClock'],
+    ['2x1', 'timeDate', 'dayNum'], ['2x1', 'timeDate', 'miniMonth'], ['2x1', 'timeDate', 'stackTime'],
+    ['2x1', 'schedule', 'capsule'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'bigDays'],
+    ['2x1', 'progress', 'yearGrid'], ['2x1', 'progress', 'yearBars'], ['2x1', 'progress', 'weekGrid'],
+    ['2x1', 'progress', 'multiBars'], ['2x1', 'progress', 'ringProgress'], ['2x1', 'progress', 'heatYear'],
+    ['2x1', 'progress', 'battery'], ['2x1', 'progress', 'stackBars'],
+    ['2x1', 'gauge', 'dial'], ['2x1', 'gauge', 'semiGauge'],
+    ['2x1', 'important', 'festival'], ['2x1', 'important', 'holiday'],
+    // 2×2：dial；1×FULL：dial + semiGauge
+    ['2x2', 'gauge', 'dial'],
+    ['1xfull', 'gauge', 'dial'], ['1xfull', 'gauge', 'semiGauge'],
+  ];
+  for (const [size, c, s] of MUST_NOT) {
+    ok(styleFitsSize('single', c, s, size) === false,
+      `v3.12 移除矩阵：${c}.${s} 不应提供 ${size} 单独模式`);
+  }
+  // 必须保留的组合（v3.12 新样式 + 用户的 1×FULL 适配目标）
+  const MUST = [
+    ['1x1', 'timeDate', 'lunarDate'], ['1x1', 'timeDate', 'dayStack'],
+    ['1x1', 'schedule', 'nextUp'], ['1x1', 'progress', 'dayRing'],
+    ['2x1', 'timeDate', 'tallClock'], ['2x1', 'timeDate', 'weekColumn'],
+    ['2x1', 'schedule', 'verticalList'], ['2x1', 'progress', 'lifeBar'],
+    // 1×FULL「后半段加大一倍」的 5 款 + 「改为左右结构」的 5 款
+    ['1xfull', 'timeDate', 'dualZone'], ['1xfull', 'timeDate', 'ringClock'],
+    ['1xfull', 'timeDate', 'stripeClock'], ['1xfull', 'timeDate', 'wordClock'],
+    ['1xfull', 'progress', 'ringProgress'],
+    ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'schedule', 'capsule'],
+    ['1xfull', 'important', 'festival'], ['1xfull', 'schedule', 'targetDay'],
+    ['1xfull', 'important', 'holiday'],
+    // yearGrid 年/月/周/日 与 multiBars 五行 在三种卡上都要可用
+    ['2x2', 'progress', 'yearGrid'], ['2x4', 'progress', 'yearGrid'],
+    ['4x4', 'progress', 'yearGrid'], ['1xfull', 'progress', 'yearGrid'],
+    ['2x4', 'progress', 'multiBars'], ['1xfull', 'progress', 'multiBars'],
+  ];
+  for (const [size, c, s] of MUST) {
+    ok(styleFitsSize('single', c, s, size) === true,
+      `v3.12 保留矩阵：${c}.${s} 应提供 ${size} 单独模式`);
+  }
+  // 1×1 / 2×1 只暴露新做的款式（数量锁定，防止以后误把旧款加回来）
+  for (const [size, expect] of [['1x1', 4], ['2x1', 4]]) {
+    let n = 0;
+    for (const c of SINGLE_CONTENTS) for (const s of c.styles) if (styleFitsSize('single', c.key, s.key, size)) n++;
+    ok(n === expect, `${size} 单独模式应恰好有 ${expect} 款样式，实际 ${n}`);
+  }
+  // multiBars：用户未配置 age/life 时，「生命」行必须按 STYLE_OPT_FIELDS 默认值（18/120）出现
+  {
+    const mbDef = STYLE_OPT_FIELDS.age.def + '/' + STYLE_OPT_FIELDS.life.def;
+    const rowCount = (html) => (html.match(/pv-mb-row/g) || []).length;
+    for (const size of ['2x2', '2x4', '4x4', '1xfull']) {
+      const [dw, dh] = HOST[size] || [0, 0];
+      const h = flatten(renderInfoBlock({
+        ...base, content: 'progress', style: 'multiBars', singleRow: true, size,
+        w: dw, h: dh, opts: {},
+      })).join('');
+      ok(rowCount(h) === 5, `multiBars 在 ${size} 无 opts 时应渲染 5 行（含生命 ${mbDef}），实际 ${rowCount(h)}`);
+      ok(h.includes('生命'), `multiBars 在 ${size} 应含「生命」行标签`);
+      // 百分比一律整数（用户要求「都不显示小数」）。
+      // 注意只查 .pv-mb-v 的**文本**：条的填充宽度仍是 `width:80.0%`（那是长度不是文本）。
+      const vals = (h.match(/class="pv-mb-v"[^>]*>([^<]*)</g) || []).map((x) => x.replace(/^[^>]*>/, '').replace(/<$/, ''));
+      ok(vals.length === 5, `multiBars 在 ${size} 应有 5 个百分比文本，实际 ${vals.length}`);
+      ok(vals.every((v) => /^\d+%$/.test(v)),
+        `multiBars 在 ${size} 百分比应为整数（如 80%），实际 ${JSON.stringify(vals)}`);
+      ok(/15%/.test(h), `multiBars 生命行应为 18/120 = 15%，实际未见`);
+    }
+  }
 }
 
 if (fails.length) {

@@ -1104,6 +1104,106 @@ export function showCalTitle(content, style, span, opts) {
 
 ---
 
+## v3.12 移除矩阵 / 1×1 与 2×1 重做 / 分规格格阵（2026-10-24）
+
+本轮详细视觉决策见 `docs/v312-visual-spec.md`（Phase 1 视觉架构师产出）。此处只记**落地后的定稿数值**。
+
+### ① 移除矩阵（用户逐条指定，`styleFitsSize` 已在 `test-render.mjs` 锁死 80 条断言）
+
+| 尺寸 | 移除的样式 | 剩余 |
+| --- | --- | --- |
+| **1×1** | **全部原有选项清空** | 4 款新做：`lunarDate` / `dayStack` / `nextUp` / `dayRing` |
+| **1×2** | `timeDate.ringClock`、`schedule.targetDay`、`gauge.dial`、`important.festival`、`important.holiday` | 12 款 |
+| **2×1** | **全部原有选项清空** | 4 款新做：`tallClock` / `weekColumn` / `verticalList` / `lifeBar` |
+| **2×2** | `gauge.dial` | 21 款 |
+| **1×FULL** | `gauge.dial`、`gauge.semiGauge` | 16 款 |
+
+> 「样式下线只影响选择器，已配置的卡仍会渲染」（旧内容不会被清掉）——见 MEMORY.md「单独模式加尺寸专属样式时」。
+
+### ② yearGrid 分规格格阵：JS 只给整数，CSS 拥有格子尺寸
+
+**根因**：JS 冻结 `grid-template-columns: repeat(cols, X em)` + 可用空间少扣宿主 24px（`.widget { padding: 12px }`）
+→ 轨道总宽比真实内容盒**恒定多 24px** → 末行/末列必被裁。
+
+**修法（结构性保证，与卡尺寸无关）**：
+
+```css
+.pv-yg-body { flex: 1 1 auto; min-height: 0; width: 100%;
+              display: flex; align-items: center; justify-content: center;
+              container-type: size; }          /* 拿到 100cqw / 100cqh = 真实内容盒 */
+.pv-yg-grid { display: grid; gap: var(--gap); justify-content: center; align-content: center;
+              --cols: 31; --rows: 12; --gap: 0.10em; --cap: 0.90em;
+              --cell: min( calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)),
+                           calc((100cqh - (var(--rows) - 1) * var(--gap)) / var(--rows)),
+                           var(--cap) );
+              grid-template-columns: repeat(var(--cols), var(--cell));
+              grid-template-rows: repeat(var(--rows), var(--cell)); }
+```
+
+JS 只输出 `--cols:N;--rows:M` 两个整数 + 粒度类名（`.m`/`.w`/`.d` 决定 `--gap`/`--cap`）。
+**总宽 = cols×cell + (cols−1)×gap ≤ 100cqw 由 `min()` 定义直接成立 → 永远不会被裁。**
+
+按卡宽高比 `o.w/o.h` 查表（`ygShapeOf`）：
+
+| 粒度 | A≤1.25 | A≤1.7 | A≤2.6 | A≤3.4 | A>3.4 |
+| --- | --- | --- | --- | --- | --- |
+| 年 | 20×19 | 24×16 | 29×13 | 35×11 | 44×9 |
+| 月 | 7×5 | 7×5 | 7×5 | 7×5 | 16×2 |
+| 周 | 7×1 | 7×1 | 7×1 | 7×1 | 7×1 |
+| 日 | 6×4 | 8×3 | 8×3 | 12×2 | 12×2 |
+
+`--gap`/`--cap`：年 0.10em / 0.90em；月 0.16em / 1.60em；周 0.14em / 1.60em；日 0.16em / 2.00em。
+
+### ③ multiBars 五行（年/月/周/日/生命）
+
+- `.pv-mb-k` 宽 **1.7em → 2.2em**（「生命」两字 = 1.12em 根 > 旧 0.95em 根 → 换行 → 行高 64→114px 被裁）
+- `.pv-mb-v` 宽 **3.1em → 3.4em** + `white-space: nowrap`；数值改 `Math.round(v)%`（**整数无小数**）
+- `STYLE_OPT_FIELDS`：`bars.def = 'y,m,w,d,life'`、`age.def = '18'`、`life.def = '120'`
+- 1×FULL 用 **2 列 × 3 行**（不是 flex-wrap 压行，见 v312 规格 N11）
+
+### ④ 1×FULL：5 款「后半段加大一倍」+ 5 款「改左右结构」
+
+| 组 | 样式 | 后半段元素 | 定稿 |
+| --- | --- | --- | --- |
+| 放大一倍 | `timeDate.dualZone` | `.pv-dz-date` | 0.5em → **1em**；`.pv-dz-rule` 高 2.1em → **2.8em** |
+| | `timeDate.ringClock` | `.pv-rc-time` | 1.6em → **3.2em** |
+| | `timeDate.stripeClock` | `.pv-st-date` | 0.5em → **1em**；`.pv-st-rule` 高 → **1.6em** |
+| | `timeDate.wordClock` | `.pv-wc-sub` | 0.48em → **0.96em** |
+| | `progress.ringProgress` | `.pv-rp-legend` | 0.46em → **0.92em**，改 `grid-template-columns: repeat(2, auto)` |
+| 改左右结构 | `timeDate.dotClock` | `.pv-dc-left` / `.pv-dc-right` | 左栏 `max-width: 46%`，右栏 `align-items: flex-end` |
+| | `schedule.capsule` | `.pv-cp-left` / `.pv-cp-right` | 同上 |
+| | `important.festival` | `.pv-fe-left` / `.pv-fe-right` | 同上 |
+| | `schedule.targetDay` | `.pv-tg-left` / `.pv-tg-right` | 同上 |
+| | `important.holiday` | `.pv-hd-left` / `.pv-hd-right` | 同上 |
+
+左右结构组统一：`flex-direction: row; align-items: center; justify-content: space-between; gap: 1em;`
+
+### ⑤ 1×1 / 2×1 新做 8 款（`CONTENT_FIT` 定稿）
+
+| 尺寸 | 样式 | 中文名 | `CONTENT_FIT` |
+| --- | --- | --- | --- |
+| 1×1 | `timeDate.lunarDate` | 农历日 | `{w:6.0, h:4.2}` |
+| 1×1 | `timeDate.dayStack` | 日时堆叠 | `{w:6.2, h:4.6}` |
+| 1×1 | `schedule.nextUp` | 下一件事 | `{w:6.4, h:3.4}` |
+| 1×1 | `progress.dayRing` | 日环进度 | `{w:6.0, h:4.6}` |
+| 2×1 | `timeDate.tallClock` | 竖向大钟 | `{w:6.4, h:9.6}` |
+| 2×1 | `timeDate.weekColumn` | 竖向星期条 | `{w:4.4, h:12.0}` |
+| 2×1 | `schedule.verticalList` | 纵向日程表 | `{w:5.6, h:9.0}` |
+| 2×1 | `progress.lifeBar` | 生命刻度尺 | `{w:4.6, h:10.0}` |
+
+`nextUp` 宽度实测：tabular-nums 下「00:00」≈ 2.75 × 自身字号、「:00」≈ 1.52 × 自身字号
+→ 主数字 **1.85em** + 秒 **0.78em**（合计 ≈ 6.28em，1×1 内容盒 ≈ 7.1em，留 0.8em 余量）。
+时间行小时数**取模 24**（远期日程不会撑成 4 位小时），天数信息由上方相对时间行承担。
+
+### ⑥ 本轮审计结果（门禁全绿）
+
+- `npm run check`：lint 0 error · CSS 镜像一致 · 布局 3876 断言 · 渲染 **710** 断言
+- `audit:single`（设计尺寸）：正常 98 · 主文字过小 0 · **裁切 0** · 缺失 0
+- `audit:single`（**真实面板尺寸** 346.72 / 693.44 / 1406.88）：正常 98 · **裁切 0** · 缺失 0
+- `audit:matrix`：正常 334 · 主文字过小 0 · **裁切 0**（次要注意 30 为既有项，5.3px，用户已确认保持现状）
+
+---
+
 ## 附录 C：决策速查（给 team-lead 的一页纸）
 
 | # | 决策 | 关键数值 |

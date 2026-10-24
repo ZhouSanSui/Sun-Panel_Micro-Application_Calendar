@@ -18,10 +18,11 @@
 import { html, svg } from 'lit';
 import {
   yearProgress, dayOfYear, diffDays, formatTime, getMonthGrid, formatDate, todayStr, addDays,
-  daysInMonth, weekOfYear,
+  daysInMonth, weekOfYear, ganzhiYear,
 } from './date-utils.js';
+import { solarToLunarParts, LUNAR_DAY_CN, LUNAR_MONTH_CN } from './picker.js';
 import { getNextOccurrence } from './schedule.js';
-import { autoLayout } from './user-store.js';
+import { autoLayout, STYLE_OPT_FIELDS } from './user-store.js';
 import { getNextHoliday, getNextSolarTerm, getNextFestival } from './highlights.js';
 import { getUserStore, getHolidayService } from './app-state.js';
 
@@ -140,6 +141,10 @@ const CONTENT_FIT = {
     bigDays: { w: 5.2, h: 5.2 },
     // v2.9：目标倒计时卡（标题 + 大天数 + 日期）
     targetDay: { w: 6.1, wEn: 7.0, h: 5.2 },
+    // v3.12：下一件事（1×1）—— HH:MM:SS 大字 + 事件名 + 相对时间
+    nextUp: { w: 6.4, wEn: 6.6, h: 3.4 },
+    // v3.12：纵向日程表（2×1）—— 每行「时间 + 事件名」，条数按高度定
+    verticalList: { w: 5.6, wEn: 6.4, h: 9.0 },
     __default: { w: 5.0, h: 4.0 },
   },
   timeDate: {
@@ -152,6 +157,15 @@ const CONTENT_FIT = {
     ringClock: { w: 7.0, w12: 7.6, h: 6.4 },
     dotClock: { w: 8.6, wEn: 9.2, h: 3.6 },
     boldClock: { w: 5.0, w12: 5.6, h: 3.2 },
+    // ===== v3.12：1×1 / 2×1 专用 =====
+    // 农历日：干支年 + 农历日大字（2.6em，两字 ≈ 2.9em 宽）+ 公历行
+    lunarDate: { w: 6.0, h: 4.2 },
+    // 日时堆叠：左 68% 四行时刻 + 右 32% 巨大「日」（3em ≈ 1.9em 宽）
+    dayStack: { w: 6.2, h: 4.6 },
+    // 竖向大钟：超大时分（5.2em × 2 位 ≈ 6.4em 宽，已用 letter-spacing 收到 6.0em）
+    tallClock: { w: 6.4, h: 9.6 },
+    // 竖向星期条：7 行（星期字 + 1.1em 日期数字）
+    weekColumn: { w: 4.4, h: 12.0 },
   },
   progress: {
     __default: { w: 7.0, h: 2.0 },
@@ -166,6 +180,11 @@ const CONTENT_FIT = {
     battery: { w: 6.4, h: 3.2 },
     // 7 个周格里「星期字母 + 日期」两行 + 底部百分比
     weekGrid: { w: 8.4, h: 3.0 },
+    // ===== v3.12：1×1 / 2×1 专用 =====
+    // 日环进度：3.4em 见方单环 + 环内百分比 + 底部时刻
+    dayRing: { w: 6.0, h: 4.6 },
+    // 生命刻度尺：顶部标签 + 20 个竖刻度 + 底部读数
+    lifeBar: { w: 4.6, h: 10.0 },
   },
 };
 
@@ -173,6 +192,9 @@ const CONTENT_FIT = {
 const FIT_MIN_U = 9;
 /** .pv-block 单侧内边距（em） */
 const FIT_PAD = 0.1875;
+/** 宿主 `.widget` 的左右/上下内边距合计（widget.js:662 `padding: 12px` → 12×2 = 24px）。
+ *  可用空间计算必须扣掉它，否则几何比真实内容盒宽高各恒定多 24px → 固定 em 尺寸必溢出。 */
+const HOST_PAD_X2 = 24;
 
 /**
  * 尺寸名 → 行列数。SunPanel 的尺寸名是「行×列」（见 mainPage.js CARD_SIZE_GRID），
@@ -650,7 +672,7 @@ function renderInfoBlockInner(o) {
   const upcoming = (getUserStore()?.getSchedules() || [])
     .map((item) => ({ item, next: getNextOccurrence(item, now) }))
     .filter((x) => x.next)
-    .sort((a, b) => diffDays(a.next.date, b.next.date) - diffDays(b.next.date, b.next.date));
+    .sort((a, b) => diffDays(a.next.date, b.next.date));
 
   const empty = (text) => html`<div class="pv-center"><div class="pv-sub" style="color:${label3}">${text}</div></div>`;
 
@@ -1019,6 +1041,88 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
 
+    // ===== v3.12：专为 1×1 方卡 / 2×1 窄高卡新设计的 8 款样式 =====
+    // 用户要求「移除 1×1 / 2×1 卡片独立显示的所有选项，再单独做几个关于时间、日期和日程相关的」。
+    // 排版铁律（见 docs/v312-visual-spec.md §8）：
+    //   1×1 = 346×346，内容盒仅 6.6em 见方 → 1 个主数字（≤3.4em）+ 极少辅助；
+    //   2×1 = 346×693，内容盒仅 6.52em 宽 → **任何横排长文本都不可行**，必须纵向堆叠。
+
+    // ① timeDate.lunarDate 农历日（1×1）：主视觉 = 农历日两字大字，辅 = 干支年 + 公历
+    if (style === 'lunarDate') {
+      const ac = accentOf(theme);
+      const parts = solarToLunarParts(formatDate(now));
+      // 农历日是 1~3 个汉字（初一/廿三/三十），这是方卡唯一能承载的中文短词
+      const dayTxt = parts ? (LUNAR_DAY_CN[parts.day - 1] || String(parts.day)) : '';
+      const monTxt = parts ? (LUNAR_MONTH_CN[parts.month - 1] || `${parts.month}月`) : '';
+      const gz = ganzhiYear(now.getFullYear());
+      const top = parts
+        ? `${gz.zh}年 ${parts.leap ? '闰' : ''}${monTxt}`
+        : `${now.getFullYear()}`;
+      const bot = isZh
+        ? `${now.getMonth() + 1}月${now.getDate()}日 ${WEEK_FULL_ZH[now.getDay()]}`
+        : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return html`<div class="pv-col pv-ld">
+        <div class="pv-ld-top" style="color:${label3}">${top}</div>
+        <div class="pv-ld-day" style="color:${ac}">${dayTxt}</div>
+        <div class="pv-ld-bot" style="color:${label2}">${bot}</div>
+      </div>`;
+    }
+
+    // ② timeDate.dayStack 日时堆叠（1×1）：左 68% 放 4 行时刻，右 32% 放巨大「日」
+    if (style === 'dayStack') {
+      const ac = accentOf(theme);
+      // 4 行「时:分」读数（数字宽度固定，0.36em 字号 → 一行 ≈ 1.1em，1×1 内容盒 6.6em 足够）
+      const rows = [
+        [String(hour12 ? (now.getHours() % 12 || 12) : now.getHours()).padStart(2, '0'), String(now.getMinutes()).padStart(2, '0')],
+        [String(now.getMinutes()).padStart(2, '0'), String(now.getSeconds()).padStart(2, '0')],
+        [String(now.getHours()).padStart(2, '0'), String((now.getHours() + 1) % 24).padStart(2, '0')],
+        [String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0'), String(Math.floor(now.getSeconds() / 5) * 5).padStart(2, '0')],
+      ];
+      return html`<div class="pv-col pv-ds">
+        <div class="pv-ds-left">
+          ${rows.map(([a, b2], i) => html`<div class="pv-ds-row">
+            <b style="color:${i === 0 ? label2 : label3}">${a}</b><i style="color:${label3}">:</i><b style="color:${i === 0 ? label2 : label3}">${b2}</b>
+          </div>`)}
+        </div>
+        <div class="pv-ds-right">
+          <div class="pv-ds-day" style="color:${ac}">${now.getDate()}</div>
+        </div>
+      </div>`;
+    }
+
+    // ③ timeDate.tallClock 竖向大钟（2×1）：超大时分（主行）+ 次级秒 + 当日进度条
+    if (style === 'tallClock') {
+      const ac = accentOf(theme);
+      const hh = String(hour12 ? (now.getHours() % 12 || 12) : now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      const dayP = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
+      return html`<div class="pv-col pv-tc">
+        <div class="pv-tc-time">
+          <b style="color:${ac}">${hh}</b><i style="color:${ac}">:${mm}</i>
+        </div>
+        <div class="pv-tc-sec" style="color:${label2}">${ss}<em style="color:${label3}">${isZh ? '秒' : 's'}</em></div>
+        <div class="pv-tc-bar"><i style="width:${(dayP * 100).toFixed(1)}%;background:${ac}"></i></div>
+        <div class="pv-tc-date" style="color:${label3}">${isZh ? `周${WEEK_FULL_ZH[now.getDay()]} ${now.getMonth() + 1}月${now.getDate()}日` : now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+      </div>`;
+    }
+
+    // ④ timeDate.weekColumn 竖向星期条（2×1）：7 行（星期字 + 大日期数字），今天整行高亮
+    if (style === 'weekColumn') {
+      const ac = accentOf(theme);
+      const days = weekDatesForNow(now, ws);
+      return html`<div class="pv-col pv-wc2">
+        <div class="pv-wc2-head" style="color:${label3}">${isZh ? `第${weekOfYear(now)}周` : `W${weekOfYear(now)}`}</div>
+        <div class="pv-wc2-list">${days.map((d) => {
+    const isT = d.getDate() === now.getDate() && d.getMonth() === now.getMonth();
+    const wd = isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()];
+    return html`<div class="pv-wc2-row${isT ? ' now' : ''}" style="${isT ? `background:${ac};color:#fff` : `color:${label2}`}">
+              <span>${wd}</span><b>${d.getDate()}</b>
+            </div>`;
+  })}</div>
+      </div>`;
+    }
+
     // v3.11 dayNum：今日大数字 —— 方形卡（1×1）与窄高卡（2×1）最省空间的主角样式：
     // 一个占据大半个卡片的日数 + 一行「月 · 周几」，没有横向长文本，几乎不可能被裁。
     if (style === 'dayNum') {
@@ -1147,9 +1251,13 @@ function renderInfoBlockInner(o) {
       const t = fmtHM(now, hour12, true);
       const dots = Array.from({ length: 24 }, (_, i) => html`<i style="opacity:${i < Math.round(24 * sec / 86400) ? 0.9 : 0.14}"></i>`);
       return html`<div class="pv-col pv-dc">
-        <div class="pv-dc-dots" style="color:${ac}">${dots}</div>
-        <div class="pv-dc-time" style="color:${ac}">${t}</div>
-        <div class="pv-dc-date" style="color:${label3}">${isZh ? `${now.getMonth() + 1}月${now.getDate()}日 周${WEEK_FULL_ZH[now.getDay()]}` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+        <div class="pv-dc-left">
+          <div class="pv-dc-dots" style="color:${ac}">${dots}</div>
+          <div class="pv-dc-time" style="color:${ac}">${t}</div>
+        </div>
+        <div class="pv-dc-right">
+          <div class="pv-dc-date" style="color:${label3}">${isZh ? `${now.getMonth() + 1}月${now.getDate()}日 周${WEEK_FULL_ZH[now.getDay()]}` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+        </div>
       </div>`;
     }
     // v2.9 boldClock：粗体大字钟（两行大数字 + 右侧竖排日期；色块用主色）
@@ -1184,17 +1292,25 @@ function renderInfoBlockInner(o) {
       const nh = getNextHoliday(getHolidayService(), now);
       if (!nh) return html`<div class="pv-center"><div class="pv-sub">${isZh ? '暂无假期' : 'No holiday'}</div></div>`;
       return html`<div class="pv-col pv-hd">
-        <div class="pv-hd-days" style="color:${acI}">${nh.days === 0 ? (isZh ? '假期中' : 'ON') : nh.days}<small>${isZh ? '天' : 'd'}</small></div>
-        <div class="pv-hd-name">${isZh ? nh.nameZh : (nh.nameEn || nh.nameZh)}</div>
-        <div class="pv-hd-date">${nh.dateStr.slice(5).replace('-', '/')}</div>
+        <div class="pv-hd-left">
+          <div class="pv-hd-days" style="color:${acI}">${nh.days === 0 ? (isZh ? '假期中' : 'ON') : nh.days}<small>${isZh ? '天' : 'd'}</small></div>
+        </div>
+        <div class="pv-hd-right">
+          <div class="pv-hd-name">${isZh ? nh.nameZh : (nh.nameEn || nh.nameZh)}</div>
+          <div class="pv-hd-date">${nh.dateStr.slice(5).replace('-', '/')}</div>
+        </div>
       </div>`;
     }
     const f = getNextFestival(now);
     if (!f) return html`<div class="pv-center"><div class="pv-sub">${isZh ? '暂无节日' : 'No festival'}</div></div>`;
     return html`<div class="pv-col pv-fe">
-      <div class="pv-fe-top"><span class="pv-fe-gap" style="background:${acI}">${f.days === 0 ? (isZh ? '今天' : 'NOW') : (isZh ? `${f.days} 天后` : `in ${f.days}d`)}</span></div>
-      <div class="pv-fe-name">${isZh ? f.nameZh : (f.nameEn || f.nameZh)}</div>
-      <div class="pv-fe-date">${f.dateStr.slice(5).replace('-', '/')}</div>
+      <div class="pv-fe-left">
+        <div class="pv-fe-name">${isZh ? f.nameZh : (f.nameEn || f.nameZh)}</div>
+        <div class="pv-fe-date">${f.dateStr.slice(5).replace('-', '/')}</div>
+      </div>
+      <div class="pv-fe-right">
+        <div class="pv-fe-top"><span class="pv-fe-gap" style="background:${acI}">${f.days === 0 ? (isZh ? '今天' : 'NOW') : (isZh ? `${f.days} 天后` : `in ${f.days}d`)}</span></div>
+      </div>
     </div>`;
   }
 
@@ -1283,12 +1399,95 @@ function renderInfoBlockInner(o) {
       // 周/日剩余不足 1 天时不再占一格「00 天」，避免小卡片挤出一行。
       const showD = u === 'year' || u === 'month' || dd > 0;
       return html`<div class="pv-col pv-cp">
-        <div class="pv-cp-pill" style="border-color:${ac};color:${ac}">${title}</div>
-        <div class="pv-cp-row">
-          ${showD ? cell(dd, isZh ? '天' : 'd') : ''}${cell(hh, isZh ? '时' : 'h')}${cell(mm, isZh ? '分' : 'm')}${cell(ss, isZh ? '秒' : 's')}
+        <div class="pv-cp-left">
+          <div class="pv-cp-row">
+            ${showD ? cell(dd, isZh ? '天' : 'd') : ''}${cell(hh, isZh ? '时' : 'h')}${cell(mm, isZh ? '分' : 'm')}${cell(ss, isZh ? '秒' : 's')}
+          </div>
+        </div>
+        <div class="pv-cp-right">
+          <div class="pv-cp-pill" style="border-color:${ac};color:${ac}">${title}</div>
         </div>
       </div>`;
     }
+    // ===== v3.12 新增日程类 =====
+    // ⑤ schedule.nextUp 下一件事（1×1）：主视觉 = 剩余时间 HH:MM:SS，辅 = 事件名 + 事件时间
+    if (style === 'nextUp') {
+      const ac = accentOf(theme);
+      const list = (getUserStore()?.getSchedules() || [])
+        .map((item) => ({ item, next: getNextOccurrence(item, now) }))
+        .filter((x) => x.next)
+        .sort((a, b) => diffDays(a.next.date, b.next.date));
+      // 关联日程（用户手选）优先，否则取最近的一条
+      let pick = null;
+      if (schedPick && schedPick.date) {
+        pick = { title: schedPick.title, date: schedPick.date, time: '' };
+      } else if (list[0]) {
+        pick = {
+          title: list[0].item.title || list[0].item.name || '',
+          date: list[0].next.dateStr,
+          time: list[0].item.time || '',
+        };
+      }
+      if (!pick || !/^\d{4}-\d{2}-\d{2}$/.test(pick.date)) return empty(isZh ? '暂无日程' : 'No schedules');
+      const [yy, mm, dd] = pick.date.split('-').map(Number);
+      const target = new Date(yy, mm - 1, dd, 0, 0, 0);
+      if (!Number.isFinite(target.getTime())) return empty(isZh ? '暂无日程' : 'No schedules');
+      // 事件自带时刻 → 精确到秒；否则倒计时到当天 00:00
+      let ms = target.getTime() - now.getTime();
+      if (pick.time) {
+        const tm = /^(\d{1,2}):(\d{2})/.exec(String(pick.time));
+        if (tm) target.setHours(Number(tm[1]), Number(tm[2]), 0, 0);
+        ms = target.getTime() - now.getTime();
+      }
+      ms = Math.max(0, ms);
+      // 时间行只保留 HH:MM:SS（小时取模 24），天数信息由上方的相对时间行（「N 天后」）承担。
+      // 取模是为了让「一年后」这类远期日程不会把小时数撑成 4 位（8760:00:00）把 1×1 撑爆。
+      const totalDays = Math.floor(ms / 86400000);
+      const remMs = ms - totalDays * 86400000;
+      const hh = String(Math.floor(remMs / 3600000)).padStart(2, '0');
+      const mm2 = String(Math.floor((remMs % 3600000) / 60000)).padStart(2, '0');
+      const ss = String(Math.floor((remMs % 60000) / 1000)).padStart(2, '0');
+      const days = Math.round((new Date(yy, mm - 1, dd).getTime()
+        - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
+      const when = days === 0 ? (isZh ? '今天' : 'Today')
+        : days === 1 ? (isZh ? '明天' : 'Tomorrow')
+          : (isZh ? `${days} 天后` : `in ${days}d`);
+      return html`<div class="pv-col pv-nu">
+        <div class="pv-nu-when" style="color:${label3}">${when}</div>
+        <div class="pv-nu-time"><b style="color:${ac}">${hh}:${mm2}</b><i style="color:${ac}">:${ss}</i></div>
+        <div class="pv-nu-name" style="color:${label}">${pick.title}</div>
+      </div>`;
+    }
+
+    // ⑥ schedule.verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」，条数按高度定
+    if (style === 'verticalList') {
+      const ac = accentOf(theme);
+      const list = (getUserStore()?.getSchedules() || [])
+        .map((item) => ({ item, next: getNextOccurrence(item, now) }))
+        .filter((x) => x.next)
+        .sort((a, b) => diffDays(a.next.date, b.next.date));
+      if (!list.length) return empty(isZh ? '暂无日程' : 'No schedules');
+      // 条数由高度决定（v312 规格 §8.2）：2×1 内容盒高 13.935em，每行 1.35em
+      const availH2 = Number(o.availH);
+      const nRows = Number.isFinite(availH2) && availH2 > 0
+        ? Math.max(2, Math.min(5, Math.floor((availH2 - 1.4) / 1.35)))
+        : 3;
+      const rows = list.slice(0, nRows);
+      const next0 = rows[0];
+      const timeOf = (r) => (r.item.time ? String(r.item.time).slice(0, 5) : '');
+      return html`<div class="pv-col pv-vl">
+        <div class="pv-vl-head" style="color:${label3}">${isZh ? `今日 ${rows.length} 项` : `${rows.length} today`}</div>
+        <div class="pv-vl-list">${rows.map((r, i) => {
+    const nm = r.item.title || r.item.name || '';
+    return html`<div class="pv-vl-row">
+            <span style="color:${i === 0 ? ac : label3}">${timeOf(r)}</span>
+            <b style="color:${i === 0 ? label : label2}">${nm}</b>
+          </div>`;
+  })}</div>
+        <div class="pv-vl-next" style="color:${ac}">${isZh ? `下一项 ${timeOf(next0)}` : `Next ${timeOf(next0)}`}</div>
+      </div>`;
+    }
+
     // v2.10 bigDays 巨型天数：超大数字 + 标题 + 目标日期（可用样式设置改文案/目标日）
     if (style === 'bigDays') {
       const ac = accentOf(theme);
@@ -1324,15 +1523,19 @@ function renderInfoBlockInner(o) {
         left = Math.round((new Date(y, m - 1, d).getTime() - t0.getTime()) / 86400000);
       }
       return html`<div class="pv-col pv-tg">
-        <div class="pv-tg-title" style="color:${label2}">${title}</div>
         ${left === null
     ? html`<div class="pv-sub" style="color:${label3}">${isZh ? '未设置目标日' : 'No target date'}</div>`
-    : html`<div class="pv-center">
-            <span class="pv-tg-pre" style="color:${label3}">${left >= 0 ? (isZh ? '还有' : 'in') : (isZh ? '已过' : 'over')}</span>
-            <span class="pv-tg-days" style="color:${ac}">${Math.abs(left)}</span>
-            <span class="pv-tg-unit" style="color:${label3}">${isZh ? '天' : Math.abs(left) === 1 ? 'day' : 'days'}</span>
+    : html`<div class="pv-tg-left">
+            <div class="pv-center">
+              <span class="pv-tg-pre" style="color:${label3}">${left >= 0 ? (isZh ? '还有' : 'in') : (isZh ? '已过' : 'over')}</span>
+              <span class="pv-tg-days" style="color:${ac}">${Math.abs(left)}</span>
+              <span class="pv-tg-unit" style="color:${label3}">${isZh ? '天' : Math.abs(left) === 1 ? 'day' : 'days'}</span>
+            </div>
           </div>
-          <div class="pv-tg-date" style="color:${label3}">${iso}</div>`}
+          <div class="pv-tg-right">
+            <div class="pv-tg-title" style="color:${label2}">${title}</div>
+            <div class="pv-tg-date" style="color:${label3}">${iso}</div>
+          </div>`}
       </div>`;
     }
     // recentEvent：最近事项列表
@@ -1368,15 +1571,19 @@ function renderInfoBlockInner(o) {
     if (style === 'week') return bar(isZh ? '本周进度' : 'Week', weekPct);
     if (style === 'day') return bar(isZh ? '今日进度' : 'Today', dayPct);
 
-    // v2.9 multiBars：多条进度（年 / 月 / 周 / 日），一条一行，主色可改
+    // v2.9 multiBars：多条进度（年 / 月 / 周 / 日 / 生命），一条一行，主色可改
     if (style === 'multiBars') {
       const ac = accentOf(theme);
       const dimM = daysInMonth(now.getFullYear(), now.getMonth() + 1);
       const mp = ((now.getDate() - 1) + sec / 86400) / dimM * 100;
       // v2.11：opts.bars 选要哪几条（y/m/w/d/life），opts.age + opts.life 组成生命进度
+      // v3.12：age/life 未配置时回退到 STYLE_OPT_FIELDS 的默认值（18 / 120，用户指定）——
+      // 否则用户没点过「样式设置」时 lifePct = null，「生命」行被过滤掉，5 行只剩 4 行。
       const mbOpt = o.opts || {};
-      const pickedBars = String(mbOpt.bars || 'y,m,w,d').split(',').filter(Boolean);
-      const ageN = Number(mbOpt.age), lifeN = Number(mbOpt.life);
+      const pickedBars = String(mbOpt.bars || STYLE_OPT_FIELDS.bars.def || 'y,m,w,d,life').split(',').filter(Boolean);
+      const ageRaw = mbOpt.age ?? STYLE_OPT_FIELDS.age.def;
+      const lifeRaw = mbOpt.life ?? STYLE_OPT_FIELDS.life.def;
+      const ageN = Number(ageRaw), lifeN = Number(lifeRaw);
       const lifePct = Number.isFinite(ageN) && Number.isFinite(lifeN) && lifeN > 0
         ? Math.max(0, Math.min(100, (ageN / lifeN) * 100)) : null;
       const rows = [
@@ -1387,15 +1594,23 @@ function renderInfoBlockInner(o) {
         ['life', isZh ? '生命' : 'Life', lifePct],
       ].filter(([k2, , v2]) => pickedBars.includes(k2) && v2 !== null)
         .map(([, k2, v2]) => [k2, v2]);
-      // v3.2：拼接模式下块高度受限，行数按可用高度裁剪，避免溢出被裁切
+      // v3.12：百分比一律整数、无小数 —— 「100.0%」有 6 个字符，实宽超过 .pv-mb-v 的定宽框
+      // → 末尾的「%」被裁（用户截图实锤）。整数后是「100%」4 字符，留足余量。
+      // 条的填充宽度仍保留 1 位小数（那是长度不是文本，不受定宽框约束）。
+      // v3.12：行数裁剪 —— 1×FULL 是 2 列 × 3 行布局，单列可用高度只有一半，
+      // 沿用「单列」算法会把 5 行裁成 2 行（用户报「5 个同时显示被裁切」）。
+      // 这里按实际列数算容量：2 列时能放 2×floor(...) 行。
       const availH2 = Number(o.availH);
-      const maxRows = Number.isFinite(availH2) && availH2 > 0 ? Math.max(1, Math.floor(availH2 / 1.15)) : 99;
+      const isWideFull = o.size === '1xfull';
+      const rowH = 1.15;
+      const perCol = Number.isFinite(availH2) && availH2 > 0 ? Math.max(1, Math.floor(availH2 / rowH)) : 99;
+      const maxRows = isWideFull ? perCol * 2 : perCol;
       const shown = rows.slice(0, maxRows);
       return html`<div class="pv-col pv-mb">
         ${shown.map(([k, v]) => html`<div class="pv-mb-row">
           <span class="pv-mb-k" style="color:${label3}">${k}</span>
           <b class="pv-mb-bar"><i style="width:${Math.max(0, Math.min(100, v)).toFixed(1)}%;background:${ac}"></i></b>
-          <span class="pv-mb-v" style="color:${label2}">${v.toFixed(1)}%</span>
+          <span class="pv-mb-v" style="color:${label2}">${Math.round(v)}%</span>
         </div>`)}
       </div>`;
     }
@@ -1432,6 +1647,45 @@ function renderInfoBlockInner(o) {
         </div>
       </div>`;
     }
+    // ===== v3.12 新增进度类 =====
+    // ⑦ progress.dayRing 日环进度（1×1）：单环 + 环内大百分比 + 底部时刻
+    if (style === 'dayRing') {
+      const ac = accentOf(theme);
+      const secDay = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const pD = Math.min(1, secDay / 86400);
+      const C1 = 2 * Math.PI * 44;
+      return html`<div class="pv-col pv-dr">
+        <div class="pv-dr-ring">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="${label3}" stroke-opacity="0.2" stroke-width="7" />
+            <circle cx="50" cy="50" r="44" fill="none" stroke="${ac}" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="${(C1 * pD).toFixed(2)} ${C1.toFixed(2)}" transform="rotate(-90 50 50)" />
+          </svg>
+          <div class="pv-dr-pct" style="color:${label}">${Math.round(pD * 100)}%</div>
+        </div>
+        <div class="pv-dr-time" style="color:${label3}">${isZh ? `今日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : `Today ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}</div>
+      </div>`;
+    }
+
+    // ⑧ progress.lifeBar 生命刻度尺（2×1）：竖向刻度尺把「18/120」这种稀疏比例画出来
+    if (style === 'lifeBar') {
+      const ac = accentOf(theme);
+      const lbOpt = o.opts || {};
+      // v3.12：age/life 默认值与 multiBars 同源（STYLE_OPT_FIELDS.age/life = 18 / 120）
+      const ageN = Number(lbOpt.age ?? STYLE_OPT_FIELDS.age.def);
+      const lifeN = Number(lbOpt.life ?? STYLE_OPT_FIELDS.life.def);
+      const age = Number.isFinite(ageN) ? Math.max(0, ageN) : Number(STYLE_OPT_FIELDS.age.def);
+      const span = Number.isFinite(lifeN) && lifeN > 0 ? lifeN : Number(STYLE_OPT_FIELDS.life.def);
+      const N = 20;
+      const filled = Math.round((age / span) * N);
+      const pct = Math.round((age / span) * 100);
+      return html`<div class="pv-col pv-lb">
+        <div class="pv-lb-head" style="color:${label2}">${isZh ? `生命进度 ${pct}%` : `Life ${pct}%`}</div>
+        <div class="pv-lb-scale">${Array.from({ length: N }, (_, i) => html`<i class="${i < filled ? 'on' : ''}" style="${i < filled ? `background:${ac}` : ''}"></i>`)}</div>
+        <div class="pv-lb-foot" style="color:${label3}">${isZh ? `已过 ${age} / ${span}` : `${age} / ${span}`}</div>
+      </div>`;
+    }
+
     // v2.10 heatYear 年热力图：12 列 × 各月天数的方块阵（今天高亮）
     // v3.11 stackBars：分层进度条 —— 年/月/周/日 四行横条，窄高卡（2×1）上按高度均分铺满
     if (style === 'stackBars') {
@@ -1492,104 +1746,80 @@ function renderInfoBlockInner(o) {
       const ygUnit = ['week', 'day', 'month'].includes(ygOpt.unit) ? ygOpt.unit : 'year';
       const ygShape = ygOpt.shape === 'dot' ? ' dot' : '';
       const ac0 = ygOpt.color || theme;
-      // v3.8：格阵列/行/格边长改由块内可用几何（em）择优 —— 格子恒正方形且尽可能大、
-      // 整组居中铺满，不再写死 31 列/12 行（旧算法在 1×FULL 上格子只有 2~6px「基本看不到」，
-      // 在大卡上月/周/日粒度又只剩一角「稀疏」）。
-      // 可用盒 = 块内 availW × (availH - 头行)；缺几何（样式条小预览等）回退 CONTENT_FIT 声明值。
-      const YG_GAP = 0.1;
-      // v3.11：格子边长上限。只按「尽可能大」择优会把格子数少的粒度（月 31 / 周 7 / 日 24）
-      // 在大卡上拉成 2em+ 的巨格；但上限压太狠（1.15em）又会在大卡上缩成一小撮、四周大片留白。
-      // 取 2.2em —— 常规尺寸下由容器宽度先撞限，上限只在「窄高卡」这种高度过剩的形态才生效。
-      const YG_CELL_MAX = 3.0;
-      const YG_HEAD_EM = 0.925; // .pv-yg-head 0.5em×1.25 + .pv-yg gap 0.3em
-      const ygBoxW = Number.isFinite(o.availW) ? o.availW : 10.0;
-      const ygBoxH = (Number.isFinite(o.availH) ? o.availH : 9.0) - YG_HEAD_EM;
-      // v3.11：语义列数 —— 月按日历直觉 7 列（一周一行），周按横向/竖向条，日按 6×4 时刻表。
-      // 只有在「宽高比接近」时才用语义列，窄高卡仍回落到方形排布，避免 7 列被压成一条细线。
-      const ygAspect = ygBoxW / Math.max(0.001, ygBoxH);
-      // 语义列数：月 = 7（一周一行）、周 = 7 横条 / 1 竖列、日 = 12×2（上下午）/ 6×4 / 5×5 / 4×6。
-      // 宽高比越出合理区间就交回自由择优（1×FULL 这种超宽扁卡上，7 列月历会被压成一条细线）。
-      const ygPrefCols = (n, u) => {
-        if (u === 'month') return ygAspect >= 0.75 && ygAspect <= 2.6 ? 7 : 0;
-        if (u === 'week') return ygAspect >= 0.85 ? 7 : (ygAspect <= 0.7 ? 1 : 0);
-        if (u === 'day') return ygAspect >= 1.6 ? 12 : ygAspect >= 0.9 ? 6 : ygAspect >= 0.62 ? 5 : 4;
-        return 0;
+      // ===== v3.12：格阵尺寸的所有权从 JS 移到 CSS =====
+      // 旧做法：JS 用 availW/availH（基于设计基准的**预测值**，且少扣了宿主 24px）
+      // 算出固定的 em 轨道 `grid-template-columns: repeat(cols, X em)` 内联到元素上。
+      // 一旦真实卡片比设计基准小，X em 轨道必然越出内容盒 → 底部末行被裁（用户截图实锤）。
+      // 新做法：JS 只传两个**整数**（--cols / --rows），格边长由 CSS 用
+      //   --cell: min(宽度解, 高度解, 上限)
+      // 从容器的真实尺寸（container query 单位 100cqw / 100cqh）推出。
+      // 于是「不裁切」变成**结构性保证**：总宽 = cols×cell + (cols−1)×gap ≤ 100cqw 恒成立，
+      // JS 算错最多导致「填不满 / 形状不好看」，永远不会导致「被裁」。
+      //
+      // 形状查表（按真实卡片宽高比 A = w/h，语义优先于几何）：
+      //   月 = 7 列（周为行）、周 = 7 格一行 —— 这两个永远不变，是语义底线；
+      //   日 = 6×4 / 8×3 / 12×2，按卡宽高比在候选集里挑覆盖率最高的；
+      //   年 = 允许随形状变化（近方形铺满）。
+      const ygAspect = Number.isFinite(o.w) && Number.isFinite(o.h) && o.h > 0 ? o.w / o.h : 1;
+      const YG_SHAPE = {
+        year: [
+          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 44, 9],
+        ],
+        month: [
+          [1.25, 7, 5], [1.7, 7, 5], [2.6, 7, 5], [3.4, 16, 2], [Infinity, 16, 2],
+        ],
+        week: [
+          [1.25, 7, 1], [1.7, 7, 1], [2.6, 7, 1], [3.4, 7, 1], [Infinity, 7, 1],
+        ],
+        day: [
+          [1.25, 6, 4], [1.7, 8, 3], [2.6, 8, 3], [3.4, 12, 2], [Infinity, 12, 2],
+        ],
       };
-      // 语义列数的最小可接受比例（周是「一天一格」的条，宁可留白也要保持一排 7 格）
-      const YG_PREF_MIN = { month: 0.7, week: 0.4, day: 0.7 };
-      const ygCellAt = (cols, n) => {
-        const rows = Math.ceil(n / cols);
-        const raw = Math.min(
-          (ygBoxW - (cols - 1) * YG_GAP) / cols,
-          (ygBoxH - (rows - 1) * YG_GAP) / rows,
-        );
-        const cell = Math.min(raw, YG_CELL_MAX);
-        // 面积覆盖率：格子被上限压平后，「格子最大」不再等于「铺得最满」，
-        // 1×FULL 上按格子最大择优只会得到 6 列一小撮，必须改成按覆盖率择优。
-        const cov = (cols * cell / Math.max(0.001, ygBoxW)) * (rows * cell / Math.max(0.001, ygBoxH));
-        return { cols, rows, cell, cov, waste: cols * rows - n };
+      const ygShapeOf = (u) => {
+        const tbl = YG_SHAPE[u] || YG_SHAPE.year;
+        for (const [lim, cols, rows] of tbl) if (ygAspect <= lim) return { cols, rows };
+        const last = tbl[tbl.length - 1];
+        return { cols: last[1], rows: last[2] };
       };
-      const ygLayout = (n, u) => {
-        let free = null;
-        for (let cols = 1; cols <= n; cols++) {
-          const cur = ygCellAt(cols, n);
-          if (!free
-            || cur.cov > free.cov + 1e-6
-            || (Math.abs(cur.cov - free.cov) <= 1e-6 && cur.cell > free.cell + 1e-6)
-            || (Math.abs(cur.cov - free.cov) <= 1e-6 && Math.abs(cur.cell - free.cell) <= 1e-6
-              && cur.waste < free.waste)
-            || (Math.abs(cur.cov - free.cov) <= 1e-6 && Math.abs(cur.cell - free.cell) <= 1e-6
-              && cur.waste === free.waste
-              && (Math.abs(cur.cols - cur.rows) < Math.abs(free.cols - free.rows)
-                || (Math.abs(cur.cols - cur.rows) === Math.abs(free.cols - free.rows)
-                  && cur.cols > free.cols)))) {
-            free = cur;
-          }
-        }
-        let best = free;
-        const pref = ygPrefCols(n, u);
-        if (pref) {
-          const p = ygCellAt(pref, n);
-          if (p.cell >= free.cell * (YG_PREF_MIN[u] || 0.7)) best = p;
-        }
-        return best || { cols: n, rows: 1, cell: 0.2, waste: 0 };
+      // 粒度类名 → CSS 侧的 --gap / --cap（见 card-mode-styles.js 的 .pv-yg-grid.m/.w/.d）
+      const YG_CLASS = { month: ' m', week: ' w', day: ' d', year: '' };
+      // 只输出两个整数，格边长交给 CSS
+      const ygGridInline = (u) => {
+        const { cols, rows } = ygShapeOf(u);
+        return `--cols:${cols};--rows:${rows}`;
       };
-      const ygGridInline = (n, u) => {
-        const { cols, rows, cell } = ygLayout(n, u);
-        const c = Math.max(0.18, cell).toFixed(3);
-        return `--cols:${cols};--rows:${rows};grid-template-columns:repeat(${cols},${c}em);grid-template-rows:repeat(${rows},${c}em)`;
-      };
+      const ygClass = (u) => YG_CLASS[u] || '';
       if (ygUnit === 'month') {
         // v3.6：月粒度 —— 本月天数格子（今天点亮）；v3.8 起列数按几何择优
         const mDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         const todayD = now.getDate();
         return html`<div class="pv-col pv-yg">
           <div class="pv-yg-head"><span style="color:${label3}">${now.getFullYear()}</span><b style="color:${ac0}">${todayD}/${mDays}</b></div>
-          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(mDays, 'month')}">${Array.from({ length: mDays }, (_, i) => {
+          <div class="pv-yg-body"><div class="pv-yg-grid${ygShape}${ygClass('month')}" style="${ygGridInline('month')}">${Array.from({ length: mDays }, (_, i) => {
   const n = i + 1;
   const cls = n === todayD ? 'now' : n < todayD ? 'on' : '';
   return html`<i class="${cls}" style="${n === todayD ? `background:${ac0}` : ''}"></i>`;
-})}</div>
+})}</div></div>
         </div>`;
       }
       if (ygUnit === 'week') {
         const wd = (now.getDay() + 6) % 7;
         return html`<div class="pv-col pv-yg">
           <div class="pv-yg-head"><span style="color:${label3}">${isZh ? `第${weekOfYear(now)}周` : `W${weekOfYear(now)}`}</span><b style="color:${ac0}">${wd + 1}/7</b></div>
-          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(7, 'week')}">${Array.from({ length: 7 }, (_, i) => {
+          <div class="pv-yg-body"><div class="pv-yg-grid${ygShape}${ygClass('week')}" style="${ygGridInline('week')}">${Array.from({ length: 7 }, (_, i) => {
   const cls = i === wd ? 'now' : i < wd ? 'on' : '';
   return html`<i class="${cls}" style="${i === wd ? `background:${ac0}` : ''}"></i>`;
-})}</div>
+})}</div></div>
         </div>`;
       }
       if (ygUnit === 'day') {
         const hr = now.getHours();
         return html`<div class="pv-col pv-yg">
           <div class="pv-yg-head"><span style="color:${label3}">${isZh ? '今日' : 'Today'}</span><b style="color:${ac0}">${hr + 1}/24</b></div>
-          <div class="pv-yg-grid${ygShape}" style="${ygGridInline(24, 'day')}">${Array.from({ length: 24 }, (_, i) => {
+          <div class="pv-yg-body"><div class="pv-yg-grid${ygShape}${ygClass('day')}" style="${ygGridInline('day')}">${Array.from({ length: 24 }, (_, i) => {
   const cls = i === hr ? 'now' : i < hr ? 'on' : '';
   return html`<i class="${cls}" style="${i === hr ? `background:${ac0}` : ''}"></i>`;
-})}</div>
+})}</div></div>
         </div>`;
       }
       const doy = dayOfYear(now);
@@ -1599,11 +1829,11 @@ function renderInfoBlockInner(o) {
           <span style="color:${label3}">${now.getFullYear()}</span>
           <b style="color:${ac0}">${isZh ? `${doy}/${total} 天` : `${doy}/${total} d`}</b>
         </div>
-        <div class="pv-yg-grid${ygShape}" style="${ygGridInline(total, 'year')}">${Array.from({ length: total }, (_, i) => {
+        <div class="pv-yg-body"><div class="pv-yg-grid${ygShape}${ygClass('year')}" style="${ygGridInline('year')}">${Array.from({ length: total }, (_, i) => {
   const n = i + 1;
   const cls = n === doy ? 'now' : n < doy ? 'on' : '';
   return html`<i class="${cls}" style="${n === doy ? `background:${ac0}` : ''}"></i>`;
-})}</div>
+})}</div></div>
       </div>`;
     }
     // v2.7 yearBars：12 根月条（当月高亮），底部年度百分比
@@ -1695,10 +1925,17 @@ export function renderInfoBlock(o) {
     * scaleOk;
   // v3.10：可用空间要用「缩放后的盒子尺寸」—— 预览传的是未缩放实测尺寸 + singleScale，
   // 若不乘 scaleOk，预览的 avail 会是真实卡片的两倍，行数裁剪/格阵自适应又会漂移。
+  // v3.12：可用空间必须扣掉宿主 `.widget` 的 24px padding（widget.js:662 padding:12px，
+  // widget.js:83 的 availW 也扣了同样的 24）。此前只扣了 .pv-single 自身的 0.375em，
+  // 几何比真实内容盒**宽高各恒定多 24px** → 所有按它算出的固定 em 尺寸必然溢出被裁。
+  // 这是 yearGrid 在 2×2/2×4/4×4 上被裁切的根因之一。
+  // 注意：宿主 padding 也要随 singleScale 缩放 —— 缩放预览里整张卡连 padding 一起缩小，
+  // 若扣的是固定 24px，缩放预览的可用空间会比真实卡片少一截 → 行数裁剪结果不一致
+  // （「预览正常、实际被切」的另一个来源）。
   const availGeo = geo
     ? {
-      availW: (o.w * scaleOk) / baseForAvail - 2 * FIT_PAD,
-      availH: (o.h * scaleOk) / baseForAvail - 2 * FIT_PAD,
+      availW: (o.w * scaleOk - HOST_PAD_X2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
+      availH: (o.h * scaleOk - HOST_PAD_X2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
     }
     : {};
   const body = renderInfoBlockInner({ ...o, ...availGeo, tall: tallGeo, narrow: narrowGeo });
