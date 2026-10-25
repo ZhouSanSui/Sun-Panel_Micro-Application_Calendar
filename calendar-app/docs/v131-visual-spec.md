@@ -1204,6 +1204,83 @@ JS 只输出 `--cols:N;--rows:M` 两个整数 + 粒度类名（`.m`/`.w`/`.d` �
 
 ---
 
+## v3.13 尺寸门控补强 / 1×1 极简 / targetDay 年循环修复（2026-10-25）
+
+用户 8 张截图逐条反馈，核心是三件事：**已下线的样式还在渲染**、**1×1 空间不够**、**targetDay 不统计年循环日程**。
+
+### ① 渲染期尺寸门禁（新架构不变量）
+
+「移除样式」此前只改 `sizes` 白名单（影响选择器），**用户旧配置的卡仍按旧排版继续渲染**
+—— 用户看到的就是「明明移除了的样式还在，而且照样被裁」（实锤：1×1 上 semiGauge「今年已过」、
+festival「寒衣节」两张卡仍在渲染且都裁切）。
+
+`renderInfoBlock` 顶部补一道门禁：单独模式下样式不在该尺寸白名单 → 渲染一行
+「该显示样式不适用于此卡片尺寸，请重新选择」。**只打标记不提前返回**——
+外壳（尺寸类名 + 内联根字号）必须照常生成，否则预览缩放/审计会拿到没有 font-size 的残壳。
+另外只有「单独模式自己的内容类」才受管（`time` / `calendar` 只存在于 COMBO_CONTENTS，查不到不能误判）。
+
+顺带修了 `styleFitsSize` 的假绿：旧实现走 `styleSizesOf`，而它对「找不到样式」和「没声明 sizes」
+都返回 null，于是 `!sizes` 分支把**已删除的样式判成「全尺寸可用」**。现在样式不存在一律返回 false。
+
+### ② 1×1 极简版式（用户：「只显示一个有效信息」）
+
+`lunarDate` / `dayStack` 在 1×1 上只保留主视觉，靠 `.pv-single-1x1` 的尺寸类裁剪 DOM 显示
+（不删 DOM，更大卡片仍显示完整三行/四行）：
+- `lunarDate`：只留「农历」小标 + 农历日大字（农历日恒 ≤2 字，2.8em × 2 = 5.6em < 6.6em）
+- `dayStack`：只留巨大「日」数字（3.4em），左侧 4 行「时:分」读数隐藏
+
+### ③ targetDay / nextUp 年循环日程修复（用户实锤的 bug）
+
+两处独立缺陷：
+1. **顺序显示（schedMode=auto）**按**原始记录日期**过滤 `>= 今天`，年循环日程（生日 1998-03-15）
+   被全部筛掉，只剩「初始日期就在今年」的日程。改为 `getNextOccurrence` 算下次发生日再取最近。
+2. **选择日程（pick）**把过往年份「搬到我今年」，搬完若已过 → 倒计时恒为 0。
+   改为同样走 `getNextOccurrence` 取**下一次**发生日；一次性且已过才回落到原记录日期。
+
+实测：生日 1998-03-15 在 2026-10-25 正确显示「还有 141 天 / 2027-03-15」。
+
+### ④ yearGrid 分规格格阵再调优（实测驱动）
+
+新增 `.tmp/measure-yg-geo.mjs`：按真实面板尺寸量 `--cols` / `--rows` / `--gap` / `--cap` / cell / 填充率。
+
+| 尺寸 | 粒度 | 改前 | 改后 |
+| --- | --- | --- | --- |
+| 1×FULL | 年 | 44×9，cell 26.02px，fillW 100% | **42×9，cell 29.75px（+14%）**，fillW 99.1% |
+| 1×FULL | 月 | 16×2（两排） | **31×1 一排**，fillW 100% |
+| 1×FULL | 日 | 12×2（两排） | **24×1 一排**，fillW 100% |
+| 2×2 | 年 | 20×19，cell 27.17px | 同形状，cell 30.03px（+11%） |
+| 2×4 | 年 | 29×13，cell 40.66px | 同形状，cell 43.92px（+8%） |
+| 4×4 | 年 | 20×19，cell 59.77px | 同形状，cell 64.16px（+7%） |
+
+**关键发现**：格阵区高度被 head/foot 占掉一块（实测 body 仅 288px / 内容盒 327px），
+所以**行数才是 cell 的约束**——曾试过 42×10，fillW 反而从 100% 跌到 89%（高度解变小）。
+年 gap 0.10 → 0.05em、月/日 gap 0.16 → 0.10em（多列时间距占比过高）。
+
+### ⑤ 1×FULL 九款「紧凑居中」
+
+用户原话「两侧内容尽量归中显示」。原来 `space-between` / `space-evenly` 把内容推到卡片边缘，
+统一改成 `justify-content: center` + `gap: 2.4em`：两栏紧紧聚在中间，剩余空间均分到卡片两侧。
+
+### ⑥ 尺寸启用矩阵（用户逐尺寸点名）
+
+1×2 启用 wordClock/lunarDate/dayStack/targetDay/nextUp/holiday；
+2×1 启用 dayNum/stackTime/lunarDate/dayStack/targetDay/nextUp/holiday；
+2×2 启用 lunarDate/dayStack/tallClock/weekColumn/capsule/nextUp/verticalList/dial，停用 stackBars；
+2×4 启用 dayNum/lunarDate/weekColumn/verticalList；
+4×4 启用 dayNum/miniMonth/lunarDate/dayStack/tallClock/weekColumn/nextUp/verticalList；
+1×FULL 启用 dayNum/lunarDate/dayStack，停用 multiBars。
+**`schedule.bigDays` 全尺寸移除**（用户：与 targetDay 重复），渲染分支与 `CONTENT_FIT` 一并删除。
+`verticalList` 去掉「关联日程」设置（用户：样式设置里不需要）。
+
+### ⑦ 本轮审计结果
+
+- `npm run check`：lint 0 error · CSS 镜像一致 · 布局 3876 · 渲染 **766** 断言
+- `audit:single` 设计/真实双场景：129 正常 · **裁切 0** · 缺失 0
+- `audit:matrix`：334 正常 · 主文字过小 0 · **裁切 0**
+- 靶向截图核对：1×1 四款、1×2 九款、2×1 十一款、2×2 八款、2×4/4×4 十二款、1×FULL 十五款
+
+---
+
 ## 附录 C：决策速查（给 team-lead 的一页纸）
 
 | # | 决策 | 关键数值 |

@@ -181,10 +181,10 @@ const SINGLE_CASES = [
   ['1x2', 'timeDate', 'stripeClock'], ['1x2', 'progress', 'yearBars'],
   ['1xfull', 'timeDate', 'dualZone'], ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'timeDate', 'wordClock'],
   ['1xfull', 'schedule', 'capsule'], ['1xfull', 'progress', 'multiBars'], ['1xfull', 'important', 'festival'],
-  ['2x2', 'timeDate', 'ringClock'], ['2x2', 'timeDate', 'dualZone'], ['2x2', 'schedule', 'bigDays'],
+  ['2x2', 'timeDate', 'ringClock'], ['2x2', 'timeDate', 'dualZone'], ['2x2', 'schedule', 'targetDay'],
   ['2x4', 'timeDate', 'wordClock'], ['2x4', 'progress', 'weekGrid'], ['2x4', 'progress', 'ringProgress'],
   ['4x4', 'timeDate', 'stripeClock'], ['4x4', 'progress', 'heatYear'],
-  ['1x1', 'schedule', 'bigDays'], ['2x1', 'schedule', 'bigDays'],
+  ['1x1', 'schedule', 'nextUp'], ['2x1', 'schedule', 'verticalList'],
 ];
 const singleCards = SINGLE_CASES.map(([size, c, s, opts]) => {
   const [w, h] = SINGLE_REF_PX[size];

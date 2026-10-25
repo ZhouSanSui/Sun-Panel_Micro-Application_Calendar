@@ -161,32 +161,39 @@ export const SINGLE_CONTENTS = [
     // v2.7 / v2.9 / v2.10：只保留图形化样式（旧文字款已按需求移除）
     // v3.12 移除矩阵：1×2 去掉 ringClock；1×1 / 2×1 全部清空，改由下方三款专为方卡/窄高卡
     // 设计的新样式承担（用户要求「再单独做几个关于时间、日期和日程相关的」）。
+    // v3.13：用户逐尺寸点名启用/停用，并补充「1×1 只显示一个有效信息」的极简版式。
     { key: 'dualZone', zh: '双区时间', en: 'Dual Zone', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'] },
     { key: 'ringClock', zh: '环形刻度钟', en: 'Ring Clock', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
     { key: 'dotClock', zh: 'LED数码管', en: 'Dot LED', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
     { key: 'boldClock', zh: '粗体大字钟', en: 'Bold Clock', sizes: ['1x2', '2x2', '2x4', '4x4'], opts: ['color'] },
     { key: 'stripeClock', zh: '极简条钟', en: 'Stripe Clock', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
-    { key: 'wordClock', zh: '文字时钟', en: 'Word Clock', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'wordClock', zh: '文字时钟', en: 'Word Clock', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
     // v3.11：面相方形卡 / 窄高卡补的三款（1×1、2×1 上原来能选的样式大多是为大卡设计的）
-    { key: 'dayNum', zh: '今日大数字', en: 'Day Number', sizes: ['1x2', '2x2'], opts: ['color'] },
-    { key: 'miniMonth', zh: '小月历', en: 'Mini Month', sizes: ['2x2', '2x4'], opts: ['color'] },
-    { key: 'stackTime', zh: '竖排时间', en: 'Stacked Time', sizes: ['2x2'], opts: ['color'] },
+    // v3.13：dayNum 扩到 2x1/2x4/4x4/1xfull；miniMonth 扩到 4x4；stackTime 扩到 2x1
+    { key: 'dayNum', zh: '今日大数字', en: 'Day Number', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'miniMonth', zh: '小月历', en: 'Mini Month', sizes: ['2x2', '2x4', '4x4'], opts: ['color'] },
+    { key: 'stackTime', zh: '竖排时间', en: 'Stacked Time', sizes: ['2x1', '2x2'], opts: ['color'] },
     // ===== v3.12 新增：专为 1×1 方卡 / 2×1 窄高卡设计的时间/日期类 =====
     // 1×1（346×346，内容盒仅 6.6em 见方）：主数字 + 短词 + 极少辅助
-    { key: 'lunarDate', zh: '农历日', en: 'Lunar Date', sizes: ['1x1'], opts: ['color'] },
-    { key: 'dayStack', zh: '日时堆叠', en: 'Day Stack', sizes: ['1x1'], opts: ['color'] },
+    // v3.13：这三款扩到全部尺寸；1×1 上走「只显示一个有效信息」的极简版式（CSS 按尺寸类裁剪）
+    { key: 'lunarDate', zh: '农历日', en: 'Lunar Date', sizes: ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'dayStack', zh: '日时堆叠', en: 'Day Stack', sizes: ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
     // 2×1（346×693，宽仅 6.52em）：必须纵向堆叠，横排长文本不可行
-    { key: 'tallClock', zh: '竖向大钟', en: 'Tall Clock', sizes: ['2x1'], opts: ['color'] },
-    { key: 'weekColumn', zh: '竖向星期条', en: 'Week Column', sizes: ['2x1'], opts: ['color'] },
+    // v3.13：tallClock 扩到 2x2/4x4；weekColumn 扩到 2x2/2x4/4x4
+    { key: 'tallClock', zh: '竖向大钟', en: 'Tall Clock', sizes: ['2x1', '2x2', '4x4'], opts: ['color'] },
+    { key: 'weekColumn', zh: '竖向星期条', en: 'Week Column', sizes: ['2x1', '2x2', '2x4', '4x4'], opts: ['color'] },
   ] },
   { key: 'schedule', zh: '日程', en: 'Schedule', icon: '🗓', styles: [
     // v3.12 移除矩阵：1×2 去掉 targetDay
-    { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x4', '1xfull'], opts: ['unit', 'color', 'text'] },
-    { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'sched', 'schedMode'] },
-    { key: 'bigDays', zh: '巨型天数', en: 'Big Days', sizes: ['1x2', '2x2', '2x4', '4x4'], opts: ['color', 'sched'] },
+    // v3.13：1×2 恢复 targetDay；2×1 也开 targetDay；capsule 扩到 2x2；
+    //       nextUp 扩到 1x2/2x1/2x2/4x4；verticalList 扩到 2x2/2x4/4x4。
+    //       **bigDays 全尺寸移除**（用户：与 targetDay 显示样式重复）。
+    { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x2', '2x4', '1xfull'], opts: ['unit', 'color', 'text'] },
+    { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'sched', 'schedMode'] },
     // ===== v3.12 新增：1×1 / 2×1 专用的日程类 =====
-    { key: 'nextUp', zh: '下一件事', en: 'Next Up', sizes: ['1x1'], opts: ['color', 'sched', 'schedMode'] },
-    { key: 'verticalList', zh: '纵向日程表', en: 'Vertical List', sizes: ['2x1'], opts: ['color', 'sched', 'schedMode'] },
+    // v3.13：verticalList 去掉「关联日程」设置（用户：样式设置里不需要）
+    { key: 'nextUp', zh: '下一件事', en: 'Next Up', sizes: ['1x1', '1x2', '2x1', '2x2', '4x4'], opts: ['color', 'sched', 'schedMode'] },
+    { key: 'verticalList', zh: '纵向日程表', en: 'Vertical List', sizes: ['2x1', '2x2', '2x4', '4x4'], opts: ['color'] },
   ] },
   { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
     { key: 'yearGrid', zh: '进度格阵', en: 'Grid', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['unit', 'shape', 'color'] },
@@ -194,12 +201,15 @@ export const SINGLE_CONTENTS = [
     // 这两款从 1×1 下线；weekGrid 在 2×1 竖高卡上同样变形，一并下线。
     { key: 'yearBars', zh: '年月条阵', en: 'Month Bars', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'] },
     { key: 'weekGrid', zh: '周进度格', en: 'Week Grid', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'] },
-    { key: 'multiBars', zh: '多进度条', en: 'Multi Bars', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'bars', 'age', 'life'] },
+    // v3.13：1×FULL 停用 multiBars（用户：不太能同时显示五个信息）
+    { key: 'multiBars', zh: '多进度条', en: 'Multi Bars', sizes: ['2x2', '2x4', '4x4'], opts: ['color', 'bars', 'age', 'life'] },
     { key: 'ringProgress', zh: '四环进度', en: 'Ring Progress', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
     { key: 'heatYear', zh: '年热力图', en: 'Heat Year', sizes: ['2x2', '2x4', '4x4'], opts: ['color'] },
     { key: 'battery', zh: '电量条', en: 'Battery', sizes: ['1x2', '2x2', '2x4', '4x4', '1xfull'], opts: ['unit', 'color'] },
     // v3.11：竖高卡专用的四条横进度（按高度均分），1×1 上同样成立
-    { key: 'stackBars', zh: '分层进度条', en: 'Stacked Bars', sizes: ['2x2', '1xfull'], opts: ['color'] },
+    // v3.13：2×2 停用 stackBars（用户点名）；只留 1×FULL，且改为参考 multiBars 的
+    //       「标签 + 条 + 百分比」四行排布（原来只能看到中间两条）。
+    { key: 'stackBars', zh: '分层进度条', en: 'Stacked Bars', sizes: ['1xfull'], opts: ['color'] },
     // ===== v3.12 新增：1×1 / 2×1 专用的进度类 =====
     { key: 'dayRing', zh: '日环进度', en: 'Day Ring', sizes: ['1x1'], opts: ['color'] },
     { key: 'lifeBar', zh: '生命刻度尺', en: 'Life Scale', sizes: ['2x1'], opts: ['color', 'age', 'life'] },
@@ -208,13 +218,15 @@ export const SINGLE_CONTENTS = [
     // v2.11：仪表类内容（指针 / 半环），读的是年初或当日进度
     // v3.11：两者都支持「统计粒度」（年/月/周/日），指针默认年、半环默认日
     // v3.12 移除矩阵：2×2 去掉 dial；1×FULL 去掉 dial + semiGauge
-    { key: 'dial', zh: '指针仪表', en: 'Dial', sizes: ['2x4', '4x4'], opts: ['unit', 'color'] },
+    // v3.13：2×2 恢复 dial（用户点名启用）
+    { key: 'dial', zh: '指针仪表', en: 'Dial', sizes: ['2x2', '2x4', '4x4'], opts: ['unit', 'color'] },
     { key: 'semiGauge', zh: '半环仪表', en: 'Semi Gauge', sizes: ['1x2', '2x2', '2x4', '4x4'], opts: ['unit', 'color'] },
   ] },
   { key: 'important', zh: '重要日期', en: 'Important', icon: '◆', styles: [
     // v3.12 移除矩阵：1×2 去掉 festival + holiday；2×1 去掉 festival + holiday
+    // v3.13：holiday 恢复到 1×2 与 2×1（用户点名启用）
     { key: 'festival', zh: '节日卡', en: 'Festival', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
-    { key: 'holiday', zh: '假期倒计时', en: 'Holiday Count', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'holiday', zh: '假期倒计时', en: 'Holiday Count', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
   ] },
 ];
 
@@ -250,8 +262,16 @@ export function styleSizesOf(displayMode, contentKey, styleKey) {
 
 /** 该样式在指定卡片尺寸下是否可选 */
 export function styleFitsSize(displayMode, contentKey, styleKey, size) {
-  const sizes = styleSizesOf(displayMode, contentKey, styleKey);
-  return !sizes || !size || sizes.includes(size);
+  const cd = displayContents(displayMode).find((c) => c.key === contentKey);
+  const st = cd && cd.styles.find((s) => s.key === styleKey);
+  // v3.13：样式本身不存在（已从注册表移除）时必须返回 false。
+  // 旧实现走 styleSizesOf，而它对「找不到样式」和「没声明 sizes」都返回 null，
+  // 于是 `!sizes` 分支把已删除的样式判成「全尺寸可用」→ 尺寸断言假绿。
+  if (!st) return false;
+  const sizes = st.sizes;
+  // 未声明 sizes = 该模式下全尺寸可用（拼接模式的旧款式走这条）
+  if (!Array.isArray(sizes) || !sizes.length) return true;
+  return !size || sizes.includes(size);
 }
 
 /** 按卡片尺寸过滤后的可选样式列表（至少保留 1 个，避免空列表） */

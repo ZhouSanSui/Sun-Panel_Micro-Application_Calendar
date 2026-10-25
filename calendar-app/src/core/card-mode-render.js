@@ -22,7 +22,7 @@ import {
 } from './date-utils.js';
 import { solarToLunarParts, LUNAR_DAY_CN, LUNAR_MONTH_CN } from './picker.js';
 import { getNextOccurrence } from './schedule.js';
-import { autoLayout, STYLE_OPT_FIELDS } from './user-store.js';
+import { autoLayout, STYLE_OPT_FIELDS, styleFitsSize, SINGLE_CONTENTS } from './user-store.js';
 import { getNextHoliday, getNextSolarTerm, getNextFestival } from './highlights.js';
 import { getUserStore, getHolidayService } from './app-state.js';
 
@@ -138,7 +138,6 @@ const CONTENT_FIT = {
     multipleWide: { w: 11.0, wEn: 12.0, h: 3.4 },
     // v2.9：胶囊倒计时（年倒计时 d/h/m/s 四个数字格 + 胶囊标题）
     capsule: { w: 11.2, wEn: 11.8, h: 3.4 },
-    bigDays: { w: 5.2, h: 5.2 },
     // v2.9：目标倒计时卡（标题 + 大天数 + 日期）
     targetDay: { w: 6.1, wEn: 7.0, h: 5.2 },
     // v3.12：下一件事（1×1）—— HH:MM:SS 大字 + 事件名 + 相对时间
@@ -436,11 +435,16 @@ function renderInfoBlockInner(o) {
   const schedPick = (() => {
     // v3.6：schedMode === 'auto' 时忽略选中项，直接取「之后最近的一条日程」
     if (opt.schedMode === 'auto') {
+      // v3.13：必须按**下一次发生日**挑最近，不能按原始记录日期比大小 ——
+      // 年循环日程（生日/纪念日）记录的往往是多年前的日期，按 `x.date >= 今天`
+      // 过滤会把它们全部筛掉，只剩「初始日期就在今年」的日程（用户实锤）。
+      // getNextOccurrence 已经把年循环搬到今年/明年，一次性日程原样返回。
       const all = (getUserStore()?.getSchedules() || [])
-        .filter((x) => x && x.date && String(x.date) >= todayStr())
-        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        .map((x) => ({ x, n: getNextOccurrence(x, now) }))
+        .filter((e) => e.n)
+        .sort((a, b) => diffDays(a.n.date, b.n.date));
       if (!all.length) return null;
-      return { title: all[0].title || all[0].name || '', date: all[0].date };
+      return { title: all[0].x.title || all[0].x.name || '', date: all[0].n.dateStr };
     }
     const sel = opt.sched;
     if (!sel) return null;
@@ -450,10 +454,13 @@ function renderInfoBlockInner(o) {
     const hit = list.find((x) => String(x.id) === String(sel))
       || list.find((x) => x && x.date && String(x.date) === String(sel));
     if (!hit) return null;
-    // v3.5：每年循环的日程（生日/纪念日）应显示**今年**那一天，而不是原始记录年份。
-    // 规则：记录年份早于今年时，把月日搬到今年；今年内或未来的日期保持原样。
-    let iso = String(hit.date || '');
-    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    // v3.13：年循环日程（生日/纪念日）要走 getNextOccurrence 取**下一次**发生日，
+    // 不是「把月日搬到今年」——搬到今年后若已过，倒计时会恒为 0（用户实锤：
+    // 「没有统计到如生日这样循环显示的日程」）。一次性日程的未来日期原样返回；
+    // 一次性且已过 → getNextOccurrence 返回 null，此时保留原记录日期（倒计时 0）。
+    const nxt = getNextOccurrence(hit, now);
+    let iso = nxt ? nxt.dateStr : String(hit.date || '');
+    if (!nxt && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
       const [yy, mm, dd] = iso.split('-').map(Number);
       const thisY = now.getFullYear();
       if (yy < thisY) {
@@ -1488,30 +1495,9 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
 
-    // v2.10 bigDays 巨型天数：超大数字 + 标题 + 目标日期（可用样式设置改文案/目标日）
-    if (style === 'bigDays') {
-      const ac = accentOf(theme);
-      const opt = o.opts || {};
-      const title = (schedPick && schedPick.title) || opt.text || (isZh ? '倒计时' : 'Countdown');
-      const isoPick = (schedPick && schedPick.date) || (typeof opt.date === 'string' ? opt.date : '');
-      let ty = now.getFullYear(), tm = now.getMonth() + 1, td = now.getDate();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(isoPick)) {
-        const [a, b2, c2] = isoPick.split('-').map(Number);
-        ty = a; tm = b2; td = c2;
-      }
-      const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const d1 = new Date(ty, tm - 1, td);
-      const diff = Math.round((d1 - d0) / 86400000);
-      const abs = Math.abs(diff);
-      const dateStr = `${ty}-${String(tm).padStart(2, '0')}-${String(td).padStart(2, '0')}`;
-      const tail = isZh ? `距 ${dateStr}` : dateStr;
-      return html`<div class="pv-col pv-bd">
-        <div class="pv-bd-title" style="color:${label2}">${title}</div>
-        <div class="pv-bd-num" style="color:${ac}">${abs}<small>${isZh ? '天' : 'd'}</small></div>
-        <div class="pv-bd-tail">${tail}</div>
-      </div>`;
-    }
     // v2.9 targetDay：目标倒计时卡（标题 / 目标日都可在「样式设置」里改）
+    // v3.13：bigDays 已全尺寸移除（用户：与 targetDay 显示样式重复）—— 渲染分支一并删除，
+    // 旧配置走到 renderInfoBlock 顶部的尺寸门禁，提示「该显示样式不适用于此卡片尺寸」。
     if (style === 'targetDay') {
       const ac = accentOf(theme);
       const title = (schedPick && schedPick.title) || (typeof opt.text === 'string' && opt.text ? opt.text : (isZh ? '目标日' : 'Target'));
@@ -1762,17 +1748,23 @@ function renderInfoBlockInner(o) {
       //   年 = 允许随形状变化（近方形铺满）。
       const ygAspect = Number.isFinite(o.w) && Number.isFinite(o.h) && o.h > 0 ? o.w / o.h : 1;
       const YG_SHAPE = {
+        // v3.13：年格阵在超宽卡（1×FULL，A≈4.0）上把 44×9 微调到 42×9。
+        // 注意格阵区高度被 head/foot 占掉一块（实测 body 只有 288px / 内容盒 327px），
+        // 所以**行数才是 cell 的约束**：10 行时高度解只有 26.5px（fillW 跌到 89%），
+        // 9 行时高度解 29.8px，配合 gap 0.10→0.05em，格子 26.0→29.8px（+15%），fillW 99%。
         year: [
-          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 44, 9],
+          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 42, 9],
         ],
+        // v3.13：超宽卡上月/日都改**一排**（用户：现在两排两侧空）。
+        // 月一排 = 31 格（自然月上限），日一排 = 24 格（小时）。
         month: [
-          [1.25, 7, 5], [1.7, 7, 5], [2.6, 7, 5], [3.4, 16, 2], [Infinity, 16, 2],
+          [1.25, 7, 5], [1.7, 7, 5], [2.6, 7, 5], [3.4, 16, 2], [Infinity, 31, 1],
         ],
         week: [
           [1.25, 7, 1], [1.7, 7, 1], [2.6, 7, 1], [3.4, 7, 1], [Infinity, 7, 1],
         ],
         day: [
-          [1.25, 6, 4], [1.7, 8, 3], [2.6, 8, 3], [3.4, 12, 2], [Infinity, 12, 2],
+          [1.25, 6, 4], [1.7, 8, 3], [2.6, 8, 3], [3.4, 12, 2], [Infinity, 24, 1],
         ],
       };
       const ygShapeOf = (u) => {
@@ -1889,6 +1881,18 @@ function renderInfoBlockInner(o) {
  *   输出 pv-single-<size> 类名，供按尺寸版式规则命中（CSS 见三组件与预览镜像）
  */
 export function renderInfoBlock(o) {
+  // v3.13：单独模式补一道**渲染期**尺寸门禁。
+  // 此前「移除样式」只改 `sizes` 白名单（影响选择器），用户旧配置的卡片仍按旧排版继续渲染
+  // —— 用户看到的就是「明明移除了的样式还在，而且照样被裁」（v3.13 实锤：1×1 上
+  // semiGauge「今年已过」、festival「寒衣节」两张卡仍在渲染且都裁切）。
+  // 不可用时给一行小提示，让用户知道该重新选样式，而不是留一张裁坏的卡。
+  // 注意：这里只打标记、不提前返回 —— 外壳（尺寸类名 + 内联根字号）必须照常生成，
+  // 否则拿不到几何信息的调用方（预览缩放、审计）会拿到没有 font-size 的残壳。
+  // 另外：只有「单独模式自己的内容类」才受门禁管 —— `time` / `calendar` / `schedule:multiple`
+  // 这些键只存在于 COMBO_CONTENTS，SINGLE_CONTENTS 里查不到，不能误判成「已下线」。
+  const gated = !!(o.singleRow && o.size && o.content && o.style
+    && SINGLE_CONTENTS.some((c) => c.key === o.content)
+    && !styleFitsSize('single', o.content, o.style, o.size));
   // v3.3：单独模式的 tall 不再由调用方凭尺寸名猜，改为按真实像素几何判定 ——
   // 预览框是按 real×pvScale 缩出来的，只要两边都传 w/h，方向判定就完全一致。
   const geo = Number.isFinite(o.w) && Number.isFinite(o.h) && o.w > 0 && o.h > 0;
@@ -1938,7 +1942,11 @@ export function renderInfoBlock(o) {
       availH: (o.h * scaleOk - HOST_PAD_X2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
     }
     : {};
-  const body = renderInfoBlockInner({ ...o, ...availGeo, tall: tallGeo, narrow: narrowGeo });
+  const body = gated
+    ? html`<div class="pv-col pv-center"><div class="pv-sub" style="color:${(o.visual || {}).label3 || '#8E8E93'}">${
+      o.isZh === false ? 'This style is not available for this card size' : '该显示样式不适用于此卡片尺寸，请重新选择'
+    }</div></div>`
+    : renderInfoBlockInner({ ...o, ...availGeo, tall: tallGeo, narrow: narrowGeo });
   const cls = o.size ? 'pv-single pv-single-' + o.size : 'pv-single';
   // 预览等比缩放：把 CSS 的根字号基准同比缩小，保证缩小后的预览与真实卡片同比例
   // 1×FULL 与 baseForAvail 同源（否则可用空间与真实字号两套基准，行数裁剪会漂）

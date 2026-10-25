@@ -120,8 +120,8 @@ export const CARD_MODE_CSS = `
    --cols/--rows 由 JS 按「卡片宽高比 × 粒度」查表给出（都是整数）；--gap/--cap 按粒度给。
    旧写法是 JS 内联「grid-template-columns: repeat(cols, X em)」的固定 em 轨道，
    真实卡片一旦小于设计基准就必然溢出 → 用户截图的裁切。 */
-.pv-yg-grid { display: grid; gap: var(--gap, 0.10em); justify-content: center; align-content: center; overflow: hidden;
-  --cols: 31; --rows: 12; --gap: 0.10em; --cap: 0.90em;
+.pv-yg-grid { display: grid; gap: var(--gap, 0.05em); justify-content: center; align-content: center; overflow: hidden;
+  --cols: 31; --rows: 12; --gap: 0.05em; --cap: 0.90em;
   --cell: min(
     calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)),
     calc((100cqh - (var(--rows) - 1) * var(--gap)) / var(--rows)),
@@ -129,10 +129,15 @@ export const CARD_MODE_CSS = `
   );
   grid-template-columns: repeat(var(--cols), var(--cell));
   grid-template-rows: repeat(var(--rows), var(--cell)); }
-/* 粒度专属的间距与格边长上限（--cap 生效时格阵会小于内容盒 → 只留白、不溢出） */
-.pv-yg-grid.m { --gap: 0.16em; --cap: 1.60em; }
+/* 粒度专属的间距与格边长上限（--cap 生效时格阵会小于内容盒 → 只留白、不溢出）
+   v3.13：年 gap 0.10 → 0.05em。年格阵动辄 20~42 列，gap 占比高达 19%，
+   收窄后 2×2/2×4/4×4/1×FULL 的格子分别涨 10%/8%/7%/15%（实测回写）。
+   月/日 gap 0.16 → 0.10em：这两档改一排后列数变多（月 31 / 日 24），
+   间距占比同样偏高；7×5 / 6×4 的老形状也顺带涨 3~5%。 */
+.pv-yg-grid { --gap: 0.05em; }
+.pv-yg-grid.m { --gap: 0.10em; --cap: 1.60em; }
 .pv-yg-grid.w { --gap: 0.14em; --cap: 1.60em; }
-.pv-yg-grid.d { --gap: 0.16em; --cap: 2.00em; }
+.pv-yg-grid.d { --gap: 0.10em; --cap: 2.00em; }
 /* 圆角改百分比，使大小卡上的格子圆角视觉一致（替代旧的 0.12em） */
 .pv-yg-grid i { border-radius: 20%; background: currentColor; opacity: 0.13;
   width: 100%; height: 100%; }
@@ -169,7 +174,7 @@ export const CARD_MODE_CSS = `
    分割线被拉成 1386px 横贯全宽、星期被甩到最右边（用户报「变形」）→ 改为竖线分隔的横排。
    v3.12：后半段（日期块 .pv-dz-date）加大一倍 0.5em → 1.0em；分隔线随右块增高；
    容器改 space-evenly —— 时间落在卡的 1/4 处、日期落在 3/4 处，不再挤在中间一小块。 */
-.pv-single-1xfull .pv-dz { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
+.pv-single-1xfull .pv-dz { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 .pv-single-1xfull .pv-dz-rule { flex: 0 0 auto; width: 0.07em; height: 2.8em; margin: 0; }
 .pv-single-1xfull .pv-dz-date { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.12em; font-size: 1em; }
 
@@ -253,7 +258,7 @@ export const CARD_MODE_CSS = `
 .pv-st-time { font-size: 2.1em; font-weight: 200; letter-spacing: 0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-st-rule { width: 1.6em; height: 0.12em; border-radius: 999px; opacity: 0.9; }
 .pv-st-date { font-size: 0.5em; letter-spacing: 0.08em; opacity: 0.7; white-space: nowrap; }
-.pv-single-1xfull .pv-st { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.8em; }
+.pv-single-1xfull .pv-st { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 /* v3.12：后半段（日期行 .pv-st-date）加大一倍 0.5em → 1.0em；分隔线随日期行增高 */
 .pv-single-1xfull .pv-st-rule { width: 0.12em; height: 1.6em; }
 .pv-single-1xfull .pv-st-date { font-size: 1em; letter-spacing: 0.02em; }
@@ -267,7 +272,7 @@ export const CARD_MODE_CSS = `
 .pv-single-4x4 .pv-wc-main { font-size: 2.4em; }
 /* v3.12：后半段（副行 .pv-wc-sub）加大一倍 0.48em → 0.96em；
    align-items 从 baseline 改 center —— 副行放大后 baseline 对齐会让主字下沉。 */
-.pv-single-1xfull .pv-wc { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
+.pv-single-1xfull .pv-wc { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 .pv-single-1xfull .pv-wc-main { font-size: 1.5em; }
 .pv-single-1xfull .pv-wc-sub { font-size: 0.96em; letter-spacing: 0.06em; }
 
@@ -290,7 +295,7 @@ export const CARD_MODE_CSS = `
 .pv-rp-legend { display: flex; flex-wrap: wrap; gap: 0.34em 0.6em; justify-content: center; font-size: 0.4em; opacity: 0.8; }
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
 .pv-rp-legend i { width: 0.5em; height: 0.5em; border-radius: 999px; display: block; }
-.pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
+.pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 /* 1×FULL 横排：环固定 5.2em 见方（此处必须显式给高，容器已不再用 aspect-ratio）。
    v3.11：4em 在真实卡（1387×347 / 基准 51.7px）上环直径仅 207px，整卡看着空 —— 抬到 5.2em。 */
 .pv-single-1xfull .pv-rp-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
@@ -301,7 +306,7 @@ export const CARD_MODE_CSS = `
    两侧全是空的。改成横排：环固定 5.2em 见方（不能留 width:100% —— 横排里 100% 宽会把
    时间挤出卡片右侧），时间放大贴右侧。
    v3.12：后半段（时间读数 .pv-rc-time）加大一倍 1.6em → 3.2em；容器改 space-evenly。 */
-.pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; justify-content: space-evenly; gap: 0.9em; }
+.pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 .pv-single-1xfull .pv-rc-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
 .pv-single-1xfull .pv-rc-time { font-size: 3.2em; letter-spacing: 0; }
 /* v3.11 1×FULL yearBars：12 根竖条原本长到 347px 卡高，像 12 根柱子；改成
@@ -370,10 +375,16 @@ export const CARD_MODE_CSS = `
    容器 justify-content: space-between → 两块贴卡片左右边缘，中间留白成为「沟槽」而非「空洞」。
    左栏宽度上限 = 内容宽的 46%（1×FULL 内容宽 25.961em → 11.94em）；
    右栏内部上下堆叠且右对齐（贴在卡片右缘，右对齐才不会在边缘留一道无意义的内缩）。 */
+/* v3.13：1×FULL 的左右两栏由「贴卡片左右缘」改为「紧凑居中」—— 用户原话
+   「两侧内容尽量归中显示」。做法统一成 justify-content:center 加固定大 gap：
+   space-between / space-evenly 会把内容推到边缘，center 加 gap 让两栏紧紧聚在中间，
+   剩余空间由 center 均分到卡片两侧（视觉上就是一组居中的内容，而不是两条贴边的带子）。
+   gap 取 2.4em：1×FULL 内容宽 25.961em，两栏各约 46%（≈12em），2.4em 沟槽下仍留
+   ≈2.5em 居中余量；再加大就会开始压缩栏内内容（flex:0 1 auto 允许收缩）。 */
 .pv-single-1xfull .pv-dc, .pv-single-1xfull .pv-cp,
 .pv-single-1xfull .pv-fe, .pv-single-1xfull .pv-tg,
 .pv-single-1xfull .pv-hd {
-  flex-direction: row; align-items: center; justify-content: space-between; gap: 1em;
+  flex-direction: row; align-items: center; justify-content: center; gap: 2.4em;
 }
 .pv-single-1xfull .pv-dc-left, .pv-single-1xfull .pv-cp-left,
 .pv-single-1xfull .pv-fe-left, .pv-single-1xfull .pv-tg-left,
@@ -458,6 +469,12 @@ export const CARD_MODE_CSS = `
 .pv-ld-top { font-size: 0.44em; font-weight: 700; white-space: nowrap; }
 .pv-ld-day { font-size: 2.2em; font-weight: 800; line-height: 1.05; letter-spacing: 0.02em; white-space: nowrap; }
 .pv-ld-bot { font-size: 0.42em; white-space: nowrap; }
+/* v3.13：1×1 只留「农历」小标 + 农历日大字 —— 用户实测三行全被裁（内容盒仅 6.6em 见方），
+   要求「只显示一个有效信息」。农历日恒 ≤2 字（初一…三十），2.8em × 2 = 5.6em < 6.6em ✓，
+   字号反而比三行版更大更醒目。更大卡片才显示干支年/公历两行。 */
+.pv-single-1x1 .pv-ld { gap: 0.1em; }
+.pv-single-1x1 .pv-ld-top, .pv-single-1x1 .pv-ld-bot { display: none; }
+.pv-single-1x1 .pv-ld-day { font-size: 2.8em; line-height: 1; }
 
 /* ② dayStack 日时堆叠（1×1）：左列 4 行时刻 + 右列巨大「日」
    1×1 内容盒 6.61em 宽。左列「HH:MM」在 0.36em 字号下 ≈ 5 字 × 0.2em = 1.9em；
@@ -469,6 +486,11 @@ export const CARD_MODE_CSS = `
 .pv-ds-row i { font-size: 0.36em; font-style: normal; opacity: 0.6; }
 .pv-ds-right { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .pv-ds-day { font-size: 3em; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+/* v3.13：1×1 只留巨大「日」数字 —— 左侧 4 行「时:分」读数在 346px 方卡上挤成裁切。
+   用户要求「只显示一个有效信息」。两位数字 3.4em ≈ 4.1em < 6.6em ✓。 */
+.pv-single-1x1 .pv-ds { gap: 0; }
+.pv-single-1x1 .pv-ds-left { display: none; }
+.pv-single-1x1 .pv-ds-day { font-size: 3.4em; }
 
 /* ③ tallClock 竖向大钟（2×1）：超大时分（主行）+ 次级秒（次行）+ 当日进度条 + 日期
    2×1 内容盒 = 6.52em 宽（= 305px @ 46.78px 根字号）。

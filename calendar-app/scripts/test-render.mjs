@@ -685,21 +685,23 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     ok(SINGLE_REF_PX && SINGLE_REF_PX['1x1'][0] === 120 && SINGLE_REF_PX['1x1'][1] === 120,
       'SINGLE_REF_PX 提供设计基准尺寸（1x1=120x120）');
     const rows = (str) => (str.match(/pv-mb-row/g) || []).length;
-    // 真实卡片 120x120（base 16）与等比缩小一半的预览 60x60（base 8）应得到同样的行数
+    // 真实卡片 252×252（2×2）与等比缩小一半的预览 126×126 应得到同样的行数
     const real = flatten(renderInfoBlock({
       ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
-      singleRow: true, size: '1x1', w: 120, h: 120,
+      singleRow: true, size: '2x2', w: 252, h: 252,
     })).join('');
     // v3.10 新契约：预览传「未缩放实测尺寸 + singleScale」（kCard 由真实尺寸算，avail 用缩放后盒子）
     const scaled = flatten(renderInfoBlock({
       ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
-      singleRow: true, size: '1x1', w: 120, h: 120, singleScale: 0.5,
+      singleRow: true, size: '2x2', w: 252, h: 252, singleScale: 0.5,
     })).join('');
     ok(rows(real) === 4, `真实卡片 multiBars 应显示 4 行（实际 ${rows(real)}）`);
     ok(rows(scaled) === rows(real),
       `等比缩放预览的 multiBars 行数必须与真实卡片一致（实际 ${rows(scaled)} vs ${rows(real)}）`);
-    // 预览容器必须内联等比缩小后的根字号
-    ok(/font-size:8\.00px/.test(scaled), 'singleScale=0.5 时 1x1 预览根字号应为 16×0.5=8.00px');
+    // 预览容器必须内联等比缩小后的根字号（= 未缩放字号 × singleScale）
+    const px = (str) => Number((str.match(/font-size:([0-9.]+)px/) || [])[1]);
+    ok(Math.abs(px(scaled) - px(real) * 0.5) < 0.05,
+      `singleScale=0.5 时预览根字号应为未缩放的 0.5 倍（${px(real)} → ${px(scaled)}）`);
     // v3.10 关键不变量：预览(真实尺寸+singleScale) 与 真实卡片(singleScale=1) 必须同构 ——
     // 基准字号线性缩放、avail 用「缩放后盒子 / 缩放后基准」相除，两者商恒等。
     // 任何一边走另一条分支，就会出现用户报的「预览正常、实际被切」。
@@ -710,7 +712,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
       (str.match(/pv-wg2-cell/g) || []).length,
     ].join('|');
     for (const [c, s, size, w, h] of [
-      ['progress', 'multiBars', '1xfull', 1386.88, 346.72],
+      ['progress', 'multiBars', '2x2', 693.44, 693.44],
       ['progress', 'yearGrid', '2x2', 693.44, 693.44],
       ['progress', 'weekGrid', '2x1', 346.72, 693.44],
     ]) {
@@ -726,7 +728,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     }
     // 小卡（宿主给的布局尺寸小于设计基准）基准字号必须同比缩小，内容才不会溢出
     const small = flatten(renderInfoBlock({
-      ...base, content: 'timeDate', style: 'dualZone', singleRow: true, size: '1x1', w: 60, h: 60,
+      ...base, content: 'timeDate', style: 'lunarDate', singleRow: true, size: '1x1', w: 60, h: 60,
     })).join('');
     ok(/font-size:8\.00px/.test(small), '1x1 卡片实测 60x60 时基准字号应缩到 16×0.5=8.00px');
     // SVG 环形容器尺寸纪律：弹性占满剩余高度（flex:1 1 auto + min-height:0），
@@ -1196,7 +1198,6 @@ console.log('');
   const cases = [
     ['timeDate', 'stripeClock', 'pv-st-time', '2x2'],
     ['timeDate', 'wordClock', 'pv-wc-main', '2x4'],
-    ['schedule', 'bigDays', 'pv-bd-num', '2x2'],
     ['progress', 'ringProgress', 'pv-rp-ring', '2x4'],
     ['progress', 'heatYear', 'pv-hy', '2x4'],
   ];
@@ -1215,10 +1216,15 @@ console.log('');
   const wcHtml = flatten(renderInfoBlock({ ...base, content: 'timeDate', style: 'wordClock', singleRow: true, size: '2x4' })).join('');
   ok(/[〇一二三四五六七八九十]+时/.test(wcHtml), '文字时钟中文模式应输出「…时」的中文数字时间');
   ok(wcHtml.includes('二〇二六年'), '文字时钟年份应逐位转中文数字（二〇二六年）');
-  // 巨型天数：文案与目标日生效，且末行不重复日期
-  const bdHtml = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'bigDays', singleRow: true, size: '2x2', opts: { text: '项目上线', date: '2026-11-11' } })).join('');
-  ok(bdHtml.includes('项目上线'), '巨型天数应显示自定义文案');
-  ok((bdHtml.match(/2026-11-11/g) || []).length === 1, '巨型天数末行只出现一次目标日期（不得重复）');
+  // v3.13：bigDays 已全尺寸移除（与 targetDay 重复）—— 渲染分支删除，旧配置走尺寸门禁
+  {
+    const bdGone = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'bigDays', singleRow: true, size: '2x2' })).join('');
+    ok(!bdGone.includes('pv-bd-num'), 'bigDays 已移除：不应再渲染 .pv-bd-num');
+    ok(bdGone.includes('不适用于此卡片尺寸') || bdGone.includes('not available'), 'bigDays 旧配置应提示重新选择样式');
+    for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+      ok(styleFitsSize('single', 'schedule', 'bigDays', size) === false, `bigDays 在 ${size} 应已下线`);
+    }
+  }
 
   // 迁移：历史配置里被移除的样式应自动落到现存样式，不产生空白卡
   const mig = sanitizeBlocks([{ c: 'timeDate', s: 'led' }], 'single', '2x2');
@@ -1227,7 +1233,7 @@ console.log('');
     `历史 led 配置应迁移到现存样式，实际 ${mig[0].s}`);
 
   // 新样式的尺寸门控声明必须与 stylesForSize 一致
-  for (const [content, style] of [['timeDate', 'wordClock'], ['schedule', 'bigDays'], ['progress', 'heatYear']]) {
+  for (const [content, style] of [['timeDate', 'wordClock'], ['progress', 'heatYear']]) {
     for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
       const has = stylesForSize('single', content, size).some((x) => x.key === style);
       ok(has === styleFitsSize('single', content, style, size), `${content}:${style} 在 ${size} 的可见性须与 styleFitsSize 一致`);
@@ -1279,10 +1285,10 @@ console.log('');
     ok(!seg.includes('this._writeBlocks('), '写入口 _writeBlocks 不得自我调用（栈溢出回归点）');
   }
   {
-    const kept = sanitizeBlocks([{ c: 'schedule', s: 'bigDays', opts: { color: '#ff3b30', sched: 's_1' } }], 'single', '2x2');
+    const kept = sanitizeBlocks([{ c: 'schedule', s: 'targetDay', opts: { color: '#ff3b30', sched: 's_1' } }], 'single', '2x2');
     ok(kept.length === 1 && kept[0].opts && kept[0].opts.color === '#ff3b30' && kept[0].opts.sched === 's_1',
       '单独模式保存必须保留 opts（设置不生效的回归点）');
-    ok(kept[0].c === 'schedule' && kept[0].s === 'bigDays', '单独模式块的内容与样式键应保持');
+    ok(kept[0].c === 'schedule' && kept[0].s === 'targetDay', '单独模式块的内容与样式键应保持');
   }
   ok(!(normalizeOpts({ sched: 'x'.repeat(60) }) || {}).sched, 'normalizeOpts 应丢弃过长日程 id');
   ok(Object.keys(normalizeOpts({ unit: 'x', shape: 'y', bars: 'zz' }) || {}).length === 0, 'normalizeOpts 应丢弃非法枚举值');
@@ -1298,13 +1304,18 @@ console.log('');
     '假期倒计时应渲染天数或「暂无假期」空态（node 无节假日服务时走空态）');
   const bt = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery', singleRow: true, size: '2x2' })).join('');
   ok(bt.includes('pv-bt-body') && bt.includes('%'), '年电量应渲染电池主体与百分比');
-  // v3.12：1×2 去掉了 festival + holiday；1×1 整块清空（改由新款式承担）。
+  // v3.12：1×2 去掉 festival；1×1 整块清空（改由新款式承担）。
+  // v3.13：holiday 恢复到 1×2 与 2×1（用户点名启用）；festival 仍不在 1×2 / 2×1。
   // 注意：stylesForSize 在「一个都不适配」时会回落到该内容的第一个样式（不留给用户空白），
   // 所以尺寸门控必须用 styleFitsSize 断言（chip 可见性的唯一真源）。
   ok(styleFitsSize('single', 'important', 'festival', '1x2') === false,
-    '节日卡在 1x2 尺寸下应被隐藏（v3.12 移除矩阵）');
-  ok(styleFitsSize('single', 'important', 'holiday', '1x2') === false,
-    '假期倒计时在 1x2 尺寸下应被隐藏（v3.12 移除矩阵）');
+    '节日卡在 1x2 尺寸下应被隐藏');
+  ok(styleFitsSize('single', 'important', 'holiday', '1x2') === true,
+    '假期倒计时在 1x2 尺寸下应可选（v3.13 恢复）');
+  ok(styleFitsSize('single', 'important', 'holiday', '2x1') === true,
+    '假期倒计时在 2x1 尺寸下应可选（v3.13 恢复）');
+  ok(styleFitsSize('single', 'important', 'festival', '2x1') === false,
+    '节日卡在 2x1 尺寸下应被隐藏');
   ok(styleFitsSize('single', 'important', 'festival', '2x2') === true,
     '节日卡在 2x2 尺寸下应可选');
 }
@@ -1471,11 +1482,12 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   ok(!(hySt && hySt.sizes && hySt.sizes.includes('1xfull')), '年热力图不应提供 1xfull 尺寸档');
 }
 
-// ---------- v3.12 移除矩阵 / 新增样式尺寸门控 ----------
-// 用户明确要求下线的「尺寸 × 样式」组合：这些组合在单独模式里必须不可选（styleFitsSize=false）。
+// ---------- v3.12 / v3.13 尺寸门控矩阵 ----------
+// v3.12：用户逐条点名下线；v3.13：又逐尺寸点名启用/停用，且 bigDays 全尺寸移除。
+// 两个矩阵都必须用 styleFitsSize 断言（stylesForSize 有空回落，会假绿）。
 {
   const MUST_NOT = [
-    // 1×1：清空全部原有选项（只保留 v3.12 新做的 4 款）
+    // 1×1：原有选项全部清空（只保留 4 款新做）
     ['1x1', 'timeDate', 'dayNum'], ['1x1', 'timeDate', 'miniMonth'], ['1x1', 'timeDate', 'stackTime'],
     ['1x1', 'timeDate', 'dualZone'], ['1x1', 'timeDate', 'ringClock'], ['1x1', 'timeDate', 'dotClock'],
     ['1x1', 'timeDate', 'boldClock'], ['1x1', 'timeDate', 'stripeClock'], ['1x1', 'timeDate', 'wordClock'],
@@ -1485,51 +1497,76 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     ['1x1', 'progress', 'battery'], ['1x1', 'progress', 'stackBars'],
     ['1x1', 'gauge', 'dial'], ['1x1', 'gauge', 'semiGauge'],
     ['1x1', 'important', 'festival'], ['1x1', 'important', 'holiday'],
-    // 1×2：ringClock / targetDay / dial / festival / holiday
-    ['1x2', 'timeDate', 'ringClock'], ['1x2', 'schedule', 'targetDay'], ['1x2', 'gauge', 'dial'],
-    ['1x2', 'important', 'festival'], ['1x2', 'important', 'holiday'],
-    // 2×1：清空全部原有选项（只保留 v3.12 新做的 4 款）
+    // 1×2：ringClock / festival 仍下线（v3.13 恢复了 targetDay / holiday）
+    ['1x2', 'timeDate', 'ringClock'], ['1x2', 'important', 'festival'],
+    // 2×1：v3.13 恢复了一批，但仍下线这些
     ['2x1', 'timeDate', 'dualZone'], ['2x1', 'timeDate', 'ringClock'], ['2x1', 'timeDate', 'dotClock'],
     ['2x1', 'timeDate', 'boldClock'], ['2x1', 'timeDate', 'stripeClock'], ['2x1', 'timeDate', 'wordClock'],
-    ['2x1', 'timeDate', 'dayNum'], ['2x1', 'timeDate', 'miniMonth'], ['2x1', 'timeDate', 'stackTime'],
-    ['2x1', 'schedule', 'capsule'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'bigDays'],
+    ['2x1', 'timeDate', 'miniMonth'],
+    ['2x1', 'schedule', 'capsule'],
     ['2x1', 'progress', 'yearGrid'], ['2x1', 'progress', 'yearBars'], ['2x1', 'progress', 'weekGrid'],
     ['2x1', 'progress', 'multiBars'], ['2x1', 'progress', 'ringProgress'], ['2x1', 'progress', 'heatYear'],
     ['2x1', 'progress', 'battery'], ['2x1', 'progress', 'stackBars'],
     ['2x1', 'gauge', 'dial'], ['2x1', 'gauge', 'semiGauge'],
-    ['2x1', 'important', 'festival'], ['2x1', 'important', 'holiday'],
-    // 2×2：dial；1×FULL：dial + semiGauge
-    ['2x2', 'gauge', 'dial'],
+    ['2x1', 'important', 'festival'],
+    // 1×FULL：dial + semiGauge + multiBars
     ['1xfull', 'gauge', 'dial'], ['1xfull', 'gauge', 'semiGauge'],
+    ['1xfull', 'progress', 'multiBars'],
+    // 2×2：stackBars（v3.13 停用）
+    ['2x2', 'progress', 'stackBars'],
   ];
+  // bigDays 在所有尺寸都必须下线（用户：与 targetDay 重复）
+  for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+    MUST_NOT.push([size, 'schedule', 'bigDays']);
+  }
   for (const [size, c, s] of MUST_NOT) {
     ok(styleFitsSize('single', c, s, size) === false,
-      `v3.12 移除矩阵：${c}.${s} 不应提供 ${size} 单独模式`);
+      `尺寸门控：${c}.${s} 不应提供 ${size} 单独模式`);
   }
-  // 必须保留的组合（v3.12 新样式 + 用户的 1×FULL 适配目标）
+  // 必须保留的组合（v3.12 新样式 + v3.13 逐尺寸启用清单）
   const MUST = [
+    // 1×1 / 2×1 新做 4+4 款
     ['1x1', 'timeDate', 'lunarDate'], ['1x1', 'timeDate', 'dayStack'],
     ['1x1', 'schedule', 'nextUp'], ['1x1', 'progress', 'dayRing'],
     ['2x1', 'timeDate', 'tallClock'], ['2x1', 'timeDate', 'weekColumn'],
     ['2x1', 'schedule', 'verticalList'], ['2x1', 'progress', 'lifeBar'],
-    // 1×FULL「后半段加大一倍」的 5 款 + 「改为左右结构」的 5 款
+    // 1×2 启用（v3.13）
+    ['1x2', 'timeDate', 'wordClock'], ['1x2', 'timeDate', 'lunarDate'], ['1x2', 'timeDate', 'dayStack'],
+    ['1x2', 'schedule', 'targetDay'], ['1x2', 'schedule', 'nextUp'], ['1x2', 'important', 'holiday'],
+    // 2×1 启用（v3.13）
+    ['2x1', 'timeDate', 'dayNum'], ['2x1', 'timeDate', 'stackTime'], ['2x1', 'timeDate', 'lunarDate'],
+    ['2x1', 'timeDate', 'dayStack'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'nextUp'],
+    ['2x1', 'important', 'holiday'],
+    // 2×2 启用（v3.13）
+    ['2x2', 'timeDate', 'lunarDate'], ['2x2', 'timeDate', 'dayStack'], ['2x2', 'timeDate', 'tallClock'],
+    ['2x2', 'timeDate', 'weekColumn'], ['2x2', 'schedule', 'capsule'], ['2x2', 'schedule', 'nextUp'],
+    ['2x2', 'schedule', 'verticalList'], ['2x2', 'gauge', 'dial'],
+    // 2×4 启用（v3.13）
+    ['2x4', 'timeDate', 'dayNum'], ['2x4', 'timeDate', 'lunarDate'], ['2x4', 'timeDate', 'weekColumn'],
+    ['2x4', 'schedule', 'verticalList'],
+    // 4×4 启用（v3.13）
+    ['4x4', 'timeDate', 'dayNum'], ['4x4', 'timeDate', 'miniMonth'], ['4x4', 'timeDate', 'lunarDate'],
+    ['4x4', 'timeDate', 'dayStack'], ['4x4', 'timeDate', 'tallClock'], ['4x4', 'timeDate', 'weekColumn'],
+    ['4x4', 'schedule', 'nextUp'], ['4x4', 'schedule', 'verticalList'],
+    // 1×FULL 启用（v3.13）+ 原有 10 款适配目标
+    ['1xfull', 'timeDate', 'dayNum'], ['1xfull', 'timeDate', 'lunarDate'], ['1xfull', 'timeDate', 'dayStack'],
     ['1xfull', 'timeDate', 'dualZone'], ['1xfull', 'timeDate', 'ringClock'],
     ['1xfull', 'timeDate', 'stripeClock'], ['1xfull', 'timeDate', 'wordClock'],
     ['1xfull', 'progress', 'ringProgress'],
     ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'schedule', 'capsule'],
     ['1xfull', 'important', 'festival'], ['1xfull', 'schedule', 'targetDay'],
-    ['1xfull', 'important', 'holiday'],
-    // yearGrid 年/月/周/日 与 multiBars 五行 在三种卡上都要可用
+    ['1xfull', 'important', 'holiday'], ['1xfull', 'progress', 'stackBars'],
+    // yearGrid 年/月/周/日 与 multiBars 在三种卡上都要可用
     ['2x2', 'progress', 'yearGrid'], ['2x4', 'progress', 'yearGrid'],
     ['4x4', 'progress', 'yearGrid'], ['1xfull', 'progress', 'yearGrid'],
-    ['2x4', 'progress', 'multiBars'], ['1xfull', 'progress', 'multiBars'],
+    ['2x2', 'progress', 'multiBars'], ['2x4', 'progress', 'multiBars'], ['4x4', 'progress', 'multiBars'],
   ];
   for (const [size, c, s] of MUST) {
     ok(styleFitsSize('single', c, s, size) === true,
-      `v3.12 保留矩阵：${c}.${s} 应提供 ${size} 单独模式`);
+      `尺寸门控：${c}.${s} 应提供 ${size} 单独模式`);
   }
   // 1×1 / 2×1 只暴露新做的款式（数量锁定，防止以后误把旧款加回来）
-  for (const [size, expect] of [['1x1', 4], ['2x1', 4]]) {
+  for (const [size, expect] of [['1x1', 4], ['2x1', 11]]) {
     let n = 0;
     for (const c of SINGLE_CONTENTS) for (const s of c.styles) if (styleFitsSize('single', c.key, s.key, size)) n++;
     ok(n === expect, `${size} 单独模式应恰好有 ${expect} 款样式，实际 ${n}`);
@@ -1538,7 +1575,7 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   {
     const mbDef = STYLE_OPT_FIELDS.age.def + '/' + STYLE_OPT_FIELDS.life.def;
     const rowCount = (html) => (html.match(/pv-mb-row/g) || []).length;
-    for (const size of ['2x2', '2x4', '4x4', '1xfull']) {
+    for (const size of ['2x2', '2x4', '4x4']) {
       const [dw, dh] = HOST[size] || [0, 0];
       const h = flatten(renderInfoBlock({
         ...base, content: 'progress', style: 'multiBars', singleRow: true, size,
