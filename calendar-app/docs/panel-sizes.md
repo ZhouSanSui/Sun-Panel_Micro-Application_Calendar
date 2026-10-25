@@ -147,38 +147,53 @@ u = min( SINGLE_BASE_PX[size], fitFontU(w-26, h-26, fitFor(content, style, hour1
 `AUDIT_DIMS` 按 §3.1「1384px 视口」列跑 `scripts/audit-single.mjs`（217 用例）：
 
 ```
-正常 107 · 主文字过小 0 · 次要注意 20 · 裁切 0 · 缺失 0 · 该尺寸不提供 90
+正常 117 · 主文字过小 0 · 次要注意 10 · 裁切 0 · 缺失 0 · 该尺寸不提供 90
 ```
 
+（v3.17 前为 107/20；v3.17 依用户「字太小，尽可能放大」诉求系统性抬升，详见 §6.1、§6.2。）
+
 - **主文字 0 过小、0 裁切、0 缺失**：用户可见的主内容在所有真实尺寸下全部正常。
-- **20 个「次要注意」**：说明级小字（标签/副标题，0.3~0.44em × 小 root）低于 5.5 CSS px。
-  在 dpr=1.5 屏上物理高 4.8~7.8px。属于设计上的「说明级」，**不阻塞使用**；
-  若后续用户反馈具体款式看不清，再按款式抬字号（批量抬有挤爆布局的风险，76px 卡本身极小）。
+- **10 个「次要注意」**：说明级小字低于 5.5 CSS px（dpr=1.5 屏物理 5.7~8.1px）。
+  均为 50px 级小卡的物理硬限或 1×FULL 的高度驱动 root，属设计定位内的「说明级」。
 
-### 6.1 20 个说明级小字明细（CSS px）
+### 6.1 v3.17 抬升清单（用户诉求：「尽可能放大」）
 
-| 规格 | 款式 | 次要走字号 | root |
-| --- | --- | --- | --- |
-| 1×1 | schedule.festivalDay | 3.7 | 9.3 |
-| 1×1 | progress.dayRing | 3.4 | 7.8 |
-| 1×2 | timeDate.lunarDate | 4.6 | 10.9 |
-| 1×2 | timeDate.dayStack | 3.6 | 10.1 |
-| 1×2 | schedule.targetDay | 5.0 | 9.0 |
-| 1×2 | progress.yearBars | 5.0 | 10.1 |
-| 2×1 | timeDate.dayNum | 3.3 | 6.0 |
-| 2×1 | timeDate.lunarDate | 3.3 | 7.8 |
-| 2×1 | timeDate.dayStack | 3.2 | 9.0 |
-| 2×1 | timeDate.tallClock | 3.2 | 7.7 |
-| 2×1 | timeDate.weekColumn | 4.6 | 10.5 |
-| 2×1 | schedule.targetDay | 4.3 | 7.7 |
-| 2×1 | schedule.verticalList | 3.5 | 8.4 |
-| 2×1 | schedule.holiday | 4.9 | 8.7 |
-| 2×1 | schedule.festivalDay | 3.7 | 9.3 |
-| 2×1 | progress.lifeBar | 4.2 | 10.1 |
-| 1×FULL | timeDate.lunarDate | 4.8 | 11.3 |
-| 1×FULL | timeDate.dayStack | 4.1 | 11.3 |
-| 1×FULL | schedule.capsule | 5.2 | 11.3 |
-| 1×FULL | progress.yearGrid | 4.3 | 11.3 |
+手段两条：**修小过大的 CONTENT_FIT 条目**（root 上升 → 全文字等比放大）+
+**抬说明级小字的 em 系数**。全部经 `.tmp/measure-fit317*.mjs`（root=100px 超大卡）实测回写：
+
+| 款式 | 改动 | root 变化（真实尺寸） |
+| --- | --- | --- |
+| timeDate.dayNum | 补 fit 条目 {w4.9, h5.0}（原回落 __default w8.3） | 2×1：6.0 → **9.5** |
+| progress.dayRing | fit {w6.0,h4.6} → {w3.8,h2.7}；time 0.44→0.5em | 1×1：7.8 → **12.0** |
+| progress.yearBars | fit h4.6 → 1.4（`.pv-yb-bars` 弹性填充，h 只该记账式脚注） | 1×2：10.1 → **17**（设计基准） |
+| timeDate.weekColumn | fit {w4.4,h12.0} → {w2.6,h10.0}；星期 0.52→0.6em、头 0.44→0.56em | 2×1：10.5 → **15.0** |
+| schedule.festivalDay | fit {w5.0,h2.7} → {w3.9,h2.8}；1×1/2×1 隐藏 4px 级「节日/假期」标签 | 1×1/2×1：9.3 → **11.7** |
+| schedule.targetDay | fit {w6.1,h5.2} → {w4.6,h4.4}；date 0.46→0.54em | 2×1：7.7 → **10.1** |
+| schedule.verticalList | fit w5.6 → 4.6；head/next/行时间 0.42~0.46→0.54em | 2×1：8.4 → **10.1** |
+| timeDate.dayStack | 左列时刻 0.36→0.4em；fit h4.6 → 4.3 | 1×2：10.1 → **10.7** |
+| timeDate.tallClock | 日期行 0.42→0.6em | 2×1：7.7（root 不变，行 +44%） |
+| progress.lifeBar | head 0.52→0.56em、foot 0.42→0.56em | 2×1：10.1（root 不变，两行 +33%） |
+| timeDate.lunarDate | top 0.44→0.5em、bot 0.42→0.48em | 1×2：10.9 → **11.4** |
+
+**被测试抓回的冒进**：lunarDate fit w 一度按几何 rect 修到 4.7，`test-lit-commit` 的
+「十六」scrollWidth 断言立刻抓出 root 16 时 scrollW 91 > 盒 81（真裁切，用户 v3.15
+实锤的「十」同类事故）→ 回退 w6.0。**铁律：中文字形实际占宽 ≈ 布局宽 ×1.27~1.34，
+CONTENT_FIT 修订必须以 scrollWidth 口径为准，不能只用 getBoundingClientRect。**
+
+### 6.2 剩余 10 个说明级小字（CSS px，dpr=1.5 屏 ×1.5）
+
+| 规格 | 款式 | 次要走字号 | root | 受限原因 |
+| --- | --- | --- | --- | --- |
+| 1×2 | timeDate.dayStack | 4.3 | 10.7 | 中文字形系数（fit h 保护，见 §6.1 铁律） |
+| 2×1 | timeDate.lunarDate | 3.8 | 7.8 | 「十七」2.8em 字形占 50px 盒的 5.7em，w6.0 保护 |
+| 2×1 | timeDate.dayStack | 3.6 | 9.0 | 「日」3.4em + 时刻列挤 50px 盒宽 |
+| 2×1 | timeDate.tallClock | 4.6 | 7.7 | 主行「14:05」5.811em 是宽瓶颈 |
+| 2×1 | schedule.verticalList | 5.4 | 10.1 | 「下一项 14:00」0.54em≈4.3em 贴 w4.6 |
+| 2×1 | schedule.holiday | 4.9 | 8.7 | 年底无假期数据无法重测，沿用 v3.14 值 |
+| 1×FULL | timeDate.lunarDate | 5.4 | 11.3 | baseFull = h/6.7 高度驱动（改除数会裁月历） |
+| 1×FULL | timeDate.dayStack | 4.5 | 11.3 | 同上 |
+| 1×FULL | schedule.capsule | 5.2 | 11.3 | 同上 |
+| 1×FULL | progress.yearGrid | 4.3 | 11.3 | 格阵自适应，同上 |
 
 > 对照：按已作废的 113×114 基准跑同一 audit 是 127 正常 / 0 次要注意 / 0 裁切——
 > 那个基准把空间放大了 49%，掩盖了小字问题。两个基准都保留复跑命令（见 §八）。
