@@ -22,7 +22,7 @@ import {
 } from './date-utils.js';
 import { solarToLunarParts, LUNAR_DAY_CN, LUNAR_MONTH_CN } from './picker.js';
 import { getNextOccurrence } from './schedule.js';
-import { autoLayout, STYLE_OPT_FIELDS, styleFitsSize, SINGLE_CONTENTS } from './user-store.js';
+import { autoLayout, STYLE_OPT_FIELDS, styleFitsSize, SINGLE_CONTENTS, aliasContent } from './user-store.js';
 import { getNextHoliday, getNextSolarTerm, getNextFestival } from './highlights.js';
 import { getUserStore, getHolidayService } from './app-state.js';
 
@@ -140,8 +140,9 @@ const CONTENT_FIT = {
     capsule: { w: 11.2, wEn: 11.8, h: 3.4 },
     // v2.9：目标倒计时卡（标题 + 大天数 + 日期）
     targetDay: { w: 6.1, wEn: 7.0, h: 5.2 },
-    // v3.12：下一件事（1×1）—— HH:MM:SS 大字 + 事件名 + 相对时间
-    nextUp: { w: 6.4, wEn: 6.6, h: 3.4 },
+    // v3.14：schedule.nextUp 已全尺寸移除（CONTENT_FIT 一并删除）
+    // v3.14：festivalDay 节日节假日（1×1）—— 两行「标签 + 名称 + 日期/天数」
+    festivalDay: { w: 4.2, wEn: 4.4, h: 2.6 },
     // v3.12：纵向日程表（2×1）—— 每行「时间 + 事件名」，条数按高度定
     verticalList: { w: 5.6, wEn: 6.4, h: 9.0 },
     __default: { w: 5.0, h: 4.0 },
@@ -1293,7 +1294,10 @@ function renderInfoBlockInner(o) {
   // ---------- 单独：日程 ----------
   // v2.11 gauge 仪表类内容：指针仪表 / 半环仪表（读年初进度与当日进度）
   // ---------- 单独：重要日期（节日卡 / 假期倒计时） ----------
-  if (content === 'important' && o.singleRow) {
+  // v3.14：「重要日期」类已并入「日程」，这里同时认旧 key（存量配置经 renderInfoBlock
+  // 顶部的 aliasContent 迁移后走新 key，但 Inner 也被测试直接调用，两个 key 都要放行）。
+  if ((content === 'important' || content === 'schedule') && o.singleRow
+    && (style === 'holiday' || style === 'festival')) {
     const acI = accentOf(theme);
     if (style === 'holiday') {
       const nh = getNextHoliday(getHolidayService(), now);
@@ -1321,7 +1325,9 @@ function renderInfoBlockInner(o) {
     </div>`;
   }
 
-  if (content === 'gauge' && o.singleRow) {
+  // v3.14：「仪表」类已并入「进图仪表」，这里同时认旧 key（理由同上）。
+  if ((content === 'gauge' || content === 'progress') && o.singleRow
+    && (style === 'dial' || style === 'semiGauge')) {
     const ac = accentOf(theme);
     // v3.11：指针仪表默认「年」；半环仪表默认「日」。两者都能在样式设置里选年/月/周/日。
     const uDial = unitOf('year');
@@ -1417,52 +1423,35 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
     // ===== v3.12 新增日程类 =====
-    // ⑤ schedule.nextUp 下一件事（1×1）：主视觉 = 剩余时间 HH:MM:SS，辅 = 事件名 + 事件时间
-    if (style === 'nextUp') {
+    // ⑤ v3.14：schedule.nextUp 全尺寸移除（用户：「显示的逻辑我没有太明白」）。
+    // 渲染分支一并删除；旧配置走到 renderInfoBlock 顶部的尺寸门禁，提示重新选择样式。
+    // 想看「下一件事」的用户可改用 targetDay（可关联日程，语义更直白）。
+
+    // ⑥ schedule.festivalDay 节日节假日（v3.14，1×1 为主）：下一节日 + 下一假期两行。
+    // 用户要求「加一个显示节日和节假日的，字体尽可能小别被裁切」—— 全部字号压到
+    // 0.34~0.56em，最宽行「节日 寒衣节 11/09」≈ 3.9em，1×1 内容盒约 6.6em，余量 > 40%。
+    if (style === 'festivalDay') {
       const ac = accentOf(theme);
-      const list = (getUserStore()?.getSchedules() || [])
-        .map((item) => ({ item, next: getNextOccurrence(item, now) }))
-        .filter((x) => x.next)
-        .sort((a, b) => diffDays(a.next.date, b.next.date));
-      // 关联日程（用户手选）优先，否则取最近的一条
-      let pick = null;
-      if (schedPick && schedPick.date) {
-        pick = { title: schedPick.title, date: schedPick.date, time: '' };
-      } else if (list[0]) {
-        pick = {
-          title: list[0].item.title || list[0].item.name || '',
-          date: list[0].next.dateStr,
-          time: list[0].item.time || '',
-        };
-      }
-      if (!pick || !/^\d{4}-\d{2}-\d{2}$/.test(pick.date)) return empty(isZh ? '暂无日程' : 'No schedules');
-      const [yy, mm, dd] = pick.date.split('-').map(Number);
-      const target = new Date(yy, mm - 1, dd, 0, 0, 0);
-      if (!Number.isFinite(target.getTime())) return empty(isZh ? '暂无日程' : 'No schedules');
-      // 事件自带时刻 → 精确到秒；否则倒计时到当天 00:00
-      let ms = target.getTime() - now.getTime();
-      if (pick.time) {
-        const tm = /^(\d{1,2}):(\d{2})/.exec(String(pick.time));
-        if (tm) target.setHours(Number(tm[1]), Number(tm[2]), 0, 0);
-        ms = target.getTime() - now.getTime();
-      }
-      ms = Math.max(0, ms);
-      // 时间行只保留 HH:MM:SS（小时取模 24），天数信息由上方的相对时间行（「N 天后」）承担。
-      // 取模是为了让「一年后」这类远期日程不会把小时数撑成 4 位（8760:00:00）把 1×1 撑爆。
-      const totalDays = Math.floor(ms / 86400000);
-      const remMs = ms - totalDays * 86400000;
-      const hh = String(Math.floor(remMs / 3600000)).padStart(2, '0');
-      const mm2 = String(Math.floor((remMs % 3600000) / 60000)).padStart(2, '0');
-      const ss = String(Math.floor((remMs % 60000) / 1000)).padStart(2, '0');
-      const days = Math.round((new Date(yy, mm - 1, dd).getTime()
-        - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
-      const when = days === 0 ? (isZh ? '今天' : 'Today')
-        : days === 1 ? (isZh ? '明天' : 'Tomorrow')
-          : (isZh ? `${days} 天后` : `in ${days}d`);
-      return html`<div class="pv-col pv-nu">
-        <div class="pv-nu-when" style="color:${label3}">${when}</div>
-        <div class="pv-nu-time"><b style="color:${ac}">${hh}:${mm2}</b><i style="color:${ac}">:${ss}</i></div>
-        <div class="pv-nu-name" style="color:${label}">${pick.title}</div>
+      // getNextHoliday 需要 holidayService（node 环境下没有服务时返回 null → 走空态）
+      const f = getNextFestival(now);
+      const h = getNextHoliday(getHolidayService(), now);
+      const fmtMd = (iso) => {
+        const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+        return m ? `${Number(m[1])}/${Number(m[2])}` : '';
+      };
+      const fDays = f && f.date ? diffDays(f.date, now) : null;
+      const hDays = h && h.date ? diffDays(h.date, now) : null;
+      const row = (k, name, md, days, useAccent) => html`<div class="pv-fd-row">
+        <span class="pv-fd-k" style="color:${label3}">${k}</span>
+        <span class="pv-fd-v" style="color:${useAccent ? ac : label}">${name}</span>
+        <span class="pv-fd-d" style="color:${label2}">${days === null ? md : `${days} 天`}</span>
+      </div>`;
+      const fName = f ? (isZh ? (f.nameZh || '节日') : (f.nameEn || f.nameZh || 'Festival')) : (isZh ? '暂无' : 'None');
+      const hName = h ? (isZh ? (h.nameZh || '假期') : (h.nameEn || h.nameZh || 'Holiday')) : (isZh ? '暂无' : 'None');
+      return html`<div class="pv-col pv-fd">
+        ${row(isZh ? '节日' : 'Fest', fName, fmtMd(f && f.date), fDays, false)}
+        <div class="pv-fd-rule"></div>
+        ${row(isZh ? '假期' : 'Holiday', hName, fmtMd(h && h.date), hDays, true)}
       </div>`;
     }
 
@@ -1881,6 +1870,13 @@ function renderInfoBlockInner(o) {
  *   输出 pv-single-<size> 类名，供按尺寸版式规则命中（CSS 见三组件与预览镜像）
  */
 export function renderInfoBlock(o) {
+  // v3.14：单独模式下把旧内容类 key 迁到新 key（important→schedule、gauge→progress），
+  // 否则存量配置会被上面的尺寸门禁误拦（新 SINGLE_CONTENTS 里已没有这两个 key）。
+  // **只对单独模式生效**：拼接模式的 COMBO_CONTENTS 仍保留「重要日期」类。
+  if (o.singleRow && o.content) {
+    const aliased = aliasContent(o.content);
+    if (aliased !== o.content) o = { ...o, content: aliased };
+  }
   // v3.13：单独模式补一道**渲染期**尺寸门禁。
   // 此前「移除样式」只改 `sizes` 白名单（影响选择器），用户旧配置的卡片仍按旧排版继续渲染
   // —— 用户看到的就是「明明移除了的样式还在，而且照样被裁」（v3.13 实锤：1×1 上

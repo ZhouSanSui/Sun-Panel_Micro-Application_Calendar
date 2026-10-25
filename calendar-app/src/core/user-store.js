@@ -153,11 +153,26 @@ export const COMBO_CONTENTS = [
 export const BLANK_CONTENT = 'blank';
 
 /**
+ * v3.14：内容类合并后的旧 key → 新 key 迁移表。
+ *   - 「重要日期」并入「日程」（图标沿用日程）
+ *   - 「仪表」并入「进图仪表」（图标沿用进图）
+ * 存量配置里 `c:'important'` / `c:'gauge'` 的卡必须继续渲染，否则用户一升级就丢卡。
+ * sanitizeBlocks 与渲染层都走这张表。
+ */
+export const CONTENT_ALIAS = { important: 'schedule', gauge: 'progress' };
+
+/** 把旧内容类 key 迁到新 key（未知 key 原样返回） */
+export function aliasContent(key) {
+  return CONTENT_ALIAS[key] || key;
+}
+
+/**
  * 单独模式显示内容（信息以图像为主，当前用文字实现，后续迭代）。
  * 注意：不含「日历」（已移除）。
  */
 export const SINGLE_CONTENTS = [
-  { key: 'timeDate', zh: '文字', en: 'Text', icon: '🕐', styles: [
+  // v3.14：「文字」改名「日期时间」（用户：这个名字更贴切），图标沿用 🕐。
+  { key: 'timeDate', zh: '日期时间', en: 'Date & Time', icon: '🕐', styles: [
     // v2.7 / v2.9 / v2.10：只保留图形化样式（旧文字款已按需求移除）
     // v3.12 移除矩阵：1×2 去掉 ringClock；1×1 / 2×1 全部清空，改由下方三款专为方卡/窄高卡
     // 设计的新样式承担（用户要求「再单独做几个关于时间、日期和日程相关的」）。
@@ -183,19 +198,32 @@ export const SINGLE_CONTENTS = [
     { key: 'tallClock', zh: '竖向大钟', en: 'Tall Clock', sizes: ['2x1', '2x2', '4x4'], opts: ['color'] },
     { key: 'weekColumn', zh: '竖向星期条', en: 'Week Column', sizes: ['2x1', '2x2', '2x4', '4x4'], opts: ['color'] },
   ] },
+  // v3.14：「重要日期」并入「日程」（用户：合并为一类，图标沿用日程 🗓）。
+  // key 仍叫 schedule —— 存量配置里 `c:'schedule'` 的卡不受影响；
+  // 旧的 `c:'important'` 由 sanitizeBlocks 的 CONTENT_ALIAS 迁移到这里。
   { key: 'schedule', zh: '日程', en: 'Schedule', icon: '🗓', styles: [
     // v3.12 移除矩阵：1×2 去掉 targetDay
     // v3.13：1×2 恢复 targetDay；2×1 也开 targetDay；capsule 扩到 2x2；
-    //       nextUp 扩到 1x2/2x1/2x2/4x4；verticalList 扩到 2x2/2x4/4x4。
+    //       verticalList 扩到 2x2/2x4/4x4。
     //       **bigDays 全尺寸移除**（用户：与 targetDay 显示样式重复）。
     { key: 'capsule', zh: '胶囊倒计时', en: 'Capsule', sizes: ['1x2', '2x2', '2x4', '1xfull'], opts: ['unit', 'color', 'text'] },
     { key: 'targetDay', zh: '目标倒计时', en: 'Countdown Card', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color', 'sched', 'schedMode'] },
-    // ===== v3.12 新增：1×1 / 2×1 专用的日程类 =====
     // v3.13：verticalList 去掉「关联日程」设置（用户：样式设置里不需要）
-    { key: 'nextUp', zh: '下一件事', en: 'Next Up', sizes: ['1x1', '1x2', '2x1', '2x2', '4x4'], opts: ['color', 'sched', 'schedMode'] },
     { key: 'verticalList', zh: '纵向日程表', en: 'Vertical List', sizes: ['2x1', '2x2', '2x4', '4x4'], opts: ['color'] },
+    // ===== 原「重要日期」类（v3.14 并入）=====
+    // festival / holiday 维持 v3.13 的尺寸档不变（都是大字排版，小卡上会被裁）；
+    // 小卡上的「节日 + 节假日」需求由下面专做的 festivalDay 承担。
+    { key: 'festival', zh: '节日卡', en: 'Festival', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    { key: 'holiday', zh: '假期倒计时', en: 'Holiday Count', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
+    // v3.14：小卡专用的「下一节日 + 下一假期」—— 用户要求「加一个显示节日和节假日的，
+    // 字体尽可能小别被裁切」。字号全面压到 0.34~0.56em（1×1 内容盒约 6.6em，
+    // 最宽行「节日 寒衣节 11/09」≈ 3.9em，余量 > 40%）。
+    { key: 'festivalDay', zh: '节日节假日', en: 'Festival & Holiday', sizes: ['1x1', '1x2', '2x1'], opts: ['color'] },
   ] },
-  { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
+  // v3.14：「仪表」并入「进图仪表」（用户：合并为一类，图标沿用进图 ◴）。
+  // key 仍叫 progress —— 存量配置里 `c:'progress'` 的卡不受影响；
+  // 旧的 `c:'gauge'` 由 sanitizeBlocks 的 CONTENT_ALIAS 迁移到这里。
+  { key: 'progress', zh: '进图仪表', en: 'Progress', icon: '◴', styles: [
     { key: 'yearGrid', zh: '进度格阵', en: 'Grid', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['unit', 'shape', 'color'] },
     // v3.11：1×1 上 12 根竖条 / 7 格日期数字会被压成细条 + 叠字（用户报「不好适配」），
     // 这两款从 1×1 下线；weekGrid 在 2×1 竖高卡上同样变形，一并下线。
@@ -213,20 +241,10 @@ export const SINGLE_CONTENTS = [
     // ===== v3.12 新增：1×1 / 2×1 专用的进度类 =====
     { key: 'dayRing', zh: '日环进度', en: 'Day Ring', sizes: ['1x1'], opts: ['color'] },
     { key: 'lifeBar', zh: '生命刻度尺', en: 'Life Scale', sizes: ['2x1'], opts: ['color', 'age', 'life'] },
-  ] },
-  { key: 'gauge', zh: '仪表', en: 'Gauge', icon: '◎', styles: [
-    // v2.11：仪表类内容（指针 / 半环），读的是年初或当日进度
-    // v3.11：两者都支持「统计粒度」（年/月/周/日），指针默认年、半环默认日
-    // v3.12 移除矩阵：2×2 去掉 dial；1×FULL 去掉 dial + semiGauge
-    // v3.13：2×2 恢复 dial（用户点名启用）
+    // ===== 原「仪表」类（v3.14 并入）=====
+    // v2.11：指针 / 半环，读的是年初或当日进度；v3.11 起支持「统计粒度」（年/月/周/日）
     { key: 'dial', zh: '指针仪表', en: 'Dial', sizes: ['2x2', '2x4', '4x4'], opts: ['unit', 'color'] },
     { key: 'semiGauge', zh: '半环仪表', en: 'Semi Gauge', sizes: ['1x2', '2x2', '2x4', '4x4'], opts: ['unit', 'color'] },
-  ] },
-  { key: 'important', zh: '重要日期', en: 'Important', icon: '◆', styles: [
-    // v3.12 移除矩阵：1×2 去掉 festival + holiday；2×1 去掉 festival + holiday
-    // v3.13：holiday 恢复到 1×2 与 2×1（用户点名启用）
-    { key: 'festival', zh: '节日卡', en: 'Festival', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
-    { key: 'holiday', zh: '假期倒计时', en: 'Holiday Count', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
   ] },
 ];
 
@@ -978,7 +996,12 @@ export function sanitizeBlocks(list, displayMode, size) {
   if (Array.isArray(src)) {
     for (const b of src) {
       if (!b) continue;
-      const c = typeof b === 'string' ? b : b.c;
+      // v3.14：内容类合并后的旧 key 迁移（important→schedule、gauge→progress）。
+      // **只对单独模式生效** —— 拼接模式的 COMBO_CONTENTS 仍保留「重要日期」类
+      // （festival/solarTerm/holidayGap 那套文字款），无条件迁移会把拼接配置改错。
+      const c = displayMode === 'single'
+        ? aliasContent(typeof b === 'string' ? b : b.c)
+        : (typeof b === 'string' ? b : b.c);
       const def = contents.find((x) => x.key === c);
       if (!def) continue;
       let s = typeof b === 'string' ? '' : b.s;

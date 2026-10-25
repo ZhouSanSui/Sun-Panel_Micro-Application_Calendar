@@ -160,10 +160,10 @@ const cards = CASES.map(([size, w, h, list, cardCenter, note]) => {
 const SINGLE_CASES = [
   // targetDay 是 schedule 的样式（不是 important 的）——旧用例写错内容键，一直渲染成节日兜底
   ['2x2', 'schedule', 'targetDay', { text: '项目上线', date: '2026-11-11' }],
-  ['2x2', 'important', 'holiday'], ['1xfull', 'important', 'holiday'],
+  ['2x2', 'schedule', 'holiday'], ['1xfull', 'schedule', 'holiday'],
   // v2.11：仪图（指针 / 半环）、格阵粒度与形状、生命进度条
-  ['2x2', 'gauge', 'dial'], ['4x4', 'gauge', 'dial'],
-  ['1x2', 'gauge', 'semiGauge'], ['2x2', 'gauge', 'semiGauge'],
+  ['2x2', 'progress', 'dial'], ['4x4', 'progress', 'dial'],
+  ['1x2', 'progress', 'semiGauge'], ['2x2', 'progress', 'semiGauge'],
   ['2x2', 'progress', 'yearGrid', { unit: 'week' }], ['2x4', 'progress', 'yearGrid', { unit: 'day' }],
   ['4x4', 'progress', 'yearGrid', { shape: 'dot' }],
   ['2x4', 'progress', 'multiBars', { bars: 'y,m,w,d,life', age: 30, life: 85 }],
@@ -172,19 +172,20 @@ const SINGLE_CASES = [
   ['1x1', 'timeDate', 'dualZone'], ['1x1', 'timeDate', 'ringClock'], ['1x1', 'timeDate', 'dotClock'],
   ['1x1', 'timeDate', 'stripeClock'], ['1x1', 'timeDate', 'boldClock'],
   ['1x1', 'progress', 'yearBars'], ['1x1', 'progress', 'weekGrid'], ['1x1', 'progress', 'ringProgress'],
-  ['1x1', 'gauge', 'dial'],
+  ['1x1', 'schedule', 'festivalDay'],
   ['2x1', 'timeDate', 'dualZone'], ['2x1', 'timeDate', 'ringClock'], ['2x1', 'timeDate', 'dotClock'],
   ['2x1', 'timeDate', 'stripeClock'], ['2x1', 'schedule', 'targetDay'],
-  ['2x1', 'progress', 'yearBars'], ['2x1', 'progress', 'weekGrid'], ['2x1', 'important', 'festival'],
+  ['2x1', 'progress', 'yearBars'], ['2x1', 'progress', 'weekGrid'], ['2x1', 'schedule', 'festival'],
   ['1x1', 'progress', 'yearGrid'], ['2x4', 'progress', 'multiBars'],
-  ['1x2', 'schedule', 'capsule'], ['1x2', 'important', 'festival'],
+  ['1x2', 'schedule', 'capsule'], ['1x2', 'schedule', 'festival'],
   ['1x2', 'timeDate', 'stripeClock'], ['1x2', 'progress', 'yearBars'],
   ['1xfull', 'timeDate', 'dualZone'], ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'timeDate', 'wordClock'],
-  ['1xfull', 'schedule', 'capsule'], ['1xfull', 'progress', 'multiBars'], ['1xfull', 'important', 'festival'],
+  ['1xfull', 'schedule', 'capsule'], ['1xfull', 'schedule', 'festival'],
   ['2x2', 'timeDate', 'ringClock'], ['2x2', 'timeDate', 'dualZone'], ['2x2', 'schedule', 'targetDay'],
   ['2x4', 'timeDate', 'wordClock'], ['2x4', 'progress', 'weekGrid'], ['2x4', 'progress', 'ringProgress'],
   ['4x4', 'timeDate', 'stripeClock'], ['4x4', 'progress', 'heatYear'],
-  ['1x1', 'schedule', 'nextUp'], ['2x1', 'schedule', 'verticalList'],
+  ['1x1', 'timeDate', 'lunarDate'], ['1x1', 'timeDate', 'dayStack'], ['1x1', 'progress', 'dayRing'],
+  ['1x1', 'schedule', 'festivalDay'], ['2x1', 'schedule', 'verticalList'],
 ];
 const singleCards = SINGLE_CASES.map(([size, c, s, opts]) => {
   const [w, h] = SINGLE_REF_PX[size];

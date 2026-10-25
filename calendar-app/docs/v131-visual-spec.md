@@ -1281,6 +1281,63 @@ festival「寒衣节」两张卡仍在渲染且都裁切）。
 
 ---
 
+## v3.14 内容类合并 / nextUp 下线 / festivalDay 新增（2026-10-25）
+
+用户原话：「单独模式整体调整——移除 nextUp（显示的逻辑我没太明白）；进图和仪表合并为进图仪表
+（图标沿用进图）；日程和重要日期合并为日程（图标沿用日程）；文字改为日期时间（图标沿用）。」
+外加 1×1 修裁切 + 新增「节日节假日」小字体样式。用户同时要求**一次只调一种规格**，本轮只动整体 + 1×1。
+
+### ① 内容类三合一（存量配置零丢失）
+
+单独模式 `SINGLE_CONTENTS` 从 5 类收敛为 3 类：
+
+| 新类 | 图标 | 吸收的旧类 |
+| --- | --- | --- |
+| 日期时间（timeDate） | 🕐 | 原名「文字」 |
+| 日程（schedule） | 🗓 | 重要日期（important）的 festival / holiday |
+| 进图仪表（progress） | ◴ | 仪表（gauge）的 dial / semiGauge |
+
+**key 全部不变**（timeDate / schedule / progress），所以 `c:'progress'` 等存量卡不受影响；
+被删类的旧 key 走新增的 `CONTENT_ALIAS`（`important→schedule`、`gauge→progress`）迁移。
+关键细节：**alias 只对单独模式生效**——拼接模式的 COMBO_CONTENTS 仍保留「重要日期」类
+（festival/solarTerm/holidayGap 那套文字款），无条件迁移会把用户的拼接配置改错。
+渲染层 `renderInfoBlockInner` 同时放行新旧 key（Inner 也被测试直接调用）。
+
+### ② nextUp 全尺寸下线
+
+用户：「显示的逻辑我没有太明白」。删除 `sizes` 条目、渲染分支、`.pv-nu*` CSS（12 条规则）、
+`CONTENT_FIT` 条目；`test-render` 矩阵里的 nextUp 全部改写成「不可用」断言。
+
+### ③ 新增 schedule.festivalDay「节日节假日」（1×1 / 1×2 / 2×1）
+
+用户：「在后续日程里加一个显示节日和节假日的，字体大小尽可能的小一点别被裁切了。」
+两行结构：`节日 | 下一节日 | N 天` + `假期 | 下一假期 | N 天`，中间 2.4em 分隔线。
+字号全面压到 **0.34 / 0.56 / 0.44em**（1×2 / 2×1 放大到 0.4 / 0.68 / 0.5em），
+1×1 内容盒约 6.6em，最宽行「节日 寒衣节 11/09」≈ 3.9em，**余量 > 40%**。
+数据源：`getNextFestival`（节气/传统节日）+ `getNextHoliday(getHolidayService(), now)`。
+注意 `chinese-days` 目前**没有 2027 年假期数据**，扫描到 2027-01-01 提前终止 →
+年底约两个月 `holiday` 行显示「暂无」——与既有 `holiday` 样式行为一致，非本轮回归。
+
+### ④ 1×1 裁切修复（防御性加固）
+
+复测无法在真实尺寸（346.72×346.72，根字号 46.23px，内容盒 ≈6.98em）复现裁切，
+`overflow` 全为 `[]`——判断是面板侧缓存了旧包。仍按结构保证补了三道：
+`.pv-ld` / `.pv-ds` 主元素 `max-width:100%; overflow:hidden`；
+`.pv-ld-day` 限 2.8em、`.pv-ds-day` 限 3.4em；`.pv-dr-ring` 改 `min(3.4em, 100%)`。
+
+### ⑤ 本轮审计结果
+
+- `npm run check`：lint 0 error · CSS 镜像一致 · 布局 3876 · 渲染 **787** 断言
+- `audit:single` 设计尺寸：126 正常 · 裁切 0 · 缺失 0 · 该尺寸不提供 90
+- `audit:single` **真实尺寸**（346.72 起）：127 正常 · 次要注意 0 · **裁切 0** · 缺失 0
+- `audit:matrix`：334 正常 · 主文字过小 0 · **裁切 0**（30 条 SUB 均为拼接模式 1×1 的
+  time.month 等小标签副文字，属「只显示一个有效信息」设计使然）
+- 靶向截图：1×1 四款（lunarDate 十六 / dayStack 25 / dayRing 50% / festivalDay 寒衣节 15 天）、
+  1×2+2×1 七款、2×2 六款、1×FULL+4×4 四款；合并后的 schedule.festival / schedule.holiday /
+  progress.dial 在新 key 下全部正常
+
+---
+
 ## 附录 C：决策速查（给 team-lead 的一页纸）
 
 | # | 决策 | 关键数值 |

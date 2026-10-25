@@ -23,6 +23,7 @@ import {
   singleLineOn, prefSpan, COMBO_CONTENTS,
   unitOpts, normalizeOpts, sanitizeBlocks, noUnitsOn, NO_UNITS_DATE_STYLES,
   SINGLE_CONTENTS, STYLE_OPT_FIELDS, stylesForSize, styleSizesOf, styleFitsSize, styleDef,
+  aliasContent, CONTENT_ALIAS,
 } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
@@ -1306,18 +1307,67 @@ console.log('');
   ok(bt.includes('pv-bt-body') && bt.includes('%'), '年电量应渲染电池主体与百分比');
   // v3.12：1×2 去掉 festival；1×1 整块清空（改由新款式承担）。
   // v3.13：holiday 恢复到 1×2 与 2×1（用户点名启用）；festival 仍不在 1×2 / 2×1。
+  // v3.14：「重要日期」并入「日程」—— 旧 content key 'important' 在单独模式已不存在，
+  // 断言全部改到新 key 'schedule' 上（渲染层的 aliasContent 负责迁移存量配置）。
   // 注意：stylesForSize 在「一个都不适配」时会回落到该内容的第一个样式（不留给用户空白），
   // 所以尺寸门控必须用 styleFitsSize 断言（chip 可见性的唯一真源）。
-  ok(styleFitsSize('single', 'important', 'festival', '1x2') === false,
+  ok(styleFitsSize('single', 'schedule', 'festival', '1x2') === false,
     '节日卡在 1x2 尺寸下应被隐藏');
-  ok(styleFitsSize('single', 'important', 'holiday', '1x2') === true,
+  ok(styleFitsSize('single', 'schedule', 'holiday', '1x2') === true,
     '假期倒计时在 1x2 尺寸下应可选（v3.13 恢复）');
-  ok(styleFitsSize('single', 'important', 'holiday', '2x1') === true,
+  ok(styleFitsSize('single', 'schedule', 'holiday', '2x1') === true,
     '假期倒计时在 2x1 尺寸下应可选（v3.13 恢复）');
-  ok(styleFitsSize('single', 'important', 'festival', '2x1') === false,
+  ok(styleFitsSize('single', 'schedule', 'festival', '2x1') === false,
     '节日卡在 2x1 尺寸下应被隐藏');
-  ok(styleFitsSize('single', 'important', 'festival', '2x2') === true,
+  ok(styleFitsSize('single', 'schedule', 'festival', '2x2') === true,
     '节日卡在 2x2 尺寸下应可选');
+  // v3.14：festivalDay（节日节假日）在 1×1 / 1×2 / 2×1 提供
+  for (const size of ['1x1', '1x2', '2x1']) {
+    ok(styleFitsSize('single', 'schedule', 'festivalDay', size) === true,
+      `节日节假日在 ${size} 尺寸下应可选（v3.14 新增）`);
+  }
+  // v3.14：旧内容类 key 在单独模式必须返回 false（已合并），但渲染层要能迁移
+  for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+    ok(styleFitsSize('single', 'important', 'festival', size) === false,
+      `v3.14：important 内容类在单独模式已合并，${size} 应返回 false`);
+    ok(styleFitsSize('single', 'gauge', 'dial', size) === false,
+      `v3.14：gauge 内容类在单独模式已合并，${size} 应返回 false`);
+  }
+  // v3.14：拼接模式仍保留「重要日期」类（那套文字款没动）
+  ok(styleFitsSize('combo', 'important', 'festival', '2x2') === true,
+    '拼接模式仍保留 important 内容类');
+  ok(styleFitsSize('combo', 'important', 'holidayGap', '2x2') === true,
+    '拼接模式仍保留 important.holidayGap 样式');
+  // v3.14：内容类别名表
+  ok(aliasContent('important') === 'schedule' && aliasContent('gauge') === 'progress',
+    'CONTENT_ALIAS 应把 important→schedule、gauge→progress');
+  ok(aliasContent('schedule') === 'schedule' && aliasContent('time') === 'time',
+    'aliasContent 对未合并的 key 应原样返回');
+  // 存量配置经 sanitizeBlocks 迁移后应落到新内容类，且样式仍可用
+  {
+    const mig = sanitizeBlocks([{ c: 'important', s: 'festival' }], 'single', '2x2');
+    ok(mig.length === 1 && mig[0].c === 'schedule' && mig[0].s === 'festival',
+      `旧 important.festival 配置应迁移到 schedule.festival，实际 ${JSON.stringify(mig[0] || {})}`);
+    const mig2 = sanitizeBlocks([{ c: 'gauge', s: 'dial' }], 'single', '4x4');
+    ok(mig2.length === 1 && mig2[0].c === 'progress' && mig2[0].s === 'dial',
+      `旧 gauge.dial 配置应迁移到 progress.dial，实际 ${JSON.stringify(mig2[0] || {})}`);
+    // 拼接模式不能被迁移（COMBO_CONTENTS 仍保留 important）
+    const comboMig = sanitizeBlocks([{ c: 'important', s: 'festival', span: { cols: 2, rows: 1 } }], 'combo', '2x2');
+    ok(comboMig.length === 1 && comboMig[0].c === 'important',
+      '拼接模式的 important 配置不应被迁移');
+    // 渲染层也要认旧 key（存量配置不重新保存也能正常显示）
+    const oldRender = flatten(renderInfoBlock({ ...base, content: 'important', style: 'festival', singleRow: true, size: '2x2' })).join('');
+    ok(oldRender.includes('pv-fe-name'), '渲染层应接受旧 content key important（别名迁移）');
+    const oldRender2 = flatten(renderInfoBlock({ ...base, content: 'gauge', style: 'dial', singleRow: true, size: '4x4' })).join('');
+    ok(oldRender2.includes('pv-gl-val'), '渲染层应接受旧 content key gauge（别名迁移）');
+  }
+  // v3.14：schedule.nextUp 全尺寸移除
+  for (const size of ['1x1', '1x2', '2x1', '2x2', '2x4', '4x4', '1xfull']) {
+    ok(styleFitsSize('single', 'schedule', 'nextUp', size) === false,
+      `nextUp 在 ${size} 应已下线（v3.14 全尺寸移除）`);
+  }
+  const nuGone = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'nextUp', singleRow: true, size: '1x1' })).join('');
+  ok(!nuGone.includes('pv-nu-time'), 'nextUp 渲染分支应已删除');
 }
 
 // v3.2：拼接模式也必须能放「进图」内容（此前只有单独模式可选进度样式）
@@ -1495,10 +1545,10 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     ['1x1', 'progress', 'yearGrid'], ['1x1', 'progress', 'yearBars'], ['1x1', 'progress', 'weekGrid'],
     ['1x1', 'progress', 'multiBars'], ['1x1', 'progress', 'ringProgress'], ['1x1', 'progress', 'heatYear'],
     ['1x1', 'progress', 'battery'], ['1x1', 'progress', 'stackBars'],
-    ['1x1', 'gauge', 'dial'], ['1x1', 'gauge', 'semiGauge'],
+    
     ['1x1', 'important', 'festival'], ['1x1', 'important', 'holiday'],
     // 1×2：ringClock / festival 仍下线（v3.13 恢复了 targetDay / holiday）
-    ['1x2', 'timeDate', 'ringClock'], ['1x2', 'important', 'festival'],
+    ['1x2', 'timeDate', 'ringClock'],
     // 2×1：v3.13 恢复了一批，但仍下线这些
     ['2x1', 'timeDate', 'dualZone'], ['2x1', 'timeDate', 'ringClock'], ['2x1', 'timeDate', 'dotClock'],
     ['2x1', 'timeDate', 'boldClock'], ['2x1', 'timeDate', 'stripeClock'], ['2x1', 'timeDate', 'wordClock'],
@@ -1507,10 +1557,10 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     ['2x1', 'progress', 'yearGrid'], ['2x1', 'progress', 'yearBars'], ['2x1', 'progress', 'weekGrid'],
     ['2x1', 'progress', 'multiBars'], ['2x1', 'progress', 'ringProgress'], ['2x1', 'progress', 'heatYear'],
     ['2x1', 'progress', 'battery'], ['2x1', 'progress', 'stackBars'],
-    ['2x1', 'gauge', 'dial'], ['2x1', 'gauge', 'semiGauge'],
-    ['2x1', 'important', 'festival'],
+    
+    
     // 1×FULL：dial + semiGauge + multiBars
-    ['1xfull', 'gauge', 'dial'], ['1xfull', 'gauge', 'semiGauge'],
+    
     ['1xfull', 'progress', 'multiBars'],
     // 2×2：stackBars（v3.13 停用）
     ['2x2', 'progress', 'stackBars'],
@@ -1527,35 +1577,34 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   const MUST = [
     // 1×1 / 2×1 新做 4+4 款
     ['1x1', 'timeDate', 'lunarDate'], ['1x1', 'timeDate', 'dayStack'],
-    ['1x1', 'schedule', 'nextUp'], ['1x1', 'progress', 'dayRing'],
+    ['1x1', 'progress', 'dayRing'],
     ['2x1', 'timeDate', 'tallClock'], ['2x1', 'timeDate', 'weekColumn'],
     ['2x1', 'schedule', 'verticalList'], ['2x1', 'progress', 'lifeBar'],
     // 1×2 启用（v3.13）
     ['1x2', 'timeDate', 'wordClock'], ['1x2', 'timeDate', 'lunarDate'], ['1x2', 'timeDate', 'dayStack'],
-    ['1x2', 'schedule', 'targetDay'], ['1x2', 'schedule', 'nextUp'], ['1x2', 'important', 'holiday'],
+    ['1x2', 'schedule', 'targetDay'], ['1x2', 'schedule', 'holiday'],
     // 2×1 启用（v3.13）
     ['2x1', 'timeDate', 'dayNum'], ['2x1', 'timeDate', 'stackTime'], ['2x1', 'timeDate', 'lunarDate'],
-    ['2x1', 'timeDate', 'dayStack'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'nextUp'],
-    ['2x1', 'important', 'holiday'],
+    ['2x1', 'timeDate', 'dayStack'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'holiday'],
     // 2×2 启用（v3.13）
     ['2x2', 'timeDate', 'lunarDate'], ['2x2', 'timeDate', 'dayStack'], ['2x2', 'timeDate', 'tallClock'],
-    ['2x2', 'timeDate', 'weekColumn'], ['2x2', 'schedule', 'capsule'], ['2x2', 'schedule', 'nextUp'],
-    ['2x2', 'schedule', 'verticalList'], ['2x2', 'gauge', 'dial'],
+    ['2x2', 'timeDate', 'weekColumn'], ['2x2', 'schedule', 'capsule'],
+    ['2x2', 'schedule', 'verticalList'], ['2x2', 'progress', 'dial'],
     // 2×4 启用（v3.13）
     ['2x4', 'timeDate', 'dayNum'], ['2x4', 'timeDate', 'lunarDate'], ['2x4', 'timeDate', 'weekColumn'],
     ['2x4', 'schedule', 'verticalList'],
     // 4×4 启用（v3.13）
     ['4x4', 'timeDate', 'dayNum'], ['4x4', 'timeDate', 'miniMonth'], ['4x4', 'timeDate', 'lunarDate'],
     ['4x4', 'timeDate', 'dayStack'], ['4x4', 'timeDate', 'tallClock'], ['4x4', 'timeDate', 'weekColumn'],
-    ['4x4', 'schedule', 'nextUp'], ['4x4', 'schedule', 'verticalList'],
+    ['4x4', 'schedule', 'verticalList'],
     // 1×FULL 启用（v3.13）+ 原有 10 款适配目标
     ['1xfull', 'timeDate', 'dayNum'], ['1xfull', 'timeDate', 'lunarDate'], ['1xfull', 'timeDate', 'dayStack'],
     ['1xfull', 'timeDate', 'dualZone'], ['1xfull', 'timeDate', 'ringClock'],
     ['1xfull', 'timeDate', 'stripeClock'], ['1xfull', 'timeDate', 'wordClock'],
     ['1xfull', 'progress', 'ringProgress'],
     ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'schedule', 'capsule'],
-    ['1xfull', 'important', 'festival'], ['1xfull', 'schedule', 'targetDay'],
-    ['1xfull', 'important', 'holiday'], ['1xfull', 'progress', 'stackBars'],
+    ['1xfull', 'schedule', 'festival'], ['1xfull', 'schedule', 'targetDay'],
+    ['1xfull', 'schedule', 'holiday'], ['1xfull', 'progress', 'stackBars'],
     // yearGrid 年/月/周/日 与 multiBars 在三种卡上都要可用
     ['2x2', 'progress', 'yearGrid'], ['2x4', 'progress', 'yearGrid'],
     ['4x4', 'progress', 'yearGrid'], ['1xfull', 'progress', 'yearGrid'],

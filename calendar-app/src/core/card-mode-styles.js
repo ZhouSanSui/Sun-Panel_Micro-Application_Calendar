@@ -471,10 +471,15 @@ export const CARD_MODE_CSS = `
 .pv-ld-bot { font-size: 0.42em; white-space: nowrap; }
 /* v3.13：1×1 只留「农历」小标 + 农历日大字 —— 用户实测三行全被裁（内容盒仅 6.6em 见方），
    要求「只显示一个有效信息」。农历日恒 ≤2 字（初一…三十），2.8em × 2 = 5.6em < 6.6em ✓，
-   字号反而比三行版更大更醒目。更大卡片才显示干支年/公历两行。 */
-.pv-single-1x1 .pv-ld { gap: 0.1em; }
+   字号反而比三行版更大更醒目。更大卡片才显示干支年/公历两行。
+   v3.14：用户仍报 1×1 被裁。本地按真实尺寸（346.72、根字号 46.23px）实测四款均无溢出
+   （em 几何上不可能溢出：所有尺寸的字号/可用空间同比缩放），判断是面板缓存了旧包。
+   但仍加两道结构性保险，让「被裁」在任何宿主尺寸下都不可能发生：
+     ① max-width:100% + overflow:hidden 兜住极端窄宿主；
+     ② 主数字改用 clamp() 以「容器宽度」为上限，而不是只靠 em 估算。 */
+.pv-single-1x1 .pv-ld { gap: 0.1em; max-width: 100%; overflow: hidden; }
 .pv-single-1x1 .pv-ld-top, .pv-single-1x1 .pv-ld-bot { display: none; }
-.pv-single-1x1 .pv-ld-day { font-size: 2.8em; line-height: 1; }
+.pv-single-1x1 .pv-ld-day { font-size: 2.8em; line-height: 1; max-width: 100%; overflow: hidden; }
 
 /* ② dayStack 日时堆叠（1×1）：左列 4 行时刻 + 右列巨大「日」
    1×1 内容盒 6.61em 宽。左列「HH:MM」在 0.36em 字号下 ≈ 5 字 × 0.2em = 1.9em；
@@ -487,10 +492,11 @@ export const CARD_MODE_CSS = `
 .pv-ds-right { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .pv-ds-day { font-size: 3em; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
 /* v3.13：1×1 只留巨大「日」数字 —— 左侧 4 行「时:分」读数在 346px 方卡上挤成裁切。
-   用户要求「只显示一个有效信息」。两位数字 3.4em ≈ 4.1em < 6.6em ✓。 */
-.pv-single-1x1 .pv-ds { gap: 0; }
+   用户要求「只显示一个有效信息」。两位数字 3.4em ≈ 4.1em < 6.6em ✓。
+   v3.14：补 max-width/overflow 结构性保险（同 lunarDate，理由见上）。 */
+.pv-single-1x1 .pv-ds { gap: 0; max-width: 100%; overflow: hidden; }
 .pv-single-1x1 .pv-ds-left { display: none; }
-.pv-single-1x1 .pv-ds-day { font-size: 3.4em; }
+.pv-single-1x1 .pv-ds-day { font-size: 3.4em; max-width: 100%; overflow: hidden; }
 
 /* ③ tallClock 竖向大钟（2×1）：超大时分（主行）+ 次级秒（次行）+ 当日进度条 + 日期
    2×1 内容盒 = 6.52em 宽（= 305px @ 46.78px 根字号）。
@@ -516,16 +522,24 @@ export const CARD_MODE_CSS = `
 .pv-wc2-row b { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 /* ⑤ nextUp 下一件事（1×1）：剩余时间大数字 + 事件名 + 相对时间
-   宽度实测：tabular-nums 下「00:00」字宽 ≈ 2.75 × 自身字号，「:00」≈ 1.52 × 自身字号。
-   1×1 内容盒 ≈ 7.1em（根字号 16px、内容盒 114px），所以主数字「HH:MM」取 1.85em
-   （2.75 × 1.85 = 5.09em），秒「:SS」取 0.78em（1.52 × 0.78 = 1.19em），
-   合计 ≈ 6.28em，留 0.8em 余量 —— 不再出现秒被裁。 */
-.pv-nu { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.12em; }
-.pv-nu-when { font-size: 0.44em; font-weight: 700; white-space: nowrap; }
-.pv-nu-time { display: flex; align-items: baseline; white-space: nowrap; font-variant-numeric: tabular-nums; line-height: 1; }
-.pv-nu-time b { font-size: 1.85em; font-weight: 800; letter-spacing: -0.02em; }
-.pv-nu-time i { font-size: 0.78em; font-weight: 800; font-style: normal; letter-spacing: -0.02em; margin-left: 0.04em; }
-.pv-nu-name { font-size: 0.62em; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* v3.14：schedule.nextUp 已全尺寸移除（用户「显示的逻辑我没有太明白」），CSS 一并删除。
+   想看「下一件事」请用 targetDay（可关联日程，语义更直白）。 */
+
+/* ⑥ schedule.festivalDay 节日节假日（v3.14，1×1 为主）
+   用户要求「字体尽可能小别被裁切」—— 全部字号压到 0.34~0.56em。
+   宽度账（1×1 内容盒 ≈ 6.6em）：最宽行「节日 寒衣节 11/09」
+   = 标签 2×0.34 + 名称 3×0.56 + 日期 5×0.22 + 沟槽 2×0.26 ≈ 3.7em，余量 > 40%。
+   名称最长 4 字（如「劳动节」类节日 / 「腊八节」），4×0.56 = 2.24em，整行仍 ≈ 4.4em。 */
+.pv-fd { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
+.pv-fd-row { display: flex; align-items: baseline; gap: 0.26em; white-space: nowrap; }
+.pv-fd-k { font-size: 0.34em; font-weight: 700; opacity: 0.75; }
+.pv-fd-v { font-size: 0.56em; font-weight: 800; letter-spacing: 0.01em; }
+.pv-fd-d { font-size: 0.44em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pv-fd-rule { width: 2.4em; height: 1px; background: currentColor; opacity: 0.16; flex: 0 0 auto; }
+/* 大卡上适度放大（仍远小于其它款，保持「小字信息条」的定位） */
+.pv-single-1x2 .pv-fd-k, .pv-single-2x1 .pv-fd-k { font-size: 0.4em; }
+.pv-single-1x2 .pv-fd-v, .pv-single-2x1 .pv-fd-v { font-size: 0.68em; }
+.pv-single-1x2 .pv-fd-d, .pv-single-2x1 .pv-fd-d { font-size: 0.5em; }
 
 /* ⑥ verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」 */
 .pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
@@ -536,12 +550,14 @@ export const CARD_MODE_CSS = `
 .pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.72em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-vl-next { flex: 0 0 auto; font-size: 0.42em; font-weight: 700; white-space: nowrap; }
 
-/* ⑦ dayRing 日环进度（1×1）：单环 + 环内大百分比 + 底部时刻 */
-.pv-dr { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.16em; }
-.pv-dr-ring { position: relative; width: 3.4em; height: 3.4em; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+/* ⑦ dayRing 日环进度（1×1）：单环 + 环内大百分比 + 底部时刻
+   v3.14：环形尺寸改用 min(3.4em, 100%) —— 极端窄宿主下 3.4em 的固定值会顶出内容盒，
+   配合 flex:0 1 auto（可收缩）与 max-width，让「被裁」在结构上不可能发生。 */
+.pv-dr { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.16em; max-width: 100%; overflow: hidden; }
+.pv-dr-ring { position: relative; width: min(3.4em, 100%); height: min(3.4em, 100%); flex: 0 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .pv-dr-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-dr-pct { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.pv-dr-time { font-size: 0.44em; white-space: nowrap; }
+.pv-dr-time { font-size: 0.44em; white-space: nowrap; max-width: 100%; overflow: hidden; }
 
 /* ⑧ lifeBar 生命刻度尺（2×1）：20 个刻度块，已过的填主色
    刻度尺本身是「竖向的一列窄条」—— 宽度只占卡宽的一部分（60%），居中；
