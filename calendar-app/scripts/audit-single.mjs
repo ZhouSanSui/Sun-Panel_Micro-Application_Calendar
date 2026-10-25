@@ -118,6 +118,7 @@ const rowsHTML = SIZES.map((size) => {
 const MEASURE = `
 <script>
   (() => {
+  try {
     const rows = [];
     document.querySelectorAll('.case').forEach((el) => {
       const block = el.querySelector('.pv-single');
@@ -130,6 +131,18 @@ const MEASURE = `
       let clipped = 0; let minPrimary = 999; let minSecondary = 999; let outTag = ''; let svgOut = 0;
       let squeezed = 0; let sqTag = '';
       const PRIMARY = /(^|\\s)(pv-big|pv-mid|pv-vbig|pv-vline|pv-wd-sm|pv-rc-time|pv-dc-time|pv-bc-nums|pv-tg-days|pv-yb-v|pv-mb-v|pv-gl-val|pv-wc-main)(\\s|$)/;
+      // v3.16：沿祖先链判隐藏 —— getComputedStyle 对 display:none 容器内的子元素
+      // 返回子元素自身的 display 值（不是 none），只查自身会把「根本没渲染」的
+      // 文字判成 SUB（dayStack@1×1 左列、lunarDate 隐藏行等，v3.16 实测 21 例假阳性）。
+      const hiddenByAncestor = (n) => {
+        let p = n;
+        while (p && p !== block) {
+          const cs2 = getComputedStyle(p);
+          if (cs2.display === 'none' || cs2.visibility === 'hidden') return true;
+          p = p.parentElement;
+        }
+        return false;
+      };
       block.querySelectorAll('*').forEach((n) => {
         const r = n.getBoundingClientRect();
         const isSvgPrim = !!n.closest('svg');
@@ -159,9 +172,10 @@ const MEASURE = `
         // dayStack@1×1 左列被 .pv-single-1x1 .pv-ds-left{display:none} 整体隐藏，
         // 其 0.36em 行若计入会把「根本没渲染」的文字判成 SUB（假阳性）。
         // （越界/挤压判定有 r.width>0 兜底，天然不受影响。）
-        const ncs = getComputedStyle(n);
-        if (ncs.display === 'none' || ncs.visibility === 'hidden') return;
-        const fs = parseFloat(ncs.fontSize);
+        // v3.16：升级为祖先链判定（见 hiddenByAncestor）——容器隐藏时子元素
+        // 的 computed display 是自身值，只查自身漏判。
+        if (hiddenByAncestor(n)) return;
+        const fs = parseFloat(getComputedStyle(n).fontSize);
         if (!fs) return;
         if (PRIMARY.test(n.className || '')) { if (fs < minPrimary) minPrimary = fs; }
         else if (fs < minSecondary) minSecondary = fs;
@@ -181,6 +195,12 @@ const MEASURE = `
     pre.id = 'out';
     pre.textContent = JSON.stringify(rows);
     document.body.appendChild(pre);
+  } catch (e) {
+    const pre2 = document.createElement('pre');
+    pre2.id = 'out';
+    pre2.textContent = 'ERR:' + String((e && e.stack) || e);
+    document.body.appendChild(pre2);
+  }
   })();
 </script>`;
 
@@ -202,6 +222,7 @@ const m = dom.match(/<pre id="out">([\s\S]*?)<\/pre>/);
 if (!m) { console.error('未取到测量结果（页面脚本可能未执行）'); process.exit(1); }
 const decode = (s) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
   .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+if (m[1].startsWith('ERR:')) { console.error('页面脚本异常:\n' + decode(m[1]).slice(0, 1500)); process.exit(1); }
 const rows = JSON.parse(decode(m[1]));
 
 const verdict = (r) => {

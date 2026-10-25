@@ -296,18 +296,22 @@ export const CARD_MODE_CSS = `
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
 .pv-rp-legend i { width: 0.5em; height: 0.5em; border-radius: 999px; display: block; }
 .pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
-/* 1×FULL 横排：环固定 5.2em 见方（此处必须显式给高，容器已不再用 aspect-ratio）。
-   v3.11：4em 在真实卡（1387×347 / 基准 51.7px）上环直径仅 207px，整卡看着空 —— 抬到 5.2em。 */
-.pv-single-1xfull .pv-rp-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
+/* 1×FULL 横排：环高度驱动见方（v3.16 改，原因见下）。
+   v3.16：真实 1×FULL 卡仅 76px 高（内容区 50px，CDP 多视口实测）——旧值 5.2em
+   在 root 11.3px 下 = 58.8px，上下各溢 4px 被宿主 overflow:hidden 裁掉（audit CLIP）。
+   5.2em 是 v3.11 按想当然的「1387×347」定的，那两个数从来不是面板真实尺寸
+   （1386.88×346.72 是 SunPanel 配置弹窗里的大预览卡，不是面板上的卡）。
+   改为 height:100% + aspect-ratio：环永远不超容器，卡片变高时等比放大。 */
+.pv-single-1xfull .pv-rp-ring { flex: 0 0 auto; height: 100%; width: auto; aspect-ratio: 1 / 1; }
 /* v3.12：后半段（图例 .pv-rp-legend）加大一倍 0.46em → 0.92em，
    并从 4 行竖排改成 2 列 × 2 行网格（图例块高 ≈2.6em，在 5.861em 的卡内放得下）。 */
 .pv-single-1xfull .pv-rp-legend { font-size: 0.92em; display: grid; grid-template-columns: repeat(2, auto); gap: 0.3em 0.9em; justify-content: start; }
 /* v3.11 1×FULL ringClock：原来是「环在上、时间在下」的方卡版式，横条卡上环被限高到 ≈2em、
-   两侧全是空的。改成横排：环固定 5.2em 见方（不能留 width:100% —— 横排里 100% 宽会把
-   时间挤出卡片右侧），时间放大贴右侧。
+   两侧全是空的。改成横排：环高度驱动见方（v3.16 改，同 .pv-rp-ring——5.2em 固定值按
+   想当然的 1387×347 定，真实 1×FULL 仅 76px 高会上下各溢 4px 被裁），时间放大贴右侧。
    v3.12：后半段（时间读数 .pv-rc-time）加大一倍 1.6em → 3.2em；容器改 space-evenly。 */
 .pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
-.pv-single-1xfull .pv-rc-ring { flex: 0 0 5.2em; width: 5.2em; height: 5.2em; }
+.pv-single-1xfull .pv-rc-ring { flex: 0 0 auto; height: 100%; width: auto; aspect-ratio: 1 / 1; }
 .pv-single-1xfull .pv-rc-time { font-size: 3.2em; letter-spacing: 0; }
 /* v3.11 1×FULL yearBars：12 根竖条原本长到 347px 卡高，像 12 根柱子；改成
    「左侧条带 + 右侧年度读数」的横排，把 1387px 的横向空间用起来。 */
