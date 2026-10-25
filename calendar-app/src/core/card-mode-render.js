@@ -136,13 +136,26 @@ const CONTENT_FIT = {
     multiple: { w: 6.6, wEn: 8.0, h: 3.7 },
     // 占格水平 ≥4：日期（≈7.9em/0.5em 字号）+ 日程名，两行小字版
     multipleWide: { w: 11.0, wEn: 12.0, h: 3.4 },
+    // v3.14 合并遗留：节日卡 / 假期倒计时从 important 并入 schedule，固有尺寸必须跟着搬 ——
+    // 否则 fitFor 回落到 schedule.__default（5.0×4.0），与实测（important.holiday 5.4×4.0）
+    // 差 7%，单独模式基准字号（v3.15 起由 fitFor 解算）会系统性偏小。
+    holiday: { w: 5.4, wEn: 6.2, h: 4.0 },
+    // festival 原 important 表里也没有（回落 __default 3.47×5.64，高瘦比与 pv-fe 的
+    // 「名称行 + 日期行 + 右侧胶囊」宽扁布局相反）→ 按 .tmp/measure-fe.mjs 实测补：
+    // 名称 1.32em×最长 3 字（腊八节）+ 行距 0.2em + 胶囊 2.26em ≈ 6.42em；
+    // 2×4/4×4 上名称涨到 1.5em → 取 7.4em 覆盖两档 multipliers（名字超长时 ellipsis 兜底）。
+    festival: { w: 7.4, wEn: 8.5, h: 3.0 },
     // v2.9：胶囊倒计时（年倒计时 d/h/m/s 四个数字格 + 胶囊标题）
     capsule: { w: 11.2, wEn: 11.8, h: 3.4 },
     // v2.9：目标倒计时卡（标题 + 大天数 + 日期）
     targetDay: { w: 6.1, wEn: 7.0, h: 5.2 },
     // v3.14：schedule.nextUp 已全尺寸移除（CONTENT_FIT 一并删除）
     // v3.14：festivalDay 节日节假日（1×1）—— 两行「标签 + 名称 + 日期/天数」
-    festivalDay: { w: 4.2, wEn: 4.4, h: 2.6 },
+    // v3.15：w 4.2 → 5.0、h 2.6 → 2.7 —— .tmp/measure-fe.mjs 实测：1×2/2×1 上
+    // k/v/d 涨到 0.4/0.68/0.5em，最宽行「节日 寒衣节 11/09」≈ 4.74em；2×1 卡内容盒
+    // 仅 94px 宽，旧值 4.2 会让 fitFontU 解出 u=20.5 → 行宽 97px > 盒 87px 被裁。
+    // 5.0 下 2×1 解出 u≈17.5（与 v3.14 写死的 17px 基准几乎一致），1×1 解出 16.2px。
+    festivalDay: { w: 5.0, wEn: 5.2, h: 2.7 },
     // v3.12：纵向日程表（2×1）—— 每行「时间 + 事件名」，条数按高度定
     verticalList: { w: 5.6, wEn: 6.4, h: 9.0 },
     __default: { w: 5.0, h: 4.0 },
@@ -160,12 +173,27 @@ const CONTENT_FIT = {
     // ===== v3.12：1×1 / 2×1 专用 =====
     // 农历日：干支年 + 农历日大字（2.6em，两字 ≈ 2.9em 宽）+ 公历行
     lunarDate: { w: 6.0, h: 4.2 },
-    // 日时堆叠：左 68% 四行时刻 + 右 32% 巨大「日」（3em ≈ 1.9em 宽）
-    dayStack: { w: 6.2, h: 4.6 },
-    // 竖向大钟：超大时分（5.2em × 2 位 ≈ 6.4em 宽，已用 letter-spacing 收到 6.0em）
-    tallClock: { w: 6.4, h: 9.6 },
+    // 日时堆叠：左 68% 四行时刻 + 右 32% 巨大「日」
+    // v3.15：w 6.2 → 5.2 —— .tmp/measure-fit315.mjs 实测（root=100px 超大卡）：
+    // 1×2/2×1/2×2 自然总宽 = 左列 1.11（0.36em 的「14:05」）+ gap 0.4 + 「日」3em 两位 3.414
+    // = 4.924em；1×1 左列 display:none（CSS 尺寸类裁剪），只剩「日」3.4em = 3.869em。
+    // 旧值 6.2 是 v3.12 拍脑袋值（连 1×1 隐藏左列都不知道），公式化后把 1×1 根字号
+    // 从设计基准 16 压到 13.2、2×1 从 17 压到 13.2（0.36em 行 = 4.76px 不可读）。
+    // 5.2 = 4.924×1.055（项目惯例 +5%），解出 1×1 = 15.6 / 2×1 = 15.6px。
+    dayStack: { w: 5.2, h: 4.6 },
+    // 竖向大钟：超大时分（主行）+ 次级秒 + 当日进度条 + 日期行
+    // v3.15：w 6.4 → 6.1、h 9.6 → 5.8 —— 实测主行「14:05」2.2em = 5.811em（letter-spacing
+    // -0.04em 已含），日期行 2.707em、秒行 2.123em 均非瓶颈；自然高 = 2.2+0.3+1.6+0.3+0.16
+    // +0.3+0.61 = 5.47em。旧 h 9.6 是 v3.12 遗留的过期代理值（比实测大 75%）。
+    tallClock: { w: 6.1, h: 5.8 },
     // 竖向星期条：7 行（星期字 + 1.1em 日期数字）
     weekColumn: { w: 4.4, h: 12.0 },
+    // v3.11 stackTime：竖排时间 —— 时/分/秒 三行堆叠，专门吃 2×1 这类窄高卡的高度
+    // v3.15 前无独立条目 → 回落 timeDate.__default（w 8.3），公式化后 2×1 根字号被压到
+    // 10px（设计基准 17），0.5em 单位标签只有 5px。实测（2×1，b=2.3em）行宽 3.395em、
+    // 行高 2.3em（line-height:1），三行 + 2×gap 0.12 = 6.9em；2×2（b=2.2em）行宽 3.276em。
+    // 3.6 = 3.395×1.06；7.2 覆盖 6.9。解出 2×1 = 17px（设计基准，修复前 10）。
+    stackTime: { w: 3.6, h: 7.2 },
   },
   progress: {
     __default: { w: 7.0, h: 2.0 },
@@ -174,8 +202,20 @@ const CONTENT_FIT = {
     // 12 根月条 + 顶部年份 + 底部百分比
     yearBars: { w: 7.6, h: 4.6 },
     // v2.9：四条进度（年/月/周/日），每条「标签 + 条 + 百分比」
-    multiBars: { w: 9.4, h: 5.4 },
-    ringProgress: { w: 6.8, h: 6.8 },
+    // v3.15：h 5.4 → 7.0 —— 行数裁剪模型是「每行 1.15em + 行间 0.3em」，5 行需
+    // 5×1.15+4×0.3 = 6.95em；旧值 5.4 与模型脱节 → fitFontU 解出的字号让 availH
+    // 只剩 5.4em → perCol=floor(5.4/1.15)=4，「生命」行被裁（用户截图 5 行变 4 行）。
+    // fit.h 必须 ≥ 行数模型的全量高度，否则「5 行都放下」与 fit 表自相矛盾。
+    multiBars: { w: 9.4, h: 7.0 },
+    // v2.10 ringProgress 四环进度：年/月/周/日 四条同心弧
+    // v3.15：w 6.8 → 9.6、h 6.8 → 1.2 —— .tmp/measure-fit315.mjs 实测：
+    // 图例单行自然宽 = 4 跨度 ×1.598（「年 81%」）+ 3×gap 0.6 = 8.19em，最坏情况
+    // （百分比 3 位「100%」）= 4×1.838+1.8 = 9.15em；行高 0.58em（0.4em×1.45）。
+    // 旧 h 6.8 是过期代理值：`.pv-rp-ring` 是 flex:1 1 auto + SVG absolute inset:0
+    // 的**弹性填充**容器（SVG 随剩余空间缩放，不约束字号），高度只该记账式图例
+    // 0.58 + 容器 gap 0.3 = 0.88em。旧值让 1×2 根字号被压到 12.3px（设计 17），
+    // 图例 0.4em 只有 4.9px。1.2 = 0.88×1.36；9.6 = 9.15×1.05。
+    ringProgress: { w: 9.6, h: 1.2 },
     heatYear: { w: 9.6, h: 7.0 },
     battery: { w: 6.4, h: 3.2 },
     // 7 个周格里「星期字母 + 日期」两行 + 底部百分比
@@ -368,10 +408,15 @@ export function showCalTitle() {
 /**
  * 由块像素尺寸 + 内容固有尺寸反推块根字号（已扣除块内边距）。
  * 单行放不下且允许换行时，按两行重算：用纵向余量换横向宽度。
+ * @param {{min?:number, max?:number}} [clamp] 字号夹取区间（默认 [7, 40]）——
+ *   拼接模式用默认值；单独模式（v3.15）传按尺寸的 [0.35×base, 4×base]，
+ *   只防 fit 表过期，不参与正常求解（fit 表是 measure.html 实测的唯一尺寸来源）。
  */
-export function fitFontU(blockW, blockH, fit) {
+export function fitFontU(blockW, blockH, fit, clamp = null) {
   // 换行式断行按贪心策略填充，行宽利用不均匀，预留约 1 个字符宽的余量
   const slack = fit.wrap ? 1 : 0;
+  const lo = clamp && Number.isFinite(clamp.min) ? clamp.min : 7;
+  const hi = clamp && Number.isFinite(clamp.max) ? clamp.max : 40;
   // 防御：blockW/blockH/fit 任一非有限数时 solve 会得到 NaN，而 Math.max(7, NaN) === NaN，
   // 会让 font-size 变成 "NaNpx" 导致整块内容不可见。非有限值一律按 0 处理（落到字号下限）。
   const num = (v) => (Number.isFinite(v) ? v : 0);
@@ -379,9 +424,9 @@ export function fitFontU(blockW, blockH, fit) {
     num(blockH) / (num(fit.h) * n + 2 * FIT_PAD),
     (n * num(blockW)) / (num(fit.w) + slack + 2 * n * FIT_PAD),
   );
-  const u1 = Math.max(7, Math.min(40, num(solve(1))));
+  const u1 = Math.max(lo, Math.min(hi, num(solve(1))));
   if (u1 >= FIT_MIN_U || !fit.wrap) return u1;
-  const u2 = Math.max(7, Math.min(40, num(solve(2))));
+  const u2 = Math.max(lo, Math.min(hi, num(solve(2))));
   return Math.max(u1, u2);
 }
 
@@ -1709,7 +1754,9 @@ function renderInfoBlockInner(o) {
           const d = i + 1;
           const past = m < mNow || (m === mNow && d < dNow);
           const isNow = m === mNow && d === dNow;
-          return html`<i class="${past ? 'on' : ''}${isNow ? ' now' : ''}"${isNow ? html` style="background:${ac}"` : ''}></i>`;
+          // v3.15：插值必须放在引号属性值里 —— 原写法 ${isNow ? html` style="..."` : ''} 落在
+          // 标签内引号外，lit 当 ElementPart 静默丢弃，「今天」格的 themes 背景从未生效。
+          return html`<i class="${past ? 'on' : ''}${isNow ? ' now' : ''}" style="${isNow ? `background:${ac}` : ''}"></i>`;
         });
         return html`<b>${cells}</b>`;
       });
@@ -1905,15 +1952,38 @@ export function renderInfoBlock(o) {
   // 自适应列行与格边长需要它（此前只有拼接模式传 availW/availH）。
   // v3.9：baseForAvail 必须计入 singleScale —— 缩放预览的「可用空间(em)」要与真实卡片同源，
   // 否则行数裁剪/格阵自适应等几何判定在预览里走另一条路（预览裁一处、实际裁另一处）。
-  // v3.10：基准字号改为「随真实卡片尺寸等比缩放」—— 宿主给小卡的布局尺寸可能远小于
-  // 设计基准（SINGLE_REF_PX），写死的 px 基准会让内容溢出/被裁（用户实测 1×1/2×1/1×2/
-  // 1×FULL 一批样式被切）。以 SINGLE_REF_PX 为 1.0，按 min(w/refW, h/refH) 缩放，
-  // 预览传的是同一套实测尺寸 → 预览与实际必然一致。
+  // v3.15：基准字号改为「设计基准封顶 + fitFontU 原理公式保底」，取代 v3.10 的
+  // 「写死 px 基准 × 参考缩放比（SINGLE_REF_PX）」。写死基准缩放的两处死穴：
+  // ① 设计基准自身就在溢：lunarDate 在 120×120 参考 + 16px 基准下实测文本 5.73em >
+  //    参考可用 5.625em → 用户截图「十六」被裁成「十」；
+  // ② 参考缩放只能让 availW 对尺寸守恒，救不了基准本身不准。
+  // 公式保底让「availW ≥ fit.w 且 availH ≥ fit.h」在卡片小于设计基准时结构性成立
+  // （拼接模式一直如此）；详见下方 uFit 处的完整模型说明。
+  // 宿主 chrome = .widget padding 12×2 + 主题玻璃描边 border 1×2 = 26px
+  // （border 来自 _cardBgStyle，CDP 实测见 .tmp/panel-geo.mjs）。
   const scaleForAvail = Number(o.singleScale);
   const scaleOk = Number.isFinite(scaleForAvail) && scaleForAvail > 0 ? scaleForAvail : 1;
-  const refSingle = o.size ? SINGLE_REF_PX[o.size] : null;
-  const kCard = refSingle && geo ? Math.min(o.w / refSingle[0], o.h / refSingle[1]) : 1;
-  const kClamped = Math.max(0.35, Math.min(4, kCard));
+  // 固有尺寸的 opts 必须与 renderInfoBlockInner 实际用的布局开关同源：tall 已按真实
+  // 像素比算出；singleLine/noUnits 等用户开关原样透传。两边不同源 → 字号与排版错配。
+  const fitSingle = o.content && o.style
+    ? fitFor(o.content, o.style, o.hour12, o.isZh !== false, { ...(o.opts || {}), tall: tallGeo })
+    : { w: 6, h: 3.4, wrap: false };
+  const hostChromeX2 = HOST_PAD_X2 + 2;
+  const basePx = (o.size && SINGLE_BASE_PX[o.size]) || 16;
+  // v3.15 最终模型 = **设计基准封顶 + 原理公式保底**：
+  //   u = min(设计基准 px, fitFontU(内容盒, 固有尺寸))
+  // ① 封顶：真实卡片 ≥ 设计基准时恒等于出厂设计（SINGLE_BASE_PX 与 CSS 兜底同源），
+  //    大卡上不会因为「填满」把字放大到失控（audit 实测：纯 fitFontU 在 2×4/4×4 上把
+  //    wordClock/dayNum/stripeClock 放大到设计值的 2 倍 → 集体溢出）。
+  // ② 保底：卡片小于设计基准（用户真实 1×1 = 113×114、headless 76×76）时按公式收缩，
+  //    「availW ≥ fit.w」结构性成立 → 不再裁切；设计基准自身就溢的款式（lunarDate
+  //    在 120×120 参考下文本 5.73em > 可用 5.625em）也会被公式压到不溢（14.75 < 16）。
+  // 1×FULL 不走这支（高度驱动的 baseFull，见下）—— 横条卡的实测高度可达设计值 2.9 倍，
+  // 封顶会把内容缩成中间一小块（v3.10 用户实锤）。
+  const uFit = geo
+    ? Math.min(basePx, fitFontU(Math.max(0, o.w - hostChromeX2), Math.max(0, o.h - hostChromeX2), fitSingle,
+      o.size ? { min: 0.35 * basePx, max: 4 * basePx } : null))
+    : basePx;
   // 1×FULL 的基准字号由「高度」决定，不能只看宽度：它是一行高的横条，内容按 6.7em 高排版
   // （设计基准 1080×120 / 18px）。用户实测 1×FULL = 1386.88×346.72，旧公式 w/60=23.1px 只
   // 相当于设计值的 1.28 倍，而实际高度是设计值的 2.89 倍 → 内容缩在中间一小块、四周大片留白。
@@ -1921,7 +1991,7 @@ export function renderInfoBlock(o) {
   const baseFull = geo ? Math.min(56, Math.max(6, Math.min(o.h / 6.7, o.w / 24))) : 18;
   const baseForAvail = (o.size === '1xfull'
     ? baseFull
-    : (o.size ? SINGLE_BASE_PX[o.size] : 16) * kClamped)
+    : uFit)
     * scaleOk;
   // v3.10：可用空间要用「缩放后的盒子尺寸」—— 预览传的是未缩放实测尺寸 + singleScale，
   // 若不乘 scaleOk，预览的 avail 会是真实卡片的两倍，行数裁剪/格阵自适应又会漂移。
@@ -1934,8 +2004,8 @@ export function renderInfoBlock(o) {
   // （「预览正常、实际被切」的另一个来源）。
   const availGeo = geo
     ? {
-      availW: (o.w * scaleOk - HOST_PAD_X2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
-      availH: (o.h * scaleOk - HOST_PAD_X2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
+      availW: (o.w * scaleOk - hostChromeX2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
+      availH: (o.h * scaleOk - hostChromeX2 * scaleOk) / baseForAvail - 2 * FIT_PAD,
     }
     : {};
   const body = gated
@@ -1948,19 +2018,23 @@ export function renderInfoBlock(o) {
   // 1×FULL 与 baseForAvail 同源（否则可用空间与真实字号两套基准，行数裁剪会漂）
   const base = o.size === '1xfull'
     ? baseFull
-    : (o.size ? SINGLE_BASE_PX[o.size] : 0) * kClamped;
+    : (o.size ? uFit : 0);
   const eff = base * scaleOk;
   // v3.10：SVG 表盘类的「容器 0 高度」问题改由 CSS 的 aspect-ratio 解决
   // （见 card-mode-styles.js 的 .pv-rc-ring/.pv-rp-ring/.pv-gl-dial），不在这里硬塞高度——
   // 实测内联 height 会破坏 yearGrid 的格阵自适应（参考尺寸下 4 处子元素越界）。
   // 有实测几何（真实卡片/配置预览）或显式缩放时才内联字号；两者都没有（样式条小预览）交给 CSS 基准
-  const inline = eff && (geo || scaleOk !== 1)
-    ? html` style="font-size:${eff.toFixed(2)}px"`
-    : '';
+  const inlineStyle = eff && (geo || scaleOk !== 1) ? `font-size:${eff.toFixed(2)}px` : '';
   if (!o.singleRow) return body;
   // v2.7：整卡装饰层（按尺寸自动加顶栏/底栏/纹理）已撤回 —— 版面差异改由用户点选的
   // 「显示样式」（SINGLE_CONTENTS 里的 chip）决定，外壳只负责尺寸类名与预览缩放
-  return html`<div class="${cls}"${inline}>${body}</div>`;
+  // v3.15 铁律（真实面板 CDP 实测抓到的静默失败）：**插值必须放在引号属性值里**。
+  // 这里原是 <div class="${cls}"${inline}>——插值落在「标签内、引号外」，lit 把它当
+  // ElementPart（只认 styleMap/classMap 等 directive），普通字符串**静默丢弃**：
+  // 拟合字号从未进过 DOM，.pv-single 吃 CSS 兜底 16px → 1×1「十六」2.8em×16px=91px 宽
+  // 把 44px 盒子撑爆裁成「十」。本地预览/审计全是字符串拼接渲染，天然绕过此坑
+  // →「脚本全过」≠「用户看得到」。回归门禁：scripts/test-lit-commit.mjs（真 lit + 真浏览器）。
+  return html`<div class="${cls}" style="${inlineStyle}">${body}</div>`;
 }
 
 /**

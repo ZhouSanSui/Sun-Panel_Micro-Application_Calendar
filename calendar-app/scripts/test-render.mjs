@@ -691,7 +691,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
       ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
       singleRow: true, size: '2x2', w: 252, h: 252,
     })).join('');
-    // v3.10 新契约：预览传「未缩放实测尺寸 + singleScale」（kCard 由真实尺寸算，avail 用缩放后盒子）
+    // v3.10 契约：预览传「未缩放实测尺寸 + singleScale」（基准字号由真实尺寸解算，avail 用缩放后盒子）
     const scaled = flatten(renderInfoBlock({
       ...base, content: 'progress', style: 'multiBars', opts: { bars: 'y,m,w,d' },
       singleRow: true, size: '2x2', w: 252, h: 252, singleScale: 0.5,
@@ -727,11 +727,30 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
       ok(Math.abs(px(b) - px(a) * 0.37) < 0.05,
         `${c}.${s}@${size} 预览基准字号应严格等于真实字号×0.37（${px(a)} → ${px(b)}）`);
     }
-    // 小卡（宿主给的布局尺寸小于设计基准）基准字号必须同比缩小，内容才不会溢出
+    // 小卡（宿主给的布局尺寸小于设计基准）基准字号必须同比缩小，内容才不会溢出。
+    // v3.15：改为 fitFontU 原理公式（与拼接模式同源）—— 由「内容盒像素 ÷ 固有尺寸」解算，
+    // 「availW ≥ fit.w」成为结构性不变式；宿主 chrome = .widget padding 12×2 + border 1×2 = 26px。
+    // 60×60：解 34/6.375 = 5.33 < clamp 下限 0.35×16 = 5.6 → 夹到 5.60px
     const small = flatten(renderInfoBlock({
       ...base, content: 'timeDate', style: 'lunarDate', singleRow: true, size: '1x1', w: 60, h: 60,
     })).join('');
-    ok(/font-size:8\.00px/.test(small), '1x1 卡片实测 60x60 时基准字号应缩到 16×0.5=8.00px');
+    ok(/font-size:5\.60px/.test(small), '1x1 卡片实测 60x60 时基准字号应夹到 clamp 下限 5.60px');
+    // 公式锚点（手算核对，防公式被改坏）：lunarDate fit 6.0×4.2，宽度约束恒为盒宽/6.375
+    // 120×120 → 94/6.375 = 14.75；113×114 → 87/6.375 = 13.65；76×76 → 50/6.375 = 7.84
+    const pxOf = (str) => Number((str.match(/font-size:([0-9.]+)px/) || [])[1]);
+    const fAt = (w, h) => pxOf(flatten(renderInfoBlock({
+      ...base, content: 'timeDate', style: 'lunarDate', singleRow: true, size: '1x1', w, h,
+    })).join(''));
+    const CHROME = 26; // .widget padding 12×2 + 玻璃描边 1×2
+    ok(Math.abs(fAt(120, 120) - 14.75) < 0.02, `120x120 基准字号应为公式解算值 14.75px，实际 ${fAt(120, 120).toFixed(2)}`);
+    ok(Math.abs(fAt(113, 114) - 13.65) < 0.02, `113x114 基准字号应为公式解算值 13.65px，实际 ${fAt(113, 114).toFixed(2)}`);
+    ok(Math.abs(fAt(76, 76) - 7.84) < 0.02, `76x76 基准字号应为公式解算值 7.84px，实际 ${fAt(76, 76).toFixed(2)}`);
+    // 不变式：宽度约束下字号与内容盒严格同比 —— 任意真实尺寸都不裁
+    // （用户真实面板 1×1 = 113×114；headless 1384px 视口下 = 76×76）
+    ok(Math.abs(fAt(113, 114) / fAt(120, 120) - (113 - CHROME) / (120 - CHROME)) < 0.01,
+      `113x114 字号应与内容盒同比（${fAt(120, 120).toFixed(2)} → ${fAt(113, 114).toFixed(2)}，期望 ${(fAt(120, 120) * (113 - CHROME) / (120 - CHROME)).toFixed(2)}）`);
+    ok(Math.abs(fAt(76, 76) / fAt(120, 120) - (76 - CHROME) / (120 - CHROME)) < 0.01,
+      `76x76 字号应与内容盒同比（${fAt(120, 120).toFixed(2)} → ${fAt(76, 76).toFixed(2)}，期望 ${(fAt(120, 120) * (76 - CHROME) / (120 - CHROME)).toFixed(2)}）`);
     // SVG 环形容器尺寸纪律：弹性占满剩余高度（flex:1 1 auto + min-height:0），
     // 不许再写 aspect-ratio:1 —— 宽扁卡上「高=宽」会顶出卡片，窄高卡上会把图例挤出内容盒。
     for (const sel of ['.pv-rc-ring', '.pv-rp-ring', '.pv-gl-dial']) {

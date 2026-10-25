@@ -89,9 +89,15 @@ const PAGE_CSS = `
   .cap { font-size:10px; line-height:1.5; color:#8b949e; margin-bottom:5px; font-variant-numeric:tabular-nums; }
   .cap b { color:#c9d1d9; font-weight:600; }
   .cap .gate { color:#d29922; }
-  .card { box-sizing:border-box; border-radius:22px; overflow:hidden; background:#141a22;
+  /* 宿主盒模型复刻（CDP 实测，见 .tmp/panel-geo.mjs）：
+     .item-card-content（无 padding、overflow:hidden、radius 20px）→ :host → .widget
+     （padding:12px + 主题玻璃描边 border:1px，见 widget.js 的 _cardBgStyle）→ .card-mode-wrap。
+     少了这层 26px chrome，每轴都会凭空多出可用空间 → 「0 裁切」是假象（v3.15 踩坑）。 */
+  .card { box-sizing:border-box; border-radius:20px; overflow:hidden; background:#141a22;
           box-shadow:0 2px 12px rgba(0,0,0,.5); display:flex; flex-direction:column; padding:0; }
-  .card-mode-wrap { flex:1 1 auto; min-height:0; width:100%; display:flex; flex-direction:column;
+  .widget { box-sizing:border-box; width:100%; height:100%; padding:12px;
+            border:1px solid rgba(255,255,255,0.12); display:flex; flex-direction:column; }
+  .card-mode-wrap { flex:1 1 auto; min-height:0; width:100%; overflow:hidden; display:flex; flex-direction:column;
                     align-items:center; justify-content:center; font-size:16px; color:#F5F5F7;
                     text-shadow:0 1px 2px rgba(0,0,0,.35); }
   #out { position:absolute; left:-99999px; top:0; }
@@ -103,7 +109,7 @@ const rowsHTML = SIZES.map((size) => {
     <div class="case" data-case="${c.key}" data-size="${c.size}" data-c="${c.c}" data-s="${c.s}">
       <div class="cap"><b>${c.c}.${c.s}</b> ${c.zh}${c.gated ? ' <span class="gate">·此尺寸未启用</span>' : ''}<br>${size} ${w}×${h}</div>
       <div class="card" style="width:${w}px;height:${h}px">
-        <div class="card-mode-wrap">${c.html}</div>
+        <div class="widget"><div class="card-mode-wrap">${c.html}</div></div>
       </div>
     </div>`).join('\n');
   return `<h2>${size} · ${w}×${h}px</h2>\n<div class="row">${cell}</div>`;
@@ -149,7 +155,13 @@ const MEASURE = `
           if (isSvgPrim) { svgOut += 1; } else { clipped += 1; } if (!outTag) outTag = n.tagName.toLowerCase() + '.' + (n.getAttribute('class') || '') + '[p=' + (n.parentElement && (n.parentElement.getAttribute('class') || n.parentElement.tagName)) + ' r=' + n.getAttribute('r') + ' cx=' + n.getAttribute('cx') + ' cy=' + n.getAttribute('cy') + '] L' + Math.round(r.left - br.left) + ' T' + Math.round(r.top - br.top) + ' R' + Math.round(r.right - br.right) + ' B' + Math.round(r.bottom - br.bottom); }
         const txt = (n.textContent || '').trim();
         if (!txt) return;
-        const fs = parseFloat(getComputedStyle(n).fontSize);
+        // v3.15：display:none / visibility:hidden 的元素不参与字号判定 ——
+        // dayStack@1×1 左列被 .pv-single-1x1 .pv-ds-left{display:none} 整体隐藏，
+        // 其 0.36em 行若计入会把「根本没渲染」的文字判成 SUB（假阳性）。
+        // （越界/挤压判定有 r.width>0 兜底，天然不受影响。）
+        const ncs = getComputedStyle(n);
+        if (ncs.display === 'none' || ncs.visibility === 'hidden') return;
+        const fs = parseFloat(ncs.fontSize);
         if (!fs) return;
         if (PRIMARY.test(n.className || '')) { if (fs < minPrimary) minPrimary = fs; }
         else if (fs < minSecondary) minSecondary = fs;

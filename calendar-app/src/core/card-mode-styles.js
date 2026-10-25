@@ -537,6 +537,10 @@ export const CARD_MODE_CSS = `
 .pv-fd-d { font-size: 0.44em; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pv-fd-rule { width: 2.4em; height: 1px; background: currentColor; opacity: 0.16; flex: 0 0 auto; }
 /* 大卡上适度放大（仍远小于其它款，保持「小字信息条」的定位） */
+/* v3.15：1×1 的 k 也从 0.34 → 0.4em —— 0.34em×16px 基准 = 5.44px，低于可读性底线
+   （audit SUB 阈值 5.5px，「节日/假期」标签实际看不清）。行宽代价 +0.12em
+   （3.956 → 4.08em，实测），仍在 CONTENT_FIT w=5.0（覆盖 1×2/2×1 的 4.584em）内。 */
+.pv-single-1x1 .pv-fd-k { font-size: 0.4em; }
 .pv-single-1x2 .pv-fd-k, .pv-single-2x1 .pv-fd-k { font-size: 0.4em; }
 .pv-single-1x2 .pv-fd-v, .pv-single-2x1 .pv-fd-v { font-size: 0.68em; }
 .pv-single-1x2 .pv-fd-d, .pv-single-2x1 .pv-fd-d { font-size: 0.5em; }

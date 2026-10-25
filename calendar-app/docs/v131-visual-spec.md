@@ -1338,6 +1338,86 @@ festival「寒衣节」两张卡仍在渲染且都裁切）。
 
 ---
 
+## v3.15 真实面板尺寸实测 / lit ElementPart 根因 / 单模式字号模型重构（2026-10-25）
+
+用户原话：「还是又些问题，我想可否通过什么方式让你真实知道显示区域的大小。」
+附 635×174 四张 1×1 卡截图：卡1 只剩一个「十」（应为「十六」）、卡2「25」、卡3 festivalDay、
+卡4 dayRing「83% 今日 19:09」。本轮把「真实知道显示区域大小」兑现为 CDP 实测，
+并据此挖出**生产环境从未生效过的根因**（lit ElementPart 静默丢弃），重构单模式字号模型。
+
+### ① CDP 直连真实面板拿尺寸（无登录墙）
+
+`http://192.168.10.251:13002/`（headless Chrome + WebSocket，量 `.item-card-content` 实测矩形）：
+
+| 规格 | 旧审计想当然 | **CDP 实测（用户面板）** |
+| --- | --- | --- |
+| 1×1 | 346.72×346.72 | **113×114** |
+| 1×2 | — | 238×114 |
+| 2×1 | — | 113×238 |
+| 2×2 | — | 238×238 |
+| 2×4 | — | 488×238 |
+| 4×4 | — | 488×488 |
+| 1×FULL | 1080×120 | 1386.88×346.72 |
+
+旧审计的「真实尺寸」按格数×格距想当然推导，1×1 差了 3 倍——**这是「又些问题」查不明的直接原因**。
+工具 `.tmp/panel-geo.mjs`；`AUDIT_DIMS='{"1x1":[113,114],...}' node scripts/audit-single.mjs` 复测。
+
+### ② 真根因：lit ElementPart 静默丢弃（v3.15 核心发现）
+
+`html`<div class="${cls}"${inline}>`` 中 `${inline}` 位于「标签内、引号外」→ lit 按 ElementPart 处理，
+普通字符串**静默丢弃**（只认 styleMap/classMap 等 directive）。拟合根字号从未进过 DOM，
+1×1「十六」按 CSS 兜底 16px 渲染 → 裁成「十」，而 787 项字符串断言全绿。
+修法：`style="${inlineStyle}"`（引号属性值内）；heatYear「今天」格同坑同修。
+**铁律**：本地 preview/audit/test 把 lit 模板拍平成字符串，天然绕过 ElementPart 语义 →
+「脚本全过」≠「用户看得到」；属性插值/SVG 必须真 lit + 真浏览器验证（`scripts/test-lit-commit.mjs`，
+CDP + 真 lit render，43 断言）。
+
+### ③ 宿主盒模型 chrome = 26px
+
+`.item-card-content`（无 padding、overflow:hidden、radius 20px）→ `:host{display:block;width/height:100%}`
+→ `.widget`（`padding:12px` + 主题玻璃描边 `border:1px`）= **每轴 26px 常量**。
+audit 的 PAGE_CSS 原来每轴少扣 26px → 可用空间凭空多一截，「0 裁切」是假象（v3.15 踩坑，
+已按 CDP 实测复刻宿主盒模型）。
+
+### ④ 单模式字号模型重构：设计基准封顶 + fitFontU 原理公式保底
+
+```
+u = min(SINGLE_BASE_PX[size], fitFontU(w-26, h-26, fitFor(content, style, hour12, isZh, opts),
+                                       {min: 0.35×base, max: 4×base}))
+```
+
+`SINGLE_BASE_PX = {1x1:16, 1x2:17, 2x1:17, 2x2:22, 2x4:26, 4x4:34, 1xfull:18}`。
+- **封顶**：卡片 ≥ 设计基准时恒等于出厂设计（纯公式方案被否：2×4/4×4 上 wordClock/dayNum/
+  stripeClock 会被放大到设计值 2 倍集体溢出——audit 实测 4 处 CLIP）。
+- **保底**：卡片小于设计基准时按公式收缩，`availW ≥ fit.w` 结构性成立。
+- 1×FULL 除外（高度驱动 `baseFull = min(56, max(6, min(h/6.7, w/24)))`）。
+
+### ⑤ CONTENT_FIT 实测修正 5 处（`.tmp/measure-fit315.mjs`，root=100px 超大卡量固有 em）
+
+| 条目 | 旧值 | 新值 | 依据 |
+| --- | --- | --- | --- |
+| dayStack w | 6.2 | **5.2** | 实测自然总宽 4.924em（左列 1.11 + gap 0.4 + 「日」3.414）；1×1 左列 display:none 只剩 3.869em。旧值连 1×1 隐藏左列都不知道，把 1×1/2×1 根字号压到 13.2 |
+| stackTime | 无（回落 __default 8.3） | **w 3.6 / h 7.2** | 实测行宽 3.395em（b=2.3em）、三行 6.9em；修复前 2×1 根字号被压到 **10px**（设计 17） |
+| tallClock | 6.4 / 9.6 | **6.1 / 5.8** | 实测主行「14:05」5.811em、自然高 5.47em；旧 h 9.6 是过期代理值（大 75%） |
+| ringProgress | 6.8 / 6.8 | **9.6 / 1.2** | 图例单行最坏 9.15em（3 位百分比）；`.pv-rp-ring` 是 flex 弹性填充 + SVG absolute，h 只该记账式图例 0.88em。旧 h 6.8 把 1×2 根字号压到 12.3（设计 17） |
+| festivalDay（CSS） | 1×1 k 0.34em | **0.4em** | 0.34×16 = 5.44px 低于可读性底线（audit SUB 阈值 5.5px）；行宽代价 +0.12em 仍在 fit w=5.0 内 |
+
+配套：audit-single.mjs 字号判定**跳过 display:none 元素**——dayStack@1×1 左列整体隐藏，
+其 0.36em 行若计入会把「根本没渲染」的文字判成 SUB（假阳性，v3.15 修）。
+
+### ⑥ 本轮门禁与审计结果
+
+- `npm run check`：lint 0 error · CSS 镜像一致 · 布局 **3876** · 渲染 **792** 断言
+- `test-lit-commit`（真 lit + 真 Chrome）：**43/43**，含 5 个修正款式的公式锚点字号
+- `audit:single` 设计尺寸：**127 正常 · 次要注意 0 · 裁切 0 · 缺失 0**
+- `audit:single` **真实尺寸**（113×114 起）：**127 正常 · 次要注意 0 · 裁切 0 · 缺失 0**
+  （修复前真实尺寸 6 条 SUB：dayStack×2 / festivalDay / ringProgress / stackTime / tallClock）
+- `audit:matrix`：334 正常 · 裁切 0（30 条 SUB 为拼接模式 48×57 小块的存量现象，与本轮无关）
+- 用户四卡复验（113×114）：lunarDate「十六」完整 / dayStack「25」/ festivalDay「寒衣节 15 天」
+  / dayRing「80% 今日 19:09」——与用户截图逐一对应，裁切与缩小全部消除
+
+---
+
 ## 附录 C：决策速查（给 team-lead 的一页纸）
 
 | # | 决策 | 关键数值 |
