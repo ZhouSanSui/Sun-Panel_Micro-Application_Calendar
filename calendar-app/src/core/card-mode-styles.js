@@ -550,6 +550,25 @@ export const CARD_MODE_CSS = `
    1×2 保留 k（h 方向 root 15.7，k 0.44em = 6.9px 可读）。 */
 .pv-single-1x1 .pv-fd-k, .pv-single-2x1 .pv-fd-k { display: none; }
 .pv-single-1x2 .pv-fd-v, .pv-single-2x1 .pv-fd-v { font-size: 0.68em; }
+/* v3.18：1×1 的名称 / 天数两行再放大一轮（用户诉求：上下字体都偏小）。
+   实测账（root 11.7px、pv-fd 盒 45.6px）：放大前行宽 = v 19.9 + 沟槽 3.04 + d 14.2 = 37.1px
+   （= 3.17em），离 CONTENT_FIT 的保底线 3.9em 还有余量 —— **只要不超过 fit.w，root 就不变、
+   字是真变大**。取值 v 0.65 / d 0.56 后行宽 = 23.1 + 3.04 + 16.6 ≈ 42.7px（3.65em，余量 6.4%）。
+   早已核查最坏组合：全年节日名最长 3 字（33 个里 29 个三字），倒计时最大 30 天（两位），
+   故「寒衣节 14 天」即最宽情况。 */
+.pv-single-1x1 .pv-fd-v { font-size: 0.65em; }
+.pv-single-1x1 .pv-fd-d { font-size: 0.56em; }
+
+/* ⑦ festivalNext / holidayNext（v3.19）：节日、节假日拆成两张独立卡。
+   原 festivalDay 把两行信息挤在一张卡 —— 1×1（内容盒仅 50px）为塞下不得不隐藏「节日/假期」
+   标签，用户要求「放开显示」。拆开后一张卡只有一个信息：标签不用再 hidden，
+   名称独占可用宽度，实测名称字号是 festivalDay 的约两倍（7.6 → 12px 级，见下 em 初值）。
+   三行竖排 = 标签 / 名称 / 天数；pv-col 自带 column + gap 0.3125em + center，此处只补横向居中。
+   v / d 用 flex:0 1 auto + min-width:0：名称过长时由 fitFontU 的 root 缩放兜住，不横向溢出。 */
+.pv-fnx { width: 100%; height: 100%; align-items: center; }
+.pv-fnx-k { flex: 0 0 auto; font-size: 0.52em; font-weight: 700; opacity: 0.85; white-space: nowrap; }
+.pv-fnx-v { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 0.95em; font-weight: 800; line-height: 1.08; white-space: nowrap; }
+.pv-fnx-d { flex: 0 0 auto; font-size: 0.62em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ⑥ verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」 */
 .pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
@@ -568,6 +587,15 @@ export const CARD_MODE_CSS = `
 .pv-dr-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-dr-pct { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .pv-dr-time { font-size: 0.5em; white-space: nowrap; max-width: 100%; overflow: hidden; }
+/* v3.18：1×1 环下「今日 HH:MM」0.5 → 0.66em（5.99 → 7.9px，+32%），原值低于可读底线。
+   高度是这个样式的硬约束（pv-dr 盒 45.5px = ring 36.5 + time 行盒 7.2 + gap，余量仅 1.8px），
+   **flex:0 0 auto 是关键**：time 默认 flex-shrink:1，会被容器高度压缩 —— 0.5em 时
+   scrollHeight 8 > 盒高 7.2、0.66em 时 10 > 8.6，配合 overflow:hidden 会把中文字上下缘
+   切掉 1~1.4px（用户最反感的那种「看得出的裁切」）。改为不可压缩后字完整显示，
+   压缩量全部转给 ring（已是 flex:0 1 auto）：ring 高 36.5 → 约 33.6px（-8%，圆按 min 边缩放）。
+   这是必要的交换：要让字变大且不被裁，环只能变小；ring 再小就得牺牲 1.1em 的 pct 了。
+   宽度不是问题：time 行 29.3 → 38.6px << 45.5px。 */
+.pv-single-1x1 .pv-dr-time { font-size: 0.66em; flex: 0 0 auto; }
 
 /* ⑧ lifeBar 生命刻度尺（2×1）：20 个刻度块，已过的填主色
    刻度尺本身是「竖向的一列窄条」—— 宽度只占卡宽的一部分（60%），居中；

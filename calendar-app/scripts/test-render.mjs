@@ -1633,8 +1633,10 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     ok(styleFitsSize('single', c, s, size) === true,
       `尺寸门控：${c}.${s} 应提供 ${size} 单独模式`);
   }
-  // 1×1 / 2×1 只暴露新做的款式（数量锁定，防止以后误把旧款加回来）
-  for (const [size, expect] of [['1x1', 4], ['2x1', 11]]) {
+  // 1×1 / 2×1 / 1×2 只暴露新做的款式（数量锁定，防止以后误把旧款加回来）
+  // v3.19：节日、节假日拆成独立卡（festivalNext / holidayNext）→ 1×1 4→6、1×2 17→19、2×1 11→13。
+  //        旧的 festivalDay 保留，所以是「+2」而不是「替换」。
+  for (const [size, expect] of [['1x1', 6], ['1x2', 19], ['2x1', 13]]) {
     let n = 0;
     for (const c of SINGLE_CONTENTS) for (const s of c.styles) if (styleFitsSize('single', c.key, s.key, size)) n++;
     ok(n === expect, `${size} 单独模式应恰好有 ${expect} 款样式，实际 ${n}`);

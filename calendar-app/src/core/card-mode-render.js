@@ -176,6 +176,20 @@ const CONTENT_FIT = {
     // 1×2 保留 k（h 方向 root 15.7，k 0.44em = 6.9px 可读）；
     // 2×2/2×4/4×4/1×FULL 的 w 方向解均远大于各自设计基准，w3.9 不影响。
     festivalDay: { w: 3.9, wEn: 5.2, h: 2.8 },
+    // v3.19：节日 / 节假日**拆成两张独立卡**（festivalNext / holidayNext）。
+    // **必须写在 schedule 分组里** —— fitFor 是 CONTENT_FIT[content][style] 两级查表，
+    // 写错分组会静默回落 __default（我第一版误放进 progress 分组 → 1×1 root 只有 9.3px，
+    // 与 v3.17「dayNum 缺条目把 2×1 压到 6px」是同一个坑）。
+    // measure-fnx.mjs 实测（root=100px、4000px 大卡、card 不设 height）：
+    // k 0.52em「节日」104px、v 0.95em「寒衣节」285px、d 0.62em「14 天」157px，
+    // .pv-fnx 固有尺寸 = w 2.85em（最宽即名称）/ h 3.16em（三行 + 2 个 0.3125em gap）。
+    // **最坏组合已核查**：节日名最长 3 字（全年 33 个）、法定假期名最长 3 字
+    // （劳动节 / 国庆节 / 清明节）→ 2.85em 即上限。取 w 3.0 / h 3.3 留约 5% 余量；
+    // h 还要吃掉 v 的字形纵向溢出（scrollHeight 114 vs 行盒 102.6，即 +0.11em），
+    // 否则 1×1 上名称的上下缘会被卡边缘切掉。两个样式共用一组值（版式与数据源一致，
+    // 空态少一行，按有数据的最坏情况取）。
+    festivalNext: { w: 3.0, h: 3.3 },
+    holidayNext: { w: 3.0, h: 3.3 },
     // v3.12：纵向日程表（2×1）—— 每行「时间 + 事件名」，条数按高度定
     // v3.17：w 5.6 → 4.6 —— measure-fit317b/c.mjs 实测（root=100px）：行 =
     // 时间 0.46em（「14:00」1.15em）+ gap 0.4 + 名称 0.72em（ellipsis 截断，
@@ -1565,6 +1579,34 @@ function renderInfoBlockInner(o) {
         ${row(isZh ? '节日' : 'Fest', fName, fmtMd(f && f.date), fDays, false)}
         <div class="pv-fd-rule"></div>
         ${row(isZh ? '假期' : 'Holiday', hName, fmtMd(h && h.date), hDays, true)}
+      </div>`;
+    }
+
+    // ⑦ schedule.festivalNext / holidayNext（v3.19）：节日与节假日**拆成两张独立的卡**。
+    // 用户："还是给节日和节假日放开显示，两个放在一个卡片有些放不下"。
+    // 一张卡只放一个信息后：标签 k 不再需要隐藏（festivalDay 在 1×1 上被迫 hidden），
+    // 且名称行独占可用宽度 → root 与字号都能比两行合一放大约一倍（实测见 panel-sizes 记载）。
+    // 两个分支共用 .pv-fnx-*（**不是 pv-fd-***，否则会被旧卡的尺寸类裁剪规则命中）。
+    // 数据源结构一致（getNextFestival / getNextHoliday 都返回 {dateStr,date,days,nameZh,nameEn}）。
+    if (style === 'festivalNext' || style === 'holidayNext') {
+      const ac = accentOf(theme);
+      const isHol = style === 'holidayNext';
+      const src = isHol ? getNextHoliday(getHolidayService(), now) : getNextFestival(now);
+      const fmtMd = (iso) => {
+        const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+        return m ? `${Number(m[1])}/${Number(m[2])}` : '';
+      };
+      // 天数缺失（数据源没给出 days）时用「月/日」兜底，与 festivalDay 的空态处理保持一致
+      const dNum = src && Number.isFinite(src.days) ? src.days : null;
+      const kTxt = isZh ? (isHol ? '节假日' : '节日') : (isHol ? 'Holiday' : 'Festival');
+      const name = src
+        ? (isZh ? (src.nameZh || kTxt) : (src.nameEn || src.nameZh || kTxt))
+        : (isZh ? '暂无' : 'None');
+      const days = !!src && (dNum === null ? fmtMd(src.dateStr) : `${dNum} 天`);
+      return html`<div class="pv-col pv-fnx">
+        <div class="pv-fnx-k" style="color:${label3}">${kTxt}</div>
+        <div class="pv-fnx-v" style="color:${label}">${name}</div>
+        ${days ? html`<div class="pv-fnx-d" style="color:${isHol ? ac : label2}">${days}</div>` : ''}
       </div>`;
     }
 

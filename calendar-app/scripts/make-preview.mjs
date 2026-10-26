@@ -186,6 +186,9 @@ const SINGLE_CASES = [
   ['4x4', 'timeDate', 'stripeClock'], ['4x4', 'progress', 'heatYear'],
   ['1x1', 'timeDate', 'lunarDate'], ['1x1', 'timeDate', 'dayStack'], ['1x1', 'progress', 'dayRing'],
   ['1x1', 'schedule', 'festivalDay'], ['2x1', 'schedule', 'verticalList'],
+  // v3.19：节日 / 节假日拆成独立卡（标签放开显示 + 名称放大约 1.7 倍）
+  ['1x1', 'schedule', 'festivalNext'], ['1x1', 'schedule', 'holidayNext'],
+  ['1x2', 'schedule', 'festivalNext'], ['2x1', 'schedule', 'holidayNext'],
 ];
 const singleCards = SINGLE_CASES.map(([size, c, s, opts]) => {
   const [w, h] = SINGLE_REF_PX[size];

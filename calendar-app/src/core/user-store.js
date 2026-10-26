@@ -219,6 +219,14 @@ export const SINGLE_CONTENTS = [
     // 字体尽可能小别被裁切」。字号全面压到 0.34~0.56em（1×1 内容盒约 6.6em，
     // 最宽行「节日 寒衣节 11/09」≈ 3.9em，余量 > 40%）。
     { key: 'festivalDay', zh: '节日节假日', en: 'Festival & Holiday', sizes: ['1x1', '1x2', '2x1'], opts: ['color'] },
+    // v3.19：用户要求把「节日 + 节假日」拆成两张独立的卡 —— 原 festivalDay 把两行信息挤在
+    // 一张卡里，1×1（内容盒仅 50px）为了塞下不得不隐藏「节日/假期」标签，用户："还是给节日和
+    // 节假日放开显示，两个放在一个卡片有些放不下"。拆开后一张卡只有一个信息：
+    // 标签可以放开显示、主信息（名称）也能放大到 festivalDay 的两倍左右。
+    // **旧 festivalDay 保留不动**（用户选择）：已配置的卡继续显示两行，两个新样式作为可选项并存，
+    // 用户可自己在不同的卡上分别摆「节日」和「节假日」。二者共用 .pv-fnx-* 结构。
+    { key: 'festivalNext', zh: '节日', en: 'Festival', sizes: ['1x1', '1x2', '2x1'], opts: ['color'] },
+    { key: 'holidayNext', zh: '节假日', en: 'Holiday', sizes: ['1x1', '1x2', '2x1'], opts: ['color'] },
   ] },
   // v3.14：「仪表」并入「进图仪表」（用户：合并为一类，图标沿用进图 ◴）。
   // key 仍叫 progress —— 存量配置里 `c:'progress'` 的卡不受影响；
