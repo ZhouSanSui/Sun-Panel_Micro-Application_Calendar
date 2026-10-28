@@ -640,7 +640,7 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-cp { gap: 0.14em; }                                  /* capsule 数字↔标题间距 -5px（0.4→0.14em）*/
 .pv-single-1x2 .pv-cp-pill { font-size: 0.68em; }                       /* capsule 标题 10.6→13 */
 .pv-single-1x2 .pv-cp-cell i { font-size: 0.68em; }                     /* capsule 单位 10.6→13 */
-.pv-single-1x2 .pv-tg-title { font-size: 0.84em; }                      /* targetDay 标题 11.4→16 */
+.pv-single-1x2 .pv-tg-title { font-size: 0.89em; }                      /* targetDay 标题 16→17（用户 +1px）*/
 .pv-single-1x2 .pv-tg-pre,
 .pv-single-1x2 .pv-tg-unit { font-size: 0.68em; }                       /* targetDay 单位 9.5→13 */
 .pv-single-1x2 .pv-tg-days { font-size: 2.1em; }                        /* targetDay 天 47.5→40 */
@@ -677,5 +677,5 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-wg2-foot span { font-size: 1em; }                  /* weekGrid 「本周」≈13px（相对 foot 0.68em）*/
 .pv-single-1x2 .pv-wg2-foot b { font-size: 1em; font-weight: 400; }   /* weekGrid 周% ≈13px，去粗体与标签同重 */
 .pv-single-1x2 .pv-wg2-foot { display: flex; justify-content: space-between; align-items: baseline; text-align: left; }  /* 本周移至最左，与今年一致 */
-.pv-single-1x2 .pv-sg-val { transform: translateX(-50%) translateY(8px); }  /* v3.27：半环值相对 v3.26(下移15)上提7px → 净下移8px（用户：当前太下）*/
+.pv-single-1x2 .pv-sg-val { transform: translateX(-50%) translateY(6px); }  /* v3.28：相对 v3.27(下移8)再上提2px → 净下移6px（用户：上移2px）*/
 `;
