@@ -109,7 +109,7 @@ export const CARD_MODE_CSS = `
 /* ===== v2.7 单独模式新增「显示样式」（用户可在配置页 chip 中点选） ===== */
 /* 年进度格阵：365/366 格，格边长由 CSS 从容器真实尺寸推出，JS 只给 --cols/--rows 两个整数 */
 .pv-yg { width: 100%; height: 100%; gap: 0.3em; align-items: stretch; }
-.pv-yg-head { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.375em; line-height: 1.2; }
+.pv-yg-head { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.5em; line-height: 1.2; }
 .pv-yg-head b { font-weight: 800; }
 /* v3.12：格阵区独立成 body 并开启 container-type:size ——
    这样 100cqw / 100cqh 拿到的是**格阵区的真实像素**，而不是 JS 用设计基准预测出来的 em 值。
@@ -150,25 +150,25 @@ export const CARD_MODE_CSS = `
 .pv-yb-bars b i { display: block; width: 100%; border-radius: inherit; background: currentColor; opacity: 0.34; }
 .pv-yb-bars b.cur { opacity: 0.12; }
 .pv-yb-bars b.cur i { opacity: 0.85; }
-.pv-yb-foot { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.5em; line-height: 1.25; }
+.pv-yb-foot { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; font-size: 0.62em; line-height: 1.25; }
 .pv-yb-foot b { font-weight: 800; font-size: 1.5em; }
 /* 周进度格：7 格（星期 + 日期），已过格加深、今天格用主题色实心 */
 .pv-wg2 { width: 100%; height: 100%; gap: 0.3em; align-items: stretch; }
 .pv-wg2-row { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; gap: 0.1em; }
 .pv-wg2-cell { flex: 1 1 0; min-width: 0; padding: 0.1em 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em; border-radius: 0.22em; background: color-mix(in srgb, currentColor 9%, transparent); overflow: hidden; }
-.pv-wg2-cell span { font-size: 0.5em; line-height: 1.2; }
+.pv-wg2-cell span { font-size: 0.62em; line-height: 1.2; }
 /* v3.10：数字原来 0.9375em —— 7 列均分后每列只有约 1.1 个字宽，「20/21/22」直接叠在一起
    （用户报 2×1 变形）。压到 0.72em + 等宽数字，两位数字宽 ≈1.0em < 列宽。 */
-.pv-wg2-cell b { font-size: 0.72em; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.pv-wg2-cell b { font-size: 0.86em; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 .pv-wg2-cell.on { background: color-mix(in srgb, currentColor 16%, transparent); }
 .pv-wg2-cell.now { background: transparent; }
-.pv-wg2-foot { flex: 0 0 auto; font-size: 0.5em; line-height: 1.25; text-align: right; }
-.pv-wg2-foot b { font-weight: 800; }
+.pv-wg2-foot { flex: 0 0 auto; font-size: 0.66em; line-height: 1.25; text-align: right; }
+.pv-wg2-foot b { font-weight: 800; font-size: 1.3em; }
 /* 双区时间：上时间大字 → 细分隔线 → 下日期 + 星期 */
 .pv-dz { width: 100%; height: 100%; gap: 0.22em; align-items: stretch; justify-content: center; }
 .pv-dz-time { flex: 0 0 auto; font-size: 2em; font-weight: 800; line-height: 1.05; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; }
 .pv-dz-rule { flex: 0 0 auto; height: 0.07em; border-radius: 0.035em; background: currentColor; opacity: 0.3; margin: 0.04em 0.02em; }
-.pv-dz-date { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; gap: 0.4em; font-size: 0.5em; line-height: 1.3; }
+.pv-dz-date { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; gap: 0.4em; font-size: 0.66em; line-height: 1.3; }
 .pv-dz-date b { font-weight: 800; }
 /* v3.10 1×FULL：dualZone 原样是「上时间 / 横分割线 / 下日期+星期」的方形卡版式，横条卡上
    分割线被拉成 1386px 横贯全宽、星期被甩到最右边（用户报「变形」）→ 改为竖线分隔的横排。
@@ -176,7 +176,7 @@ export const CARD_MODE_CSS = `
    容器改 space-evenly —— 时间落在卡的 1/4 处、日期落在 3/4 处，不再挤在中间一小块。 */
 .pv-single-1xfull .pv-dz { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 .pv-single-1xfull .pv-dz-rule { flex: 0 0 auto; width: 0.07em; height: 2.8em; margin: 0; }
-.pv-single-1xfull .pv-dz-date { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.12em; font-size: 1em; }
+.pv-single-1xfull .pv-dz-date { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.12em; font-size: 1.2em; }
 
 /* ===== v2.9 图像化样式（单独模式，"样式设置"可改主色 / 文案 / 目标日） ===== */
 /* ringClock：环形刻度钟（60 刻度 + 当日比例弧 + 时针/分针 + 时间窗） */
@@ -199,8 +199,8 @@ export const CARD_MODE_CSS = `
 .pv-dc-right { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .pv-dc-dots { display: flex; gap: 0.16em; justify-content: center; width: auto; max-width: 100%; }
 .pv-dc-dots i { width: 0.16em; aspect-ratio: 1 / 1; border-radius: 50%; background: currentColor; }
-.pv-dc-time { font-size: 1.1em; font-weight: 800; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; text-shadow: 0 0 0.16em currentColor, 0 0 0.02em currentColor; }
-.pv-dc-date { font-size: 0.5em; letter-spacing: 0.04em; white-space: nowrap; }
+.pv-dc-time { font-size: 1.3em; font-weight: 800; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; text-shadow: 0 0 0.16em currentColor, 0 0 0.02em currentColor; }
+.pv-dc-date { font-size: 0.62em; letter-spacing: 0.04em; white-space: nowrap; }
 .pv-single-2x4 .pv-dc-time { font-size: 1.6em; }
 .pv-single-4x4 .pv-dc-time { font-size: 1.8em; }
 /* boldClock：粗体大字 + 主色色块 */
@@ -208,7 +208,7 @@ export const CARD_MODE_CSS = `
 .pv-bc-nums { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 0.22em; padding: 0.18em 0.28em; line-height: 0.95; }
 .pv-bc-nums b { color: #111; font-size: 1.5em; font-weight: 900; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .pv-single-1x1 .pv-bc-nums b { font-size: 1.1em; }
-.pv-bc-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.16em; font-size: 0.5em; }
+.pv-bc-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.16em; font-size: 0.62em; }
 /* capsule：胶囊倒计时 */
 /* v3.12：DOM 拆成 left（倒计时格）/ right（标题胶囊），基础版竖排、1×FULL 横排 */
 .pv-cp { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.4em; overflow: hidden; }
@@ -218,8 +218,8 @@ export const CARD_MODE_CSS = `
 .pv-cp-pill { border: 1px solid currentColor; border-radius: 999px; padding: 0.12em 0.7em; font-size: 0.56em; letter-spacing: 0.04em; white-space: nowrap; }
 .pv-cp-row { display: flex; align-items: baseline; justify-content: center; gap: 0.36em; }
 .pv-cp-cell { display: flex; align-items: baseline; gap: 0.1em; }
-.pv-cp-cell b { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; }
-.pv-cp-cell i { font-size: 0.46em; font-style: normal; }
+.pv-cp-cell b { font-size: 1.3em; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pv-cp-cell i { font-size: 0.56em; font-style: normal; }
 /* targetDay：目标倒计时卡 */
 /* v3.12：DOM 拆成 left（天数组）/ right（标题 + 目标日），基础版竖排、1×FULL 横排 */
 .pv-tg { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.22em; }
@@ -227,8 +227,8 @@ export const CARD_MODE_CSS = `
 .pv-tg-right { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em; }
 .pv-tg-title { font-size: 0.6em; font-weight: 700; letter-spacing: 0.02em; }
 .pv-tg-pre, .pv-tg-unit { font-size: 0.5em; }
-.pv-tg-days { font-size: 2.1em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
-.pv-tg-date { font-size: 0.54em; letter-spacing: 0.03em; white-space: nowrap; }
+.pv-tg-days { font-size: 2.5em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.pv-tg-date { font-size: 0.66em; letter-spacing: 0.03em; white-space: nowrap; }
 /* multiBars：多条进度 */
 .pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
 /* v3.10 1×FULL：原来 4 条挤成一行，标签(1.7em)+百分比(3.1em) 两个定宽块吃掉大半，
@@ -257,32 +257,32 @@ export const CARD_MODE_CSS = `
 .pv-st { justify-content: center; gap: 0.18em; width: 100%; }
 .pv-st-time { font-size: 2.1em; font-weight: 200; letter-spacing: 0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-st-rule { width: 1.6em; height: 0.12em; border-radius: 999px; opacity: 0.9; }
-.pv-st-date { font-size: 0.5em; letter-spacing: 0.08em; opacity: 0.7; white-space: nowrap; }
+.pv-st-date { font-size: 0.64em; letter-spacing: 0.08em; opacity: 0.7; white-space: nowrap; }
 .pv-single-1xfull .pv-st { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 /* v3.12：后半段（日期行 .pv-st-date）加大一倍 0.5em → 1.0em；分隔线随日期行增高 */
 .pv-single-1xfull .pv-st-rule { width: 0.12em; height: 1.6em; }
-.pv-single-1xfull .pv-st-date { font-size: 1em; letter-spacing: 0.02em; }
+.pv-single-1xfull .pv-st-date { font-size: 1.2em; letter-spacing: 0.02em; }
 .pv-single-2x4 .pv-st-time { font-size: 2.6em; }
 .pv-single-4x4 .pv-st-time { font-size: 3.2em; }
 
 .pv-wc { justify-content: center; gap: 0.22em; width: 100%; }
 .pv-wc-main { font-size: 1.35em; font-weight: 300; letter-spacing: 0.06em; line-height: 1.15; text-align: center; }
-.pv-wc-sub { font-size: 0.48em; letter-spacing: 0.14em; opacity: 0.62; white-space: nowrap; }
+.pv-wc-sub { font-size: 0.6em; letter-spacing: 0.14em; opacity: 0.62; white-space: nowrap; }
 .pv-single-2x4 .pv-wc-main { font-size: 2.1em; }
 .pv-single-4x4 .pv-wc-main { font-size: 2.4em; }
 /* v3.12：后半段（副行 .pv-wc-sub）加大一倍 0.48em → 0.96em；
    align-items 从 baseline 改 center —— 副行放大后 baseline 对齐会让主字下沉。 */
 .pv-single-1xfull .pv-wc { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
-.pv-single-1xfull .pv-wc-main { font-size: 1.5em; }
-.pv-single-1xfull .pv-wc-sub { font-size: 0.96em; letter-spacing: 0.06em; }
+.pv-single-1xfull .pv-wc-main { font-size: 1.7em; }
+.pv-single-1xfull .pv-wc-sub { font-size: 1.12em; letter-spacing: 0.06em; }
 
 /* v3.11：补 align-items/text-align —— 单独模式里 .pv-single > .pv-col 被 stretch 撑满整宽，
    缺这两条时标题与尾行会贴左边（用户截图 1×1 巨型天数「倒计时」在左上角）。 */
 .pv-bd { justify-content: center; align-items: center; text-align: center; gap: 0.1em; width: 100%; }
-.pv-bd-title { font-size: 0.5em; letter-spacing: 0.1em; opacity: 0.72; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.pv-bd-title { font-size: 0.62em; letter-spacing: 0.1em; opacity: 0.72; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .pv-bd-num { font-size: 2.2em; font-weight: 800; line-height: 0.95; font-variant-numeric: tabular-nums; }
 .pv-bd-num small { font-size: 0.34em; font-weight: 600; margin-left: 0.1em; }
-.pv-bd-tail { font-size: 0.42em; letter-spacing: 0.06em; opacity: 0.6; white-space: nowrap; }
+.pv-bd-tail { font-size: 0.52em; letter-spacing: 0.06em; opacity: 0.6; white-space: nowrap; }
 .pv-single-1x1 .pv-bd-num { font-size: 1.9em; }
 .pv-single-1x1 .pv-bd-tail { display: none; }
 .pv-single-2x4 .pv-bd-num, .pv-single-4x4 .pv-bd-num { font-size: 2.8em; }
@@ -292,7 +292,7 @@ export const CARD_MODE_CSS = `
 .pv-rp-ring { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
 .pv-rp-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-rp-pct { font-size: 0.95em; font-weight: 700; font-variant-numeric: tabular-nums; }
-.pv-rp-legend { display: flex; flex-wrap: wrap; gap: 0.34em 0.6em; justify-content: center; font-size: 0.4em; opacity: 0.8; }
+.pv-rp-legend { display: flex; flex-wrap: wrap; gap: 0.34em 0.6em; justify-content: center; font-size: 0.52em; opacity: 0.8; }
 .pv-rp-legend span { display: inline-flex; align-items: center; gap: 0.24em; white-space: nowrap; }
 .pv-rp-legend i { width: 0.5em; height: 0.5em; border-radius: 999px; display: block; }
 .pv-single-1xfull .pv-rp { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
@@ -312,12 +312,13 @@ export const CARD_MODE_CSS = `
    v3.12：后半段（时间读数 .pv-rc-time）加大一倍 1.6em → 3.2em；容器改 space-evenly。 */
 .pv-single-1xfull .pv-rc { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
 .pv-single-1xfull .pv-rc-ring { flex: 0 0 auto; height: 100%; width: auto; aspect-ratio: 1 / 1; }
-.pv-single-1xfull .pv-rc-time { font-size: 3.2em; letter-spacing: 0; }
+.pv-single-1xfull .pv-rc-time { font-size: 3.4em; letter-spacing: 0; }
 /* v3.11 1×FULL yearBars：12 根竖条原本长到 347px 卡高，像 12 根柱子；改成
    「左侧条带 + 右侧年度读数」的横排，把 1387px 的横向空间用起来。 */
-.pv-single-1xfull .pv-yb { flex-direction: row; align-items: center; gap: 0.7em; }
-.pv-single-1xfull .pv-yb-bars { flex: 1 1 auto; min-width: 0; height: 3.4em; }
-.pv-single-1xfull .pv-yb-foot { flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 0.06em; }
+.pv-single-1xfull .pv-yb { flex-direction: column; align-items: stretch; justify-content: center; gap: 0.45em; }
+.pv-single-1xfull .pv-yb-bars { flex: 1 1 auto; min-width: 0; min-height: 0; width: 100%; height: auto; }
+.pv-single-1xfull .pv-yb-foot { flex: 0 0 auto; flex-direction: row; justify-content: space-between; align-items: baseline; width: 100%; gap: 0.3em; font-size: 0.7em;
+.pv-single-1xfull .pv-yb-foot b { font-size: 1.6em; } }
 /* v3.11 1×FULL dial：表盘本身已经吃满卡高（实测 ≈73%），不再改排布；只把读数放大一档，
    免得 1387px 宽的横条里「80%」小得像注脚。 */
 .pv-single-1xfull .pv-gl-val { font-size: 1.05em; bottom: 0; }
@@ -404,20 +405,20 @@ export const CARD_MODE_CSS = `
 /* 各款的字号与内部对齐 */
 .pv-single-1xfull .pv-dc-left { align-items: center; }
 .pv-single-1xfull .pv-dc-dots { width: 100%; justify-content: flex-start; }
-.pv-single-1xfull .pv-dc-time { font-size: 1.6em; }
-.pv-single-1xfull .pv-dc-date { font-size: 0.8em; }
+.pv-single-1xfull .pv-dc-time { font-size: 1.9em; }
+.pv-single-1xfull .pv-dc-date { font-size: 0.95em; }
 .pv-single-1xfull .pv-cp-left { align-items: center; }
 .pv-single-1xfull .pv-cp-row { display: flex; flex-wrap: nowrap; gap: 0.3em; }
 .pv-single-1xfull .pv-cp-pill { font-size: 0.7em; }
 .pv-single-1xfull .pv-fe-name { font-size: 1.8em; text-align: right; }
-.pv-single-1xfull .pv-fe-date { font-size: 0.7em; text-align: right; }
-.pv-single-1xfull .pv-fe-gap { font-size: 0.62em; }
+.pv-single-1xfull .pv-fe-date { font-size: 0.85em; text-align: right; }
+.pv-single-1xfull .pv-fe-gap { font-size: 0.8em; }
 .pv-single-1xfull .pv-tg-left { align-items: center; }
 .pv-single-1xfull .pv-tg .pv-center { flex-direction: row; flex-wrap: nowrap; gap: 0.24em; }
-.pv-single-1xfull .pv-tg-days { font-size: 2.8em; }
+.pv-single-1xfull .pv-tg-days { font-size: 3.2em; }
 .pv-single-1xfull .pv-tg-pre, .pv-single-1xfull .pv-tg-unit { font-size: 0.5em; }
 .pv-single-1xfull .pv-tg-title { font-size: 0.9em; text-align: right; }
-.pv-single-1xfull .pv-tg-date { font-size: 0.7em; text-align: right; }
+.pv-single-1xfull .pv-tg-date { font-size: 0.85em; text-align: right; }
 .pv-single-1xfull .pv-hd-days { font-size: 2.6em; }
 .pv-single-1xfull .pv-hd-name { font-size: 0.9em; text-align: right; }
 .pv-single-1xfull .pv-hd-date { font-size: 0.7em; text-align: right; }
@@ -428,7 +429,7 @@ export const CARD_MODE_CSS = `
 .pv-dn-num { font-size: 3.4em; font-weight: 800; line-height: 0.98; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 /* v3.17：0.56 → 0.6em —— 2×1 root 9.5px（dayNum 补 fit 条目后）下 0.56em 仅 5.3px，
    贴可读底线；0.6em = 5.7px。行宽 0.6×6≈3.6em < fit w4.9 ✓ */
-.pv-dn-sub { font-size: 0.6em; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.pv-dn-sub { font-size: 0.74em; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
 .pv-single-2x1 .pv-dn-num { font-size: 4em; }
 .pv-single-1x2 .pv-dn-num { font-size: 2.6em; }
 /* miniMonth：表头 + 星期行 + 7 列固定网格；行高用 1fr 均分剩余高度，1×1 上刚好铺满 */
@@ -443,8 +444,8 @@ export const CARD_MODE_CSS = `
 /* stackTime：三行竖排，按高度均分 */
 .pv-skt { width: 100%; height: 100%; justify-content: center; align-items: center; gap: 0.12em; }
 .pv-skt-row { display: flex; align-items: baseline; gap: 0.14em; line-height: 1; }
-.pv-skt-row b { font-size: 1.9em; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-.pv-skt-row i { font-size: 0.5em; font-style: normal; opacity: 0.7; }
+.pv-skt-row b { font-size: 2.1em; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.pv-skt-row i { font-size: 0.62em; font-style: normal; opacity: 0.7; }
 .pv-single-2x1 .pv-skt-row b { font-size: 2.3em; }
 /* 窄高卡：三行按高度均分铺满，而不是挤在中间一小块 */
 .pv-single-2x1 .pv-skt { justify-content: space-evenly; gap: 0; }
@@ -452,12 +453,13 @@ export const CARD_MODE_CSS = `
 /* stackBars：四行横条按高度均分（space-evenly），窄高卡不挤、方卡不散 */
 .pv-sb { width: 100%; height: 100%; justify-content: space-evenly; gap: 0.2em; }
 .pv-sb-row { display: flex; align-items: center; gap: 0.4em; flex: 0 1 auto; }
-.pv-sb-k { flex: 0 0 auto; width: 1.1em; font-size: 0.6em; font-weight: 700; text-align: center; }
+.pv-sb-k { flex: 0 0 auto; width: 1.1em; font-size: 0.74em; font-weight: 700; text-align: center; }
 .pv-sb-bar { flex: 1 1 auto; min-width: 0; height: 0.42em; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); overflow: hidden; }
 .pv-sb-bar i { display: block; height: 100%; border-radius: inherit; }
-.pv-sb-v { flex: 0 0 auto; width: 2.6em; text-align: right; font-size: 0.62em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pv-sb-v { flex: 0 0 auto; width: 2.6em; text-align: right; font-size: 0.76em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pv-bt { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.28em; }
-.pv-bt-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; font-size: 0.5em; font-weight: 600; }
+.pv-bt-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; font-size: 0.62em; font-weight: 600; }
+.pv-bt-head b { font-size: 1.35em; font-weight: 800; }
 /* v3.10：width:100% + 两侧 0.13em 边框（默认 content-box）会让电池壳比卡片宽 0.26em —— 审计在
    1×2/2×1/2×2/2×4/4×4/1×FULL 六档都报横向溢出。改 border-box。 */
 .pv-bt-body { box-sizing: border-box; position: relative; width: 100%; flex: 0 1 auto; height: 0.9em; border: 0.13em solid; border-radius: 0.28em; overflow: hidden; display: flex; align-items: stretch; }
@@ -477,9 +479,9 @@ export const CARD_MODE_CSS = `
    最坏「廿三」3 字宽的情况不存在（农历日最多 3 字如「廿三」），按 3 字 × 2.6em = 7.8em 会超，
    故字号取 2.2em（3 字 ≈ 6.6em，刚好卡边）。 */
 .pv-ld { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
-.pv-ld-top { font-size: 0.6em; font-weight: 700; white-space: nowrap; }
+.pv-ld-top { font-size: 0.72em; font-weight: 700; white-space: nowrap; }
 .pv-ld-day { font-size: 2.2em; font-weight: 800; line-height: 1.05; letter-spacing: 0.02em; white-space: nowrap; }
-.pv-ld-bot { font-size: 0.58em; white-space: nowrap; }
+.pv-ld-bot { font-size: 0.7em; white-space: nowrap; }
 /* v3.13：1×1 只留「农历」小标 + 农历日大字 —— 用户实测三行全被裁（内容盒仅 6.6em 见方），
    要求「只显示一个有效信息」。农历日恒 ≤2 字（初一…三十），2.8em × 2 = 5.6em < 6.6em ✓，
    字号反而比三行版更大更醒目。更大卡片才显示干支年/公历两行。
@@ -498,8 +500,8 @@ export const CARD_MODE_CSS = `
 .pv-ds { width: 100%; height: 100%; flex-direction: row; align-items: center; justify-content: center; gap: 0.4em; }
 .pv-ds-left { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.14em; }
 .pv-ds-row { display: flex; align-items: baseline; gap: 0.08em; font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
-.pv-ds-row b { font-size: 0.52em; font-weight: 700; }
-.pv-ds-row i { font-size: 0.52em; font-style: normal; opacity: 0.6; }
+.pv-ds-row b { font-size: 0.64em; font-weight: 700; }
+.pv-ds-row i { font-size: 0.64em; font-style: normal; opacity: 0.6; }
 .pv-ds-right { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .pv-ds-day { font-size: 3em; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
 /* v3.13：1×1 只留巨大「日」数字 —— 左侧 4 行「时:分」读数在 346px 方卡上挤成裁切。
@@ -523,11 +525,11 @@ export const CARD_MODE_CSS = `
 .pv-tc-time { display: flex; align-items: baseline; gap: 0.02em; white-space: nowrap; letter-spacing: -0.04em; }
 .pv-tc-time b { font-size: 2.2em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-tc-time i { font-size: 2.2em; font-weight: 700; font-style: normal; line-height: 1; font-variant-numeric: tabular-nums; }
-.pv-tc-sec { display: flex; align-items: baseline; gap: 0.14em; font-size: 1.1em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.pv-tc-sec { display: flex; align-items: baseline; gap: 0.14em; font-size: 1.3em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
 .pv-tc-sec em { font-size: 0.55em; font-weight: 600; font-style: normal; }
 .pv-tc-bar { width: 100%; height: 0.16em; border-radius: 999px; background: color-mix(in srgb, currentColor 16%, transparent); overflow: hidden; }
 .pv-tc-bar i { display: block; height: 100%; border-radius: inherit; }
-.pv-tc-date { font-size: 0.6em; white-space: nowrap; }
+.pv-tc-date { font-size: 0.74em; white-space: nowrap; }
 
 /* ④ weekColumn 竖向星期条（2×1）：7 行，每行「星期字 + 大日期数字」，今天整行高亮 */
 .pv-wc2 { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
@@ -582,11 +584,11 @@ export const CARD_MODE_CSS = `
 
 /* ⑥ verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」 */
 .pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
-.pv-vl-head { flex: 0 0 auto; font-size: 0.54em; font-weight: 700; }
+.pv-vl-head { flex: 0 0 auto; font-size: 0.66em; font-weight: 700; }
 .pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; }
 .pv-vl-row { flex: 1 1 0; min-height: 0; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); }
-.pv-vl-row span { flex: 0 0 auto; font-size: 0.54em; font-variant-numeric: tabular-nums; }
-.pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.72em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-vl-row span { flex: 0 0 auto; font-size: 0.62em; font-variant-numeric: tabular-nums; }
+.pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.86em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-vl-next { flex: 0 0 auto; font-size: 0.54em; font-weight: 700; white-space: nowrap; }
 
 /* ⑦ dayRing 日环进度（1×1）：单环 + 环内大百分比 + 底部时刻
@@ -613,11 +615,11 @@ export const CARD_MODE_CSS = `
 .pv-lb { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
 /* v3.17：0.52 → 0.56em —— 2×1 root 10.1px 下 0.52em = 5.25px 差阈值 0.25px；
    0.56em = 5.66px 达标。行宽「生命进度 15%」0.56em≈3.9em < fit w4.6 ✓ */
-.pv-lb-head { flex: 0 0 auto; font-size: 0.56em; font-weight: 700; white-space: nowrap; }
+.pv-lb-head { flex: 0 0 auto; font-size: 0.68em; font-weight: 700; white-space: nowrap; }
 .pv-lb-scale { flex: 1 1 auto; min-height: 0; width: 60%; max-width: 3.2em; display: flex; flex-direction: column; gap: 0.06em; }
 .pv-lb-scale i { flex: 1 1 0; min-height: 0; display: block; border-radius: 0.08em; background: color-mix(in srgb, currentColor 16%, transparent); }
 .pv-lb-scale i.on { opacity: 1; }
 /* v3.17：0.42 → 0.56em —— 2×1 root 10.1px 下 0.42em 仅 4.2px；0.54em=5.45px
    仍差阈值 0.05px，0.56em=5.66px 达标。行宽「已过 18 / 120 岁」0.56em≈4.0em < fit w4.6 ✓ */
-.pv-lb-foot { flex: 0 0 auto; font-size: 0.56em; white-space: nowrap; }
+.pv-lb-foot { flex: 0 0 auto; font-size: 0.68em; white-space: nowrap; }
 `;

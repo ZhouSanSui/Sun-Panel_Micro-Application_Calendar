@@ -1606,6 +1606,8 @@ function renderInfoBlockInner(o) {
     // ⑥ schedule.verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」，条数按高度定
     if (style === 'verticalList') {
       const ac = accentOf(theme);
+      // v3.21：2×2 / 2×4 / 4×4 每行同时显示「日期 + 时间」，并移除「下一项」标签（用户要求）
+      const showDate = o.size === '2x2' || o.size === '2x4' || o.size === '4x4';
       const list = (getUserStore()?.getSchedules() || [])
         .map((item) => ({ item, next: getNextOccurrence(item, now) }))
         .filter((x) => x.next)
@@ -1617,18 +1619,18 @@ function renderInfoBlockInner(o) {
         ? Math.max(2, Math.min(5, Math.floor((availH2 - 1.4) / 1.35)))
         : 3;
       const rows = list.slice(0, nRows);
-      const next0 = rows[0];
       const timeOf = (r) => (r.item.time ? String(r.item.time).slice(0, 5) : '');
+      const dateOf = (r) => { const d = r.next.date; return `${d.getMonth() + 1}/${d.getDate()}`; };
       return html`<div class="pv-col pv-vl">
         <div class="pv-vl-head" style="color:${label3}">${isZh ? `今日 ${rows.length} 项` : `${rows.length} today`}</div>
         <div class="pv-vl-list">${rows.map((r, i) => {
     const nm = r.item.title || r.item.name || '';
+    const left = showDate ? `${dateOf(r)} ${timeOf(r)}` : timeOf(r);
     return html`<div class="pv-vl-row">
-            <span style="color:${i === 0 ? ac : label3}">${timeOf(r)}</span>
+            <span style="color:${i === 0 ? ac : label3}">${left}</span>
             <b style="color:${i === 0 ? label : label2}">${nm}</b>
           </div>`;
   })}</div>
-        <div class="pv-vl-next" style="color:${ac}">${isZh ? `下一项 ${timeOf(next0)}` : `Next ${timeOf(next0)}`}</div>
       </div>`;
     }
 
@@ -1887,11 +1889,11 @@ function renderInfoBlockInner(o) {
       //   年 = 允许随形状变化（近方形铺满）。
       const ygAspect = Number.isFinite(o.w) && Number.isFinite(o.h) && o.h > 0 ? o.w / o.h : 1;
       const YG_SHAPE = {
-        // v3.20：1×FULL（A≥12）年格阵把 42×9 改为 73×5——超宽卡高度仅 76px，9 行时每格仅 ~7px
-        // （用户报「年格阵格子太小」）；减到 5 行后高度解近乎翻倍（每格 ~13px），配合宽度解仍不溢出。
-        // 73×5 = 365，恰好铺满当年天数。
+        // v3.21：1×FULL（A≥12）年格阵把 73×5 改为 122×3——用户要求年格更密（122 列×3 行 = 366）。
+        // 超宽卡高度仅 76px，3 行时每格高度解充足，122 列在宽度解下每格仍清晰可辨。
+        // 122×3 = 366，可铺满闰年当年天数。
         year: [
-          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 73, 5],
+          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 122, 3],
         ],
         // v3.13：超宽卡上月/日都改**一排**（用户：现在两排两侧空）。
         // 月一排 = 31 格（自然月上限），日一排 = 24 格（小时）。
