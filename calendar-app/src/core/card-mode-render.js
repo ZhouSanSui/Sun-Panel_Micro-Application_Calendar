@@ -1190,16 +1190,26 @@ function renderInfoBlockInner(o) {
       const dayTxt = parts ? (LUNAR_DAY_CN[parts.day - 1] || String(parts.day)) : '';
       const monTxt = parts ? (LUNAR_MONTH_CN[parts.month - 1] || `${parts.month}月`) : '';
       const gz = ganzhiYear(now.getFullYear());
+      const is2x1 = o.size === '2x1';
       const top = parts
         ? `${gz.zh}年 ${parts.leap ? '闰' : ''}${monTxt}`
         : `${now.getFullYear()}`;
       const bot = isZh
         ? `${now.getMonth() + 1}月${now.getDate()}日 ${WEEK_FULL_ZH[now.getDay()]}`
         : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      // 2×1：上沿拆「干支年 / 月份」两排、下沿拆「月日 / 星期(加周字)」两排（v3.32）
+      //      2×1 内容盒仅 50px 宽，「10月21日」13px 时约 55px 会被裁切 → 2×1 的月日省略末尾「日」字
+      //      （省 13px → 约 42px，13px 字号完整保留且零裁切）
+      const top2x1 = parts
+        ? html`<span class="pv-ld-gz">${gz.zh}年</span><span class="pv-ld-mon">${parts.leap ? '闰' : ''}${monTxt}</span>`
+        : html`<span class="pv-ld-gz">${now.getFullYear()}</span>`;
+      const bot2x1 = isZh
+        ? html`<span class="pv-ld-sol">${now.getMonth() + 1}月${now.getDate()}</span><span class="pv-ld-wd">周${WEEK_FULL_ZH[now.getDay()]}</span>`
+        : html`<span class="pv-ld-sol">${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span><span class="pv-ld-wd">${now.toLocaleDateString('en-US', { weekday: 'short' })}</span>`;
       return html`<div class="pv-col pv-ld">
-        <div class="pv-ld-top" style="color:${label3}">${top}</div>
+        <div class="pv-ld-top" style="color:${label3}">${is2x1 ? top2x1 : top}</div>
         <div class="pv-ld-day" style="color:${ac}">${dayTxt}</div>
-        <div class="pv-ld-bot" style="color:${label2}">${bot}</div>
+        <div class="pv-ld-bot" style="color:${label2}">${is2x1 ? bot2x1 : bot}</div>
       </div>`;
     }
 
@@ -1644,12 +1654,17 @@ function renderInfoBlockInner(o) {
       const ac = accentOf(theme);
       const title = (schedPick && schedPick.title) || (typeof opt.text === 'string' && opt.text ? opt.text : (isZh ? '目标日' : 'Target'));
       const iso = (schedPick && schedPick.date) || (typeof opt.date === 'string' ? opt.date : '');
+      const is2x1 = o.size === '2x1';
       let left = null;
       if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
         const [y, m, d] = iso.split('-').map(Number);
         const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         left = Math.round((new Date(y, m - 1, d).getTime() - t0.getTime()) / 86400000);
       }
+      // 2×1：日期拆两排（年 / 月日），各 10px（v3.32）
+      const date2x1 = is2x1 && /^\d{4}-\d{2}-\d{2}$/.test(iso)
+        ? html`<span class="pv-tg-y">${iso.slice(0, 4)}</span><span class="pv-tg-md">${iso.slice(5)}</span>`
+        : iso;
       return html`<div class="pv-col pv-tg">
         ${left === null
     ? html`<div class="pv-sub" style="color:${label3}">${isZh ? '未设置目标日' : 'No target date'}</div>`
@@ -1662,7 +1677,7 @@ function renderInfoBlockInner(o) {
           </div>
           <div class="pv-tg-right">
             <div class="pv-tg-title" style="color:${label2}">${title}</div>
-            <div class="pv-tg-date" style="color:${label3}">${iso}</div>
+            <div class="pv-tg-date" style="color:${label3}">${date2x1}</div>
           </div>`}
       </div>`;
     }
