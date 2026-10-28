@@ -730,11 +730,11 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     // 小卡（宿主给的布局尺寸小于设计基准）基准字号必须同比缩小，内容才不会溢出。
     // v3.15：改为 fitFontU 原理公式（与拼接模式同源）—— 由「内容盒像素 ÷ 固有尺寸」解算，
     // 「availW ≥ fit.w」成为结构性不变式；宿主 chrome = .widget padding 12×2 + border 1×2 = 26px。
-    // 60×60：解 34/6.375 = 5.33 < clamp 下限 0.35×16 = 5.6 → 夹到 5.60px
+    // 60×60：解 34/6.375 = 5.33 < clamp 下限 0.35×17 = 5.95 → 夹到 5.95px
     const small = flatten(renderInfoBlock({
       ...base, content: 'timeDate', style: 'lunarDate', singleRow: true, size: '1x1', w: 60, h: 60,
     })).join('');
-    ok(/font-size:5\.60px/.test(small), '1x1 卡片实测 60x60 时基准字号应夹到 clamp 下限 5.60px');
+    ok(/font-size:5\.95px/.test(small), '1x1 卡片实测 60x60 时基准字号应夹到 clamp 下限 5.95px');
     // 公式锚点（手算核对，防公式被改坏）：lunarDate fit 6.0×4.2，宽度约束恒为盒宽/6.375
     // 120×120 → 94/6.375 = 14.75；113×114 → 87/6.375 = 13.65；76×76 → 50/6.375 = 7.84
     const pxOf = (str) => Number((str.match(/font-size:([0-9.]+)px/) || [])[1]);
@@ -1319,9 +1319,9 @@ console.log('');
   const f = flatten(renderInfoBlock({ ...base, content: 'important', style: 'festival', singleRow: true, size: '2x2' })).join('');
   ok(f.includes('pv-fe-name'), '节日卡应渲染 .pv-fe-name 主名');
   ok(f.includes('pv-fe-gap'), '节日卡应渲染「N 天后」胶囊');
-  const hd = flatten(renderInfoBlock({ ...base, content: 'important', style: 'holiday', singleRow: true, size: '2x2' })).join('');
+  const hd = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'holidayNext', singleRow: true, size: '2x1' })).join('');
   ok(hd.includes('pv-hd-days') || hd.includes('暂无假期'),
-    '假期倒计时应渲染天数或「暂无假期」空态（node 无节假日服务时走空态）');
+    '节假日(采用假期倒计时排版)应渲染 pv-hd-days 或「暂无假期」空态（node 无节假日服务时走空态）');
   const bt = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery', singleRow: true, size: '2x2' })).join('');
   ok(bt.includes('pv-bt-body') && bt.includes('%'), '年电量应渲染电池主体与百分比');
   // v3.12：1×2 去掉 festival；1×1 整块清空（改由新款式承担）。
@@ -1332,10 +1332,10 @@ console.log('');
   // 所以尺寸门控必须用 styleFitsSize 断言（chip 可见性的唯一真源）。
   ok(styleFitsSize('single', 'schedule', 'festival', '1x2') === false,
     '节日卡在 1x2 尺寸下应被隐藏');
-  ok(styleFitsSize('single', 'schedule', 'holiday', '1x2') === true,
-    '假期倒计时在 1x2 尺寸下应可选（v3.13 恢复）');
-  ok(styleFitsSize('single', 'schedule', 'holiday', '2x1') === true,
-    '假期倒计时在 2x1 尺寸下应可选（v3.13 恢复）');
+  ok(styleFitsSize('single', 'schedule', 'holiday', '1x2') === false,
+    '假期倒计时(holiday)已在 v3.20 下线，1x2 不应再可选');
+  ok(styleFitsSize('single', 'schedule', 'holiday', '2x1') === false,
+    '假期倒计时(holiday)已在 v3.20 下线，2x1 不应再可选');
   ok(styleFitsSize('single', 'schedule', 'festival', '2x1') === false,
     '节日卡在 2x1 尺寸下应被隐藏');
   ok(styleFitsSize('single', 'schedule', 'festival', '2x2') === true,
@@ -1601,10 +1601,10 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     ['2x1', 'schedule', 'verticalList'], ['2x1', 'progress', 'lifeBar'],
     // 1×2 启用（v3.13）
     ['1x2', 'timeDate', 'wordClock'], ['1x2', 'timeDate', 'lunarDate'], ['1x2', 'timeDate', 'dayStack'],
-    ['1x2', 'schedule', 'targetDay'], ['1x2', 'schedule', 'holiday'],
+    ['1x2', 'schedule', 'targetDay'], ['1x2', 'schedule', 'holidayNext'],
     // 2×1 启用（v3.13）
     ['2x1', 'timeDate', 'dayNum'], ['2x1', 'timeDate', 'stackTime'], ['2x1', 'timeDate', 'lunarDate'],
-    ['2x1', 'timeDate', 'dayStack'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'holiday'],
+    ['2x1', 'timeDate', 'dayStack'], ['2x1', 'schedule', 'targetDay'], ['2x1', 'schedule', 'holidayNext'],
     // 2×2 启用（v3.13）
     ['2x2', 'timeDate', 'lunarDate'], ['2x2', 'timeDate', 'dayStack'], ['2x2', 'timeDate', 'tallClock'],
     ['2x2', 'timeDate', 'weekColumn'], ['2x2', 'schedule', 'capsule'],
@@ -1623,7 +1623,7 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
     ['1xfull', 'progress', 'ringProgress'],
     ['1xfull', 'timeDate', 'dotClock'], ['1xfull', 'schedule', 'capsule'],
     ['1xfull', 'schedule', 'festival'], ['1xfull', 'schedule', 'targetDay'],
-    ['1xfull', 'schedule', 'holiday'], ['1xfull', 'progress', 'stackBars'],
+    ['1xfull', 'progress', 'stackBars'],
     // yearGrid 年/月/周/日 与 multiBars 在三种卡上都要可用
     ['2x2', 'progress', 'yearGrid'], ['2x4', 'progress', 'yearGrid'],
     ['4x4', 'progress', 'yearGrid'], ['1xfull', 'progress', 'yearGrid'],
@@ -1636,7 +1636,9 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   // 1×1 / 2×1 / 1×2 只暴露新做的款式（数量锁定，防止以后误把旧款加回来）
   // v3.19：节日、节假日拆成独立卡（festivalNext / holidayNext）→ 1×1 4→6、1×2 17→19、2×1 11→13。
   //        旧的 festivalDay 保留，所以是「+2」而不是「替换」。
-  for (const [size, expect] of [['1x1', 6], ['1x2', 19], ['2x1', 13]]) {
+  // v3.20：假期倒计时(holiday) 下线，功能并入 holidayNext（沿用 pv-hd 排版）→ 1×2 19→18、2×1 13→12
+  //        （holidayNext 本就在这两个尺寸白名单内，移除 holiday 只减 1 款）。
+  for (const [size, expect] of [['1x1', 6], ['1x2', 18], ['2x1', 12]]) {
     let n = 0;
     for (const c of SINGLE_CONTENTS) for (const s of c.styles) if (styleFitsSize('single', c.key, s.key, size)) n++;
     ok(n === expect, `${size} 单独模式应恰好有 ${expect} 款样式，实际 ${n}`);

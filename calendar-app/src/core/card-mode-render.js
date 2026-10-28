@@ -353,7 +353,7 @@ const CAL_VERT = new Set(['week']);
  * 预览框缩到 0.56×、字号仍按 CSS 的 17px，肉眼就比实际卡片大 ~1.8×。
  */
 export const SINGLE_BASE_PX = {
-  '1x1': 16, '1x2': 17, '2x1': 17, '2x2': 22, '2x4': 26, '4x4': 34, '1xfull': 18,
+  '1x1': 17, '1x2': 19, '2x1': 19, '2x2': 22, '2x4': 26, '4x4': 34, '1xfull': 20,
 };
 /**
  * 单独模式预览的「设计基准尺寸」（与 audit-matrix 的 DIMS 同源）。
@@ -1424,21 +1424,8 @@ function renderInfoBlockInner(o) {
   // v3.14：「重要日期」类已并入「日程」，这里同时认旧 key（存量配置经 renderInfoBlock
   // 顶部的 aliasContent 迁移后走新 key，但 Inner 也被测试直接调用，两个 key 都要放行）。
   if ((content === 'important' || content === 'schedule') && o.singleRow
-    && (style === 'holiday' || style === 'festival')) {
+    && style === 'festival') {
     const acI = accentOf(theme);
-    if (style === 'holiday') {
-      const nh = getNextHoliday(getHolidayService(), now);
-      if (!nh) return html`<div class="pv-center"><div class="pv-sub">${isZh ? '暂无假期' : 'No holiday'}</div></div>`;
-      return html`<div class="pv-col pv-hd">
-        <div class="pv-hd-left">
-          <div class="pv-hd-days" style="color:${acI}">${nh.days === 0 ? (isZh ? '假期中' : 'ON') : nh.days}<small>${isZh ? '天' : 'd'}</small></div>
-        </div>
-        <div class="pv-hd-right">
-          <div class="pv-hd-name">${isZh ? nh.nameZh : (nh.nameEn || nh.nameZh)}</div>
-          <div class="pv-hd-date">${nh.dateStr.slice(5).replace('-', '/')}</div>
-        </div>
-      </div>`;
-    }
     const f = getNextFestival(now);
     if (!f) return html`<div class="pv-center"><div class="pv-sub">${isZh ? '暂无节日' : 'No festival'}</div></div>`;
     return html`<div class="pv-col pv-fe">
@@ -1591,22 +1578,28 @@ function renderInfoBlockInner(o) {
     if (style === 'festivalNext' || style === 'holidayNext') {
       const ac = accentOf(theme);
       const isHol = style === 'holidayNext';
-      const src = isHol ? getNextHoliday(getHolidayService(), now) : getNextFestival(now);
-      const fmtMd = (iso) => {
-        const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(String(iso || ''));
-        return m ? `${Number(m[1])}/${Number(m[2])}` : '';
-      };
-      // 天数缺失（数据源没给出 days）时用「月/日」兜底，与 festivalDay 的空态处理保持一致
-      const dNum = src && Number.isFinite(src.days) ? src.days : null;
-      const kTxt = isZh ? (isHol ? '节假日' : '节日') : (isHol ? 'Holiday' : 'Festival');
-      const name = src
-        ? (isZh ? (src.nameZh || kTxt) : (src.nameEn || src.nameZh || kTxt))
-        : (isZh ? '暂无' : 'None');
-      const days = !!src && (dNum === null ? fmtMd(src.dateStr) : `${dNum} 天`);
+      // 节假日（holidayNext）：承接已下线的「假期倒计时」样式排版（pv-hd：大天数 + 名称 + 日期）
+      if (isHol) {
+        const nh = getNextHoliday(getHolidayService(), now);
+        if (!nh) return html`<div class="pv-center"><div class="pv-sub">${isZh ? '暂无假期' : 'No holiday'}</div></div>`;
+        return html`<div class="pv-col pv-hd">
+          <div class="pv-hd-left">
+            <div class="pv-hd-days" style="color:${ac}">${nh.days === 0 ? (isZh ? '假期中' : 'ON') : nh.days}<small>${isZh ? '天' : 'd'}</small></div>
+          </div>
+          <div class="pv-hd-right">
+            <div class="pv-hd-name">${isZh ? nh.nameZh : (nh.nameEn || nh.nameZh)}</div>
+            <div class="pv-hd-date">${nh.dateStr.slice(5).replace('-', '/')}</div>
+          </div>
+        </div>`;
+      }
+      const f = getNextFestival(now);
+      if (!f) return html`<div class="pv-center"><div class="pv-sub">${isZh ? '暂无节日' : 'No festival'}</div></div>`;
+      const name = isZh ? (f.nameZh || '节日') : (f.nameEn || f.nameZh || 'Festival');
+      const days = f.days === 0 ? (isZh ? '今天' : 'NOW') : `${f.days} 天`;
       return html`<div class="pv-col pv-fnx">
-        <div class="pv-fnx-k" style="color:${label3}">${kTxt}</div>
+        <div class="pv-fnx-k" style="color:${label3}">${isZh ? '节日' : 'Festival'}</div>
         <div class="pv-fnx-v" style="color:${label}">${name}</div>
-        ${days ? html`<div class="pv-fnx-d" style="color:${isHol ? ac : label2}">${days}</div>` : ''}
+        <div class="pv-fnx-d" style="color:${label2}">${days}</div>
       </div>`;
     }
 
@@ -1894,12 +1887,11 @@ function renderInfoBlockInner(o) {
       //   年 = 允许随形状变化（近方形铺满）。
       const ygAspect = Number.isFinite(o.w) && Number.isFinite(o.h) && o.h > 0 ? o.w / o.h : 1;
       const YG_SHAPE = {
-        // v3.13：年格阵在超宽卡（1×FULL，A≈4.0）上把 44×9 微调到 42×9。
-        // 注意格阵区高度被 head/foot 占掉一块（实测 body 只有 288px / 内容盒 327px），
-        // 所以**行数才是 cell 的约束**：10 行时高度解只有 26.5px（fillW 跌到 89%），
-        // 9 行时高度解 29.8px，配合 gap 0.10→0.05em，格子 26.0→29.8px（+15%），fillW 99%。
+        // v3.20：1×FULL（A≥12）年格阵把 42×9 改为 73×5——超宽卡高度仅 76px，9 行时每格仅 ~7px
+        // （用户报「年格阵格子太小」）；减到 5 行后高度解近乎翻倍（每格 ~13px），配合宽度解仍不溢出。
+        // 73×5 = 365，恰好铺满当年天数。
         year: [
-          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 42, 9],
+          [1.25, 20, 19], [1.7, 24, 16], [2.6, 29, 13], [3.4, 35, 11], [Infinity, 73, 5],
         ],
         // v3.13：超宽卡上月/日都改**一排**（用户：现在两排两侧空）。
         // 月一排 = 31 格（自然月上限），日一排 = 24 格（小时）。

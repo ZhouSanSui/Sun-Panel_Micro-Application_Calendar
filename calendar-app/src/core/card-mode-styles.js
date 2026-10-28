@@ -15,14 +15,14 @@ export const CARD_MODE_CSS = `
 .pv-dot { display:inline-block; width:.28em; height:.28em; border-radius:50%; background:currentColor; margin:0 .28em; vertical-align:.21em; }
 .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.38); }
 .pv-led { text-shadow: 0 0 12px currentColor, 0 0 3px currentColor; }
-.pv-row2 { font-size: 0.75em; font-weight: 600; }
+.pv-row2 { font-size: 0.82em; font-weight: 600; }
 .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; width: 100%; }
 .pv-sch-name { font-size: 0.75em; font-weight: 600; line-height: 1.2; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-sch-meta { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; font-size: 0.5em; line-height: 1.2; white-space: nowrap; }
 .pv-sch-line { line-height: 1.25; }
 .pv-sch-date { opacity: 0.95; }
 .pv-sch-time { opacity: 0.8; }
-.pv-sub { font-size: 0.5625em; line-height: 1.3; }
+.pv-sub { font-size: 0.66em; line-height: 1.3; }
 .pv-tight .pv-sub { display: none; }
 .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }
 .pv-fill { height: 100%; border-radius: 0.125em; }
@@ -94,13 +94,13 @@ export const CARD_MODE_CSS = `
 .pv-single-4x4 .pv-sub { font-size: 0.6875em; }
 .pv-single-1xfull .pv-center { align-items: center; gap: 1em; }
 .pv-single-1xfull .pv-big, .pv-single-1xfull .pv-mid, .pv-single-1xfull .pv-vbig { font-size: 1.3em; }
-.pv-single-1x1 { font-size: 16px; }
-.pv-single-1x2 { font-size: 17px; }
-.pv-single-2x1 { font-size: 17px; }
+.pv-single-1x1 { font-size: 17px; }
+.pv-single-1x2 { font-size: 19px; }
+.pv-single-2x1 { font-size: 19px; }
 .pv-single-2x2 { font-size: 22px; }
 .pv-single-2x4 { font-size: 26px; }
 .pv-single-4x4 { font-size: 34px; }
-.pv-single-1xfull { font-size: 18px; }
+.pv-single-1xfull { font-size: 20px; }
 /* v2.6 硬约束：块内内容只在本块内裁切，绝不外溢压到相邻单元（与 .card-mode-wrap 的整卡裁切双层兜底） */
 .pv-block { overflow: hidden; }
 /* v2.5 单独模式整卡三段式：顶栏 + 主内容 + 底部进度条；格阵为绝对定位纹理 */
@@ -370,9 +370,14 @@ export const CARD_MODE_CSS = `
 .pv-hd-right { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06em; min-width: 0; }
 .pv-hd-days { font-size: 1.9em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 0.08em; justify-content: center; }
 .pv-hd-days small { font-size: 0.32em; font-weight: 600; opacity: 0.75; }
-.pv-hd-name { font-size: 0.62em; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.pv-hd-date { font-size: 0.48em; opacity: 0.55; font-variant-numeric: tabular-nums; }
+.pv-hd-name { font-size: 0.7em; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pv-hd-date { font-size: 0.56em; opacity: 0.55; font-variant-numeric: tabular-nums; }
 .pv-single-1x2 .pv-hd-days, .pv-single-2x1 .pv-hd-days, .pv-single-1xfull .pv-hd-days { font-size: 1.35em; }
+/* v3.20：holidayNext 在 1×1 上采用 pv-hd 排版，补全小卡字号（避免沿用大卡基准被裁） */
+.pv-single-1x1 .pv-hd { gap: 0.08em; }
+.pv-single-1x1 .pv-hd-days { font-size: 1.6em; }
+.pv-single-1x1 .pv-hd-name { font-size: 0.5em; }
+.pv-single-1x1 .pv-hd-date { font-size: 0.42em; }
 
 /* ===== v3.12：1×FULL 的五款「改为左右结构」 =====
    通则：左栏 = 主视觉（数字 / 主体文字），右栏 = 辅助信息（状态 / 标题 / 日期）。
@@ -472,9 +477,9 @@ export const CARD_MODE_CSS = `
    最坏「廿三」3 字宽的情况不存在（农历日最多 3 字如「廿三」），按 3 字 × 2.6em = 7.8em 会超，
    故字号取 2.2em（3 字 ≈ 6.6em，刚好卡边）。 */
 .pv-ld { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
-.pv-ld-top { font-size: 0.5em; font-weight: 700; white-space: nowrap; }
+.pv-ld-top { font-size: 0.6em; font-weight: 700; white-space: nowrap; }
 .pv-ld-day { font-size: 2.2em; font-weight: 800; line-height: 1.05; letter-spacing: 0.02em; white-space: nowrap; }
-.pv-ld-bot { font-size: 0.48em; white-space: nowrap; }
+.pv-ld-bot { font-size: 0.58em; white-space: nowrap; }
 /* v3.13：1×1 只留「农历」小标 + 农历日大字 —— 用户实测三行全被裁（内容盒仅 6.6em 见方），
    要求「只显示一个有效信息」。农历日恒 ≤2 字（初一…三十），2.8em × 2 = 5.6em < 6.6em ✓，
    字号反而比三行版更大更醒目。更大卡片才显示干支年/公历两行。
@@ -493,8 +498,8 @@ export const CARD_MODE_CSS = `
 .pv-ds { width: 100%; height: 100%; flex-direction: row; align-items: center; justify-content: center; gap: 0.4em; }
 .pv-ds-left { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.14em; }
 .pv-ds-row { display: flex; align-items: baseline; gap: 0.08em; font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
-.pv-ds-row b { font-size: 0.4em; font-weight: 700; }
-.pv-ds-row i { font-size: 0.4em; font-style: normal; opacity: 0.6; }
+.pv-ds-row b { font-size: 0.52em; font-weight: 700; }
+.pv-ds-row i { font-size: 0.52em; font-style: normal; opacity: 0.6; }
 .pv-ds-right { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .pv-ds-day { font-size: 3em; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
 /* v3.13：1×1 只留巨大「日」数字 —— 左侧 4 行「时:分」读数在 346px 方卡上挤成裁切。
@@ -503,6 +508,11 @@ export const CARD_MODE_CSS = `
 .pv-single-1x1 .pv-ds { gap: 0; max-width: 100%; overflow: hidden; }
 .pv-single-1x1 .pv-ds-left { display: none; }
 .pv-single-1x1 .pv-ds-day { font-size: 3.4em; max-width: 100%; overflow: hidden; }
+/* v3.20：2×1 日时堆叠改为上下结构（大「日」在上、4 行时刻在下） */
+.pv-single-2x1 .pv-ds { flex-direction: column; gap: 0.3em; }
+.pv-single-2x1 .pv-ds-right { order: -1; }
+.pv-single-2x1 .pv-ds-left { align-items: center; gap: 0.12em; }
+.pv-single-2x1 .pv-ds-day { font-size: 3.4em; }
 
 /* ③ tallClock 竖向大钟（2×1）：超大时分（主行）+ 次级秒（次行）+ 当日进度条 + 日期
    2×1 内容盒 = 6.52em 宽（= 305px @ 46.78px 根字号）。
@@ -538,9 +548,9 @@ export const CARD_MODE_CSS = `
    名称最长 4 字（如「劳动节」类节日 / 「腊八节」），4×0.56 = 2.24em，整行仍 ≈ 4.4em。 */
 .pv-fd { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.14em; }
 .pv-fd-row { display: flex; align-items: baseline; gap: 0.26em; white-space: nowrap; }
-.pv-fd-k { font-size: 0.44em; font-weight: 700; opacity: 0.75; }
-.pv-fd-v { font-size: 0.56em; font-weight: 800; letter-spacing: 0.01em; }
-.pv-fd-d { font-size: 0.48em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pv-fd-k { font-size: 0.5em; font-weight: 700; opacity: 0.75; }
+.pv-fd-v { font-size: 0.64em; font-weight: 800; letter-spacing: 0.01em; }
+.pv-fd-d { font-size: 0.56em; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pv-fd-rule { width: 2.4em; height: 1px; background: currentColor; opacity: 0.16; flex: 0 0 auto; }
 /* 大卡上适度放大（仍远小于其它款，保持「小字信息条」的定位） */
 /* v3.17：1×1/2×1 隐藏「节日/假期」标签 k —— 卡宽仅 50px，「节日 寒衣节 14 天」
@@ -566,9 +576,9 @@ export const CARD_MODE_CSS = `
    三行竖排 = 标签 / 名称 / 天数；pv-col 自带 column + gap 0.3125em + center，此处只补横向居中。
    v / d 用 flex:0 1 auto + min-width:0：名称过长时由 fitFontU 的 root 缩放兜住，不横向溢出。 */
 .pv-fnx { width: 100%; height: 100%; align-items: center; }
-.pv-fnx-k { flex: 0 0 auto; font-size: 0.52em; font-weight: 700; opacity: 0.85; white-space: nowrap; }
-.pv-fnx-v { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 0.95em; font-weight: 800; line-height: 1.08; white-space: nowrap; }
-.pv-fnx-d { flex: 0 0 auto; font-size: 0.62em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pv-fnx-k { flex: 0 0 auto; font-size: 0.6em; font-weight: 700; opacity: 0.85; white-space: nowrap; }
+.pv-fnx-v { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 1.05em; font-weight: 800; line-height: 1.08; white-space: nowrap; }
+.pv-fnx-d { flex: 0 0 auto; font-size: 0.72em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ⑥ verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」 */
 .pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
@@ -586,7 +596,7 @@ export const CARD_MODE_CSS = `
 .pv-dr-ring { position: relative; width: min(3.4em, 100%); height: min(3.4em, 100%); flex: 0 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .pv-dr-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-dr-pct { font-size: 1.1em; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.pv-dr-time { font-size: 0.5em; white-space: nowrap; max-width: 100%; overflow: hidden; }
+.pv-dr-time { font-size: 0.6em; white-space: nowrap; max-width: 100%; overflow: hidden; }
 /* v3.18：1×1 环下「今日 HH:MM」0.5 → 0.66em（5.99 → 7.9px，+32%），原值低于可读底线。
    高度是这个样式的硬约束（pv-dr 盒 45.5px = ring 36.5 + time 行盒 7.2 + gap，余量仅 1.8px），
    **flex:0 0 auto 是关键**：time 默认 flex-shrink:1，会被容器高度压缩 —— 0.5em 时
@@ -595,7 +605,7 @@ export const CARD_MODE_CSS = `
    压缩量全部转给 ring（已是 flex:0 1 auto）：ring 高 36.5 → 约 33.6px（-8%，圆按 min 边缩放）。
    这是必要的交换：要让字变大且不被裁，环只能变小；ring 再小就得牺牲 1.1em 的 pct 了。
    宽度不是问题：time 行 29.3 → 38.6px << 45.5px。 */
-.pv-single-1x1 .pv-dr-time { font-size: 0.66em; flex: 0 0 auto; }
+.pv-single-1x1 .pv-dr-time { font-size: 0.72em; flex: 0 0 auto; }
 
 /* ⑧ lifeBar 生命刻度尺（2×1）：20 个刻度块，已过的填主色
    刻度尺本身是「竖向的一列窄条」—— 宽度只占卡宽的一部分（60%），居中；

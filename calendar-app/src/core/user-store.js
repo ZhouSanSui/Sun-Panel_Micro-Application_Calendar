@@ -211,10 +211,10 @@ export const SINGLE_CONTENTS = [
     // v3.13：verticalList 去掉「关联日程」设置（用户：样式设置里不需要）
     { key: 'verticalList', zh: '纵向日程表', en: 'Vertical List', sizes: ['2x1', '2x2', '2x4', '4x4'], opts: ['color'] },
     // ===== 原「重要日期」类（v3.14 并入）=====
-    // festival / holiday 维持 v3.13 的尺寸档不变（都是大字排版，小卡上会被裁）；
-    // 小卡上的「节日 + 节假日」需求由下面专做的 festivalDay 承担。
+    // festival 维持 v3.13 的尺寸档（大字排版，小卡上会被裁）；小卡上的「节日 + 节假日」由
+    // festivalDay / festivalNext / holidayNext 承担。假期倒计时(holiday) 已在 v3.20 下线，
+    // 其功能并入 holidayNext（节假日）样式（沿用 pv-hd 排版）。
     { key: 'festival', zh: '节日卡', en: 'Festival', sizes: ['2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
-    { key: 'holiday', zh: '假期倒计时', en: 'Holiday Count', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
     // v3.14：小卡专用的「下一节日 + 下一假期」—— 用户要求「加一个显示节日和节假日的，
     // 字体尽可能小别被裁切」。字号全面压到 0.34~0.56em（1×1 内容盒约 6.6em，
     // 最宽行「节日 寒衣节 11/09」≈ 3.9em，余量 > 40%）。
