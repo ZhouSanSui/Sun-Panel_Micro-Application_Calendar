@@ -1994,7 +1994,7 @@ function renderInfoBlockInner(o) {
               <b style="color:${isT ? '#fff' : label}">${d.getDate()}</b>
             </div>`;
   })}</div>
-        <div class="pv-wg2-foot" style="color:${label3}">${isZh ? '本周' : 'Week'} <b style="color:${theme}">${weekPct.toFixed(0)}%</b></div>
+        <div class="pv-wg2-foot" style="color:${label3}"><span>${isZh ? '本周' : 'Week'}</span> <b style="color:${theme}">${weekPct.toFixed(0)}%</b></div>
       </div>`;
     }
     // recentSchedule：最近日程进度（年内已过天数 → 目标日）

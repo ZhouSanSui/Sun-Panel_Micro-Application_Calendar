@@ -656,4 +656,17 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-wg2-foot b { font-size: 0.79em; }                    /* weekGrid 周% 24.7→15 */
 .pv-single-1x2 .pv-bt-head { font-size: 0.68em; }                       /* battery 头 11.8→13 */
 .pv-single-1x2 .pv-sg-cap { font-size: 0.68em; }                        /* semiGauge 标 8.7→13 */
+
+/* v3.21b：1×2 二次微调（用户请求）—— 覆盖 v3.21 同名规则。1em = 19px 基准。 */
+.pv-single-1x2 .pv-wc-main { font-size: 1.35em; }                       /* wordClock 主 38→25.7（回退基础值）*/
+.pv-single-1x2 .pv-sg-cap { font-size: 0.46em; }                        /* semiGauge 标 13→8.7（回退基础值）*/
+.pv-single-1x2 .pv-ds-row b,
+.pv-single-1x2 .pv-ds-row i { font-size: 0.79em; }                      /* dayStack 左行 13→15 */
+.pv-single-1x2 .pv-tg-pre,
+.pv-single-1x2 .pv-tg-unit { font-size: 0.79em; }                      /* targetDay 单位 13→15 */
+.pv-single-1x2 .pv-tg-date { font-size: 0.79em; }                       /* targetDay 日期 13→15 */
+.pv-single-1x2 .pv-cp { gap: 0.05em; }                                 /* capsule 数字↔标题间距再收紧（0.14→0.05em；10px 目标已超原间距，夹到最小）*/
+.pv-single-1x2 .pv-dc { gap: 0.05em; }                                 /* dotClock 数字↔日期间距收紧（0.2→0.05em；10px 目标超原间距，夹到最小）*/
+.pv-single-1x2 .pv-yb-foot span { font-size: 1.16em; }                  /* yearBars 「今年」15px（相对 foot 0.68em）*/
+.pv-single-1x2 .pv-wg2-foot span { font-size: 1.16em; }                 /* weekGrid 「本周」15px（相对 foot 0.68em）*/
 `;
