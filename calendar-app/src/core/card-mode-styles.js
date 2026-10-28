@@ -673,8 +673,9 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-dc-time { line-height: 1; }                          /* 行高恢复，避免字形重叠 */
 .pv-single-1x2 .pv-dc-date { line-height: 1; margin-top: 0; }           /* 取消上提，间距交给 gap 控制 */
 .pv-single-1x2 .pv-yb-foot span { font-size: 1em; }                   /* yearBars 「今年」≈13px（相对 foot 0.68em）*/
-.pv-single-1x2 .pv-yb-foot b { font-size: 1em; }                      /* yearBars 年度% ≈13px */
+.pv-single-1x2 .pv-yb-foot b { font-size: 1em; font-weight: 400; }    /* yearBars 年度% ≈13px，去粗体与标签同重 */
 .pv-single-1x2 .pv-wg2-foot span { font-size: 1em; }                  /* weekGrid 「本周」≈13px（相对 foot 0.68em）*/
-.pv-single-1x2 .pv-wg2-foot b { font-size: 1em; }                     /* weekGrid 周% ≈13px */
+.pv-single-1x2 .pv-wg2-foot b { font-size: 1em; font-weight: 400; }   /* weekGrid 周% ≈13px，去粗体与标签同重 */
 .pv-single-1x2 .pv-wg2-foot { display: flex; justify-content: space-between; align-items: baseline; text-align: left; }  /* 本周移至最左，与今年一致 */
+.pv-single-1x2 .pv-sg-val { transform: translateX(-50%) translateY(15px); }  /* v3.26：半环值下移 15px（用户请求）*/
 `;
