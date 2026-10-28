@@ -377,8 +377,8 @@ export const CARD_MODE_CSS = `
 /* v3.20：holidayNext 在 1×1 上采用 pv-hd 排版，补全小卡字号（避免沿用大卡基准被裁） */
 .pv-single-1x1 .pv-hd { gap: 0.08em; }
 .pv-single-1x1 .pv-hd-days { font-size: 1.6em; }
-.pv-single-1x1 .pv-hd-name { font-size: 0.5em; }
-.pv-single-1x1 .pv-hd-date { font-size: 0.42em; }
+.pv-single-1x1 .pv-hd-name { font-size: 0.59em; }
+.pv-single-1x1 .pv-hd-date { font-size: 0.56em; }
 
 /* ===== v3.12：1×FULL 的五款「改为左右结构」 =====
    通则：左栏 = 主视觉（数字 / 主体文字），右栏 = 辅助信息（状态 / 标题 / 日期）。
@@ -569,7 +569,7 @@ export const CARD_MODE_CSS = `
    早已核查最坏组合：全年节日名最长 3 字（33 个里 29 个三字），倒计时最大 30 天（两位），
    故「寒衣节 14 天」即最宽情况。 */
 .pv-single-1x1 .pv-fd-v { font-size: 0.65em; }
-.pv-single-1x1 .pv-fd-d { font-size: 0.56em; }
+.pv-single-1x1 .pv-fd-d { font-size: 0.59em; }
 
 /* ⑦ festivalNext / holidayNext（v3.19）：节日、节假日拆成两张独立卡。
    原 festivalDay 把两行信息挤在一张卡 —— 1×1（内容盒仅 50px）为塞下不得不隐藏「节日/假期」
@@ -578,7 +578,7 @@ export const CARD_MODE_CSS = `
    三行竖排 = 标签 / 名称 / 天数；pv-col 自带 column + gap 0.3125em + center，此处只补横向居中。
    v / d 用 flex:0 1 auto + min-width:0：名称过长时由 fitFontU 的 root 缩放兜住，不横向溢出。 */
 .pv-fnx { width: 100%; height: 100%; align-items: center; }
-.pv-fnx-k { flex: 0 0 auto; font-size: 0.6em; font-weight: 700; opacity: 0.85; white-space: nowrap; }
+.pv-fnx-k { flex: 0 0 auto; font-size: 0.62em; font-weight: 700; opacity: 0.85; white-space: nowrap; }
 .pv-fnx-v { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 1.05em; font-weight: 800; line-height: 1.08; white-space: nowrap; }
 .pv-fnx-d { flex: 0 0 auto; font-size: 0.72em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
@@ -622,4 +622,38 @@ export const CARD_MODE_CSS = `
 /* v3.17：0.42 → 0.56em —— 2×1 root 10.1px 下 0.42em 仅 4.2px；0.54em=5.45px
    仍差阈值 0.05px，0.56em=5.66px 达标。行宽「已过 18 / 120 岁」0.56em≈4.0em < fit w4.6 ✓ */
 .pv-lb-foot { flex: 0 0 auto; font-size: 0.68em; white-space: nowrap; }
+
+/* v3.21：1×2 单独模式字号批量微调（用户请求）—— 全部以 .pv-single-1x2 作用域覆盖，
+   不改基础值与其它尺寸专属覆盖，避免误伤 2×2/4×4/1×FULL。1em = 19px 基准（px 为 19px 基准换算）。 */
+.pv-single-1x2 .pv-ds-row b,
+.pv-single-1x2 .pv-ds-row i { font-size: 0.68em; }                       /* dayStack 左行 12.2→13 */
+.pv-single-1x2 .pv-dz-date { font-size: 0.68em; }                       /* dualZone 日期 12.5→13 */
+.pv-single-1x2 .pv-dc-time { font-size: 2em; }                          /* dotClock 时 24.7→38 */
+.pv-single-1x2 .pv-dc-date { font-size: 0.68em; }                       /* dotClock 日期 11.8→13 */
+.pv-single-1x2 .pv-bc-nums b { font-size: 2em; }                        /* boldClock 数字 28.5→38 */
+.pv-single-1x2 .pv-bc-side { font-size: 0.68em; }                       /* boldClock 侧标 11.8→13 */
+.pv-single-1x2 .pv-st-date { font-size: 0.68em; }                       /* stripeClock 日期 12.2→13 */
+.pv-single-1x2 .pv-wc-main { font-size: 2em; }                          /* wordClock 主 25.7→38 */
+.pv-single-1x2 .pv-wc-sub { font-size: 0.68em; }                        /* wordClock 副 11.4→13 */
+.pv-single-1x2 .pv-dn-num { font-size: 3em; }                           /* dayNum 数字 49.4→57（覆盖既有 2.6em）*/
+.pv-single-1x2 .pv-dn-sub { font-size: 0.79em; }                        /* dayNum 副 14.1→15 */
+.pv-single-1x2 .pv-cp { gap: 0.14em; }                                  /* capsule 数字↔标题间距 -5px（0.4→0.14em）*/
+.pv-single-1x2 .pv-cp-pill { font-size: 0.68em; }                       /* capsule 标题 10.6→13 */
+.pv-single-1x2 .pv-cp-cell i { font-size: 0.68em; }                     /* capsule 单位 10.6→13 */
+.pv-single-1x2 .pv-tg-title { font-size: 0.84em; }                      /* targetDay 标题 11.4→16 */
+.pv-single-1x2 .pv-tg-pre,
+.pv-single-1x2 .pv-tg-unit { font-size: 0.68em; }                       /* targetDay 单位 9.5→13 */
+.pv-single-1x2 .pv-tg-days { font-size: 2.1em; }                        /* targetDay 天 47.5→40 */
+.pv-single-1x2 .pv-tg-date { font-size: 0.68em; }                       /* targetDay 日期 12.5→13 */
+.pv-single-1x2 .pv-fd-k { font-size: 0.68em; }                         /* festivalDay 标 9.5→13（1×2 显示标签）*/
+.pv-single-1x2 .pv-fd-v { font-size: 0.84em; }                         /* festivalDay 名 12.9→16（覆盖既有 0.68em）*/
+.pv-single-1x2 .pv-fd-d { font-size: 0.68em; }                         /* festivalDay 天数 10.6→13 */
+.pv-single-1x2 .pv-fnx-k { font-size: 0.68em; }                        /* festivalNext 标 11.8→13 */
+.pv-single-1x2 .pv-hd-date { font-size: 0.68em; }                       /* holidayNext 日期 10.6→13 */
+.pv-single-1x2 .pv-yb-foot { font-size: 0.68em; }                       /* yearBars 脚 11.8→13 */
+.pv-single-1x2 .pv-yb-foot b { font-size: 0.79em; }                     /* yearBars 年度% 28.5→15 */
+.pv-single-1x2 .pv-wg2-foot { font-size: 0.68em; }                      /* weekGrid 脚 12.5→13 */
+.pv-single-1x2 .pv-wg2-foot b { font-size: 0.79em; }                    /* weekGrid 周% 24.7→15 */
+.pv-single-1x2 .pv-bt-head { font-size: 0.68em; }                       /* battery 头 11.8→13 */
+.pv-single-1x2 .pv-sg-cap { font-size: 0.68em; }                        /* semiGauge 标 8.7→13 */
 `;
