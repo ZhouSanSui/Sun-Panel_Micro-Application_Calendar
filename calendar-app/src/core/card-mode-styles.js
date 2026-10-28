@@ -665,8 +665,10 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-tg-pre,
 .pv-single-1x2 .pv-tg-unit { font-size: 0.79em; }                      /* targetDay 单位 13→15 */
 .pv-single-1x2 .pv-tg-date { font-size: 0.79em; }                       /* targetDay 日期 13→15 */
-.pv-single-1x2 .pv-cp { gap: 0.05em; }                                 /* capsule 数字↔标题间距再收紧（0.14→0.05em；10px 目标已超原间距，夹到最小）*/
-.pv-single-1x2 .pv-dc { gap: 0.05em; }                                 /* dotClock 数字↔日期间距收紧（0.2→0.05em；10px 目标超原间距，夹到最小）*/
-.pv-single-1x2 .pv-yb-foot span { font-size: 1.16em; }                  /* yearBars 「今年」15px（相对 foot 0.68em）*/
-.pv-single-1x2 .pv-wg2-foot span { font-size: 1.16em; }                 /* weekGrid 「本周」15px（相对 foot 0.68em）*/
+.pv-single-1x2 .pv-cp { gap: 0.05em; transform: translateY(-3px); }     /* 间距夹到最小 + 整体上移 3px */
+.pv-single-1x2 .pv-dc { gap: 0.02em; }                                  /* dotClock 数字↔日期间距夹到最小 */
+.pv-single-1x2 .pv-dc-time { line-height: 0.8; }                        /* 收紧时间行高，消除字形下方余白 */
+.pv-single-1x2 .pv-dc-date { line-height: 1; margin-top: -0.14em; }     /* 日期再上提，进一步贴近时间 */
+.pv-single-1x2 .pv-yb-foot span { font-size: 0.72em; }                  /* yearBars 「今年」尽量缩小（相对 foot 0.68em → ≈9px）*/
+.pv-single-1x2 .pv-wg2-foot span { font-size: 0.72em; }                 /* weekGrid 「本周」尽量缩小（相对 foot 0.68em → ≈9px）*/
 `;
