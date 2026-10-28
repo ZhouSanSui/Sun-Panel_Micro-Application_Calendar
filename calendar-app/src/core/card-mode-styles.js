@@ -704,18 +704,14 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-tc-time b,
 .pv-single-2x1 .pv-tc-time i { font-size: 3.9em; }
 .pv-single-2x1 .pv-tc-sec { font-size: 1.69em; }
+.pv-single-2x1 .pv-tc-sec em { font-size: 1em; }   /* 秒字 7→13px（与数字齐） */
 .pv-single-2x1 .pv-tc-date { font-size: 1.30em; }
-/* weekColumn：头 8.4→13px */
+/* weekColumn：头 8.4→13px；每行「一/二/三」星期字 9→11px */
 .pv-single-2x1 .pv-wc2-head { font-size: 0.87em; }
-/* targetDay：整卡 10.1→15px（根被 inline 占用，故对根的直接子块 ×1.485 模拟根=15px）；
-   副 6.6→13px（无目标日= pv-sub；有目标日= 标题+日期） */
-.pv-single-2x1 .pv-tg > .pv-tg-left,
-.pv-single-2x1 .pv-tg > .pv-tg-right { font-size: 1.485em; }
-.pv-single-2x1 .pv-tg > .pv-sub { font-size: 1.29em; }
-.pv-single-2x1 .pv-tg .pv-tg-title,
-.pv-single-2x1 .pv-tg .pv-tg-date { font-size: 1.29em; }
+.pv-single-2x1 .pv-wc2-row span { font-size: 0.73em; }
+/* targetDay：回退 v3.29 基线（整卡 10.1px / 副 6.6px），本块不覆盖 */
 /* verticalList：名称 8.6→13px；头 6.6→10px */
-.pv-single-2x1 .pv-vl-row b { font-size: 1.29em; }
+.pv-single-2x1 .pv-vl-row b { font-size: 1.09em; }   /* 名称 13→11px */
 .pv-single-2x1 .pv-vl-head { font-size: 0.99em; }
 /* festivalDay：节日名 8→15px；天数 6.6→13px。
    2×1 仅 50px 宽，「名 + 天数」横排 76px 必溢出裁切 —— 改为竖排（名在上、天数在下），
@@ -723,4 +719,7 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-fd-row { flex-direction: column; align-items: center; gap: 0.1em; white-space: normal; }
 .pv-single-2x1 .pv-fd-v { font-size: 1.28em; }
 .pv-single-2x1 .pv-fd-d { font-size: 1.11em; }
+/* festivalNext：天数 10.7→12px；标签 9.2→10px */
+.pv-single-2x1 .pv-fnx-d { font-size: 0.81em; }
+.pv-single-2x1 .pv-fnx-k { font-size: 0.68em; }
 `;
