@@ -1204,7 +1204,7 @@ function renderInfoBlockInner(o) {
         ? html`<span class="pv-ld-gz">${gz.zh}年</span><span class="pv-ld-mon">${parts.leap ? '闰' : ''}${monTxt}</span>`
         : html`<span class="pv-ld-gz">${now.getFullYear()}</span>`;
       const bot2x1 = isZh
-        ? html`<span class="pv-ld-sol">${now.getMonth() + 1}.${now.getDate()}</span><span class="pv-ld-wd">周${WEEK_FULL_ZH[now.getDay()]}</span>`
+        ? html`<span class="pv-ld-sol">${now.getMonth() + 1}·${now.getDate()}</span><span class="pv-ld-wd">周${WEEK_FULL_ZH[now.getDay()]}</span>`
         : html`<span class="pv-ld-sol">${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span><span class="pv-ld-wd">${now.toLocaleDateString('en-US', { weekday: 'short' })}</span>`;
       return html`<div class="pv-col pv-ld">
         <div class="pv-ld-top" style="color:${label3}">${is2x1 ? top2x1 : top}</div>
@@ -1250,7 +1250,7 @@ function renderInfoBlockInner(o) {
         <div class="pv-tc-time">${timeInner}</div>
         <div class="pv-tc-sec" style="color:${label2}">${ss}<em style="color:${label3}">${isZh ? '秒' : 's'}</em></div>
         <div class="pv-tc-bar"><i style="width:${(dayP * 100).toFixed(1)}%;background:${ac}"></i></div>
-        <div class="pv-tc-date" style="color:${label3}">${o.size === '2x1' ? (isZh ? `${now.getMonth() + 1}.${now.getDate()}` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : (isZh ? `周${WEEK_FULL_ZH[now.getDay()]} ${now.getMonth() + 1}月${now.getDate()}日` : now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}</div>
+        <div class="pv-tc-date" style="color:${label3}">${o.size === '2x1' ? (isZh ? `${now.getMonth() + 1}·${now.getDate()}` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : (isZh ? `周${WEEK_FULL_ZH[now.getDay()]} ${now.getMonth() + 1}月${now.getDate()}日` : now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}</div>
       </div>`;
     }
 

@@ -720,8 +720,8 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-wc2-row span { font-size: 0.73em; }
 /* targetDay：还有/天 13px、中间数字 24px、日程名 13px、日期拆两排（年 / 月日）10px */
 .pv-single-2x1 .pv-tg-pre,
-.pv-single-2x1 .pv-tg-unit { font-size: 0.99em; }   /* v3.34：还有/天 13→10px，与下方日期一致（em=10/10.1） */
-.pv-single-2x1 .pv-tg-days { font-size: 2.376em; }   /* 中间数字 25→24px（em=24/10.1） */
+.pv-single-2x1 .pv-tg-unit { font-size: 0.861em; }   /* v3.35：还有/天 10→8.7px（em=8.7/10.1） */
+.pv-single-2x1 .pv-tg-days { font-size: 2.861em; }   /* v3.35：中间数字 23.9→28.9px（+5px，em=28.9/10.1） */
 .pv-single-2x1 .pv-tg-title { font-size: 1.287em; text-align: center; }  /* 日程名 6→13px（em=13/10.1）+ 水平置中（长名换行后每行居中） */
 .pv-single-2x1 .pv-tg-date { display: flex; flex-direction: column; align-items: center; gap: 0.04em; font-size: 0.99em; }  /* 日期 6.7→10px，两排（年 / 月日） */
 /* verticalList：名称 8.6→13px；头 6.6→10px */
