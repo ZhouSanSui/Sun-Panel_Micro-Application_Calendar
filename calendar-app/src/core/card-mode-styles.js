@@ -736,4 +736,10 @@ export const CARD_MODE_CSS = `
 /* festivalNext：天数 10.7→12px，v3.34 再→15px（em=15/14.8）；标签 9.2→10px */
 .pv-single-2x1 .pv-fnx-d { font-size: 1.014em; }
 .pv-single-2x1 .pv-fnx-k { font-size: 0.68em; }
+/* holidayNext（v3.36）：天数 20→30px、单位「天」6.4→13px、节日名 10.4→15px、日期 8.3→10px。
+   注意 base 的 .pv-hd-days 是 1x2/2x1/1xfull 共用规则（1.35em），此处只追加 2×1 专属覆盖，不改共用规则。 */
+.pv-single-2x1 .pv-hd-days { font-size: 2.027em; }        /* 天数 30px（em=30/14.8） */
+.pv-single-2x1 .pv-hd-days small { font-size: 0.433em; }  /* 天(单位) 13px（em=13/30，父为天数 30px） */
+.pv-single-2x1 .pv-hd-name { font-size: 1.014em; }        /* 节日名 15px（em=15/14.8） */
+.pv-single-2x1 .pv-hd-date { font-size: 0.676em; }        /* 日期 10px（em=10/14.8） */
 `;
