@@ -1232,13 +1232,15 @@ function renderInfoBlockInner(o) {
       const mm = String(now.getMinutes()).padStart(2, '0');
       const ss = String(now.getSeconds()).padStart(2, '0');
       const dayP = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
-      return html`<div class="pv-col pv-tc">
-        <div class="pv-tc-time">
-          <b style="color:${ac}">${hh}</b><i style="color:${ac}">:${mm}</i>
-        </div>
+      const tc2x1 = o.size === '2x1';
+      const timeInner = tc2x1
+        ? html`<b style="color:${ac}">${hh}</b><i style="color:${ac}">${mm}</i>`
+        : html`<b style="color:${ac}">${hh}</b><i style="color:${ac}">:${mm}</i>`;
+      return html`<div class="pv-col pv-tc${tc2x1 ? ' pv-tc-2x1' : ''}">
+        <div class="pv-tc-time">${timeInner}</div>
         <div class="pv-tc-sec" style="color:${label2}">${ss}<em style="color:${label3}">${isZh ? '秒' : 's'}</em></div>
         <div class="pv-tc-bar"><i style="width:${(dayP * 100).toFixed(1)}%;background:${ac}"></i></div>
-        <div class="pv-tc-date" style="color:${label3}">${isZh ? `周${WEEK_FULL_ZH[now.getDay()]} ${now.getMonth() + 1}月${now.getDate()}日` : now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+        <div class="pv-tc-date" style="color:${label3}">${o.size === '2x1' ? (isZh ? `${now.getMonth() + 1}月${now.getDate()}` : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : (isZh ? `周${WEEK_FULL_ZH[now.getDay()]} ${now.getMonth() + 1}月${now.getDate()}日` : now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}</div>
       </div>`;
     }
 
@@ -1265,9 +1267,10 @@ function renderInfoBlockInner(o) {
       const mo = now.getMonth() + 1;
       const wd = isZh ? `周${WEEK_FULL_ZH[now.getDay()]}` : WEEK_MIN_EN[now.getDay()];
       const sub = isZh ? `${mo} 月 · ${wd}` : `${now.toLocaleDateString('en-US', { month: 'short' })} · ${wd}`;
+      const sub2x1 = html`<span class="pv-dn-m">${mo}月</span><span class="pv-dn-w">${wd}</span>`;
       return html`<div class="pv-col pv-dn">
         <div class="pv-dn-num" style="color:${ac}">${now.getDate()}</div>
-        <div class="pv-dn-sub" style="color:${label2}">${sub}</div>
+        <div class="pv-dn-sub" style="color:${label2}">${o.size === '2x1' ? sub2x1 : sub}</div>
       </div>`;
     }
     // v3.11 miniMonth：小月历 —— 单卡里唯一「看得见整月」的样式，7 列固定，1×1 上刚好铺满

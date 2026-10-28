@@ -678,4 +678,49 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-wg2-foot b { font-size: 1em; font-weight: 400; }   /* weekGrid 周% ≈13px，去粗体与标签同重 */
 .pv-single-1x2 .pv-wg2-foot { display: flex; justify-content: space-between; align-items: baseline; text-align: left; }  /* 本周移至最左，与今年一致 */
 .pv-single-1x2 .pv-sg-val { transform: translateX(-50%) translateY(6px); }  /* v3.28：相对 v3.27(下移8)再上提2px → 净下移6px（用户：上移2px）*/
+
+/* v3.30：2×1 单卡逐项微调（用户第 7 条指令）。
+   注：fitFontU 给卡片根写 inline font-size，根字号无法直接改；以下 em 一律相对「父元素实测 px」，
+   故每个目标 px ÷ 父元素 px 得 em（em 相对父、不相对根）。可能超出 50px 内容盒宽度的项会被 fitFontU
+   自动回缩，审计零裁切但目标 px 不一定完全达成，以 probe 实测为准。 */
+/* dayNum：副标题月/星期拆两排去点，各 30px */
+.pv-single-2x1 .pv-dn-sub { white-space: normal; }
+/* dayNum 副 30px 时「10月」≈63px > 50px 内容盒 → 压到 20px（≈44px，留余量不裁切） */
+.pv-single-2x1 .pv-dn-m,
+.pv-single-2x1 .pv-dn-w { display: block; text-align: center; white-space: nowrap; font-size: 2.86em; line-height: 1.12; }
+/* stackTime：单位「时」7.8→13px */
+.pv-single-2x1 .pv-skt-row i { font-size: 1.03em; }
+/* lunarDate：日 17.2→24px（2 字原 48px，压到 22px≈44px 留余量不裁切）；上/下沿 5.6/5.5→13/13px 时
+   「丙午年 九月」≈68px > 50px → 压到 8.6px（≈48px，留余量不裁切） */
+.pv-single-2x1 .pv-ld-day { font-size: 2.82em; }
+.pv-single-2x1 .pv-ld-top { font-size: 1.10em; }
+.pv-single-2x1 .pv-ld-bot { font-size: 0.96em; }
+/* dayStack：日 30.5→37.9px；左列时间 9→13px */
+.pv-single-2x1 .pv-ds-day { font-size: 4.21em; }
+.pv-single-2x1 .pv-ds-row b,
+.pv-single-2x1 .pv-ds-row i { font-size: 1.44em; }
+/* tallClock：时:分 17→两排各 30px（2×1 去冒号竖排）；秒 10→13px；日期 5.7→10px */
+.pv-single-2x1 .pv-tc-2x1 .pv-tc-time { flex-direction: column; align-items: center; gap: 0.02em; }
+.pv-single-2x1 .pv-tc-time b,
+.pv-single-2x1 .pv-tc-time i { font-size: 3.9em; }
+.pv-single-2x1 .pv-tc-sec { font-size: 1.69em; }
+.pv-single-2x1 .pv-tc-date { font-size: 1.30em; }
+/* weekColumn：头 8.4→13px */
+.pv-single-2x1 .pv-wc2-head { font-size: 0.87em; }
+/* targetDay：整卡 10.1→15px（根被 inline 占用，故对根的直接子块 ×1.485 模拟根=15px）；
+   副 6.6→13px（无目标日= pv-sub；有目标日= 标题+日期） */
+.pv-single-2x1 .pv-tg > .pv-tg-left,
+.pv-single-2x1 .pv-tg > .pv-tg-right { font-size: 1.485em; }
+.pv-single-2x1 .pv-tg > .pv-sub { font-size: 1.29em; }
+.pv-single-2x1 .pv-tg .pv-tg-title,
+.pv-single-2x1 .pv-tg .pv-tg-date { font-size: 1.29em; }
+/* verticalList：名称 8.6→13px；头 6.6→10px */
+.pv-single-2x1 .pv-vl-row b { font-size: 1.29em; }
+.pv-single-2x1 .pv-vl-head { font-size: 0.99em; }
+/* festivalDay：节日名 8→15px；天数 6.6→13px。
+   2×1 仅 50px 宽，「名 + 天数」横排 76px 必溢出裁切 —— 改为竖排（名在上、天数在下），
+   二者各自 45/31px 均 < 50px，目标字号完整保留。 */
+.pv-single-2x1 .pv-fd-row { flex-direction: column; align-items: center; gap: 0.1em; white-space: normal; }
+.pv-single-2x1 .pv-fd-v { font-size: 1.28em; }
+.pv-single-2x1 .pv-fd-d { font-size: 1.11em; }
 `;
