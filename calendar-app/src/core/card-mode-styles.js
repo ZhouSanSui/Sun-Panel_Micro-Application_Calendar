@@ -686,14 +686,16 @@ export const CARD_MODE_CSS = `
 /* dayNum：副标题月/星期拆两排去点，各 30px */
 .pv-single-2x1 .pv-dn-sub { white-space: normal; }
 /* dayNum 副 30px 时「10月」≈63px > 50px 内容盒 → 压到 20px（≈44px，留余量不裁切）；
-   再按用户要求缩小 2px → 18px（em=18.1/7.03，父 .pv-dn-sub 0.74em×9.5=7.03px） */
+   v3.33 缩小 2px→18px，v3.34 再缩小 4px→14px（em=14.1/7.03，父 .pv-dn-sub 0.74em×9.5=7.03px） */
 .pv-single-2x1 .pv-dn-m,
-.pv-single-2x1 .pv-dn-w { display: block; text-align: center; white-space: nowrap; font-size: 2.575em; line-height: 1.12; }
+.pv-single-2x1 .pv-dn-w { display: block; text-align: center; white-space: nowrap; font-size: 2.006em; line-height: 1.12; }
+/* v3.34：数字上移 5px、副下移 5px（向上下两侧各移动 5px） */
+.pv-single-2x1 .pv-dn-num { transform: translateY(-5px); }
+.pv-single-2x1 .pv-dn-sub { transform: translateY(5px); }
 /* stackTime：单位「时」7.8→13px */
 .pv-single-2x1 .pv-skt-row i { font-size: 1.03em; }
 /* lunarDate：日 22px 保留；上沿拆「干支年 / 月份」两排、下沿拆「月日 / 星期(带周字)」两排，均 13px。
-   注：「10月21日」13px 约 55px 会超出 2×1 的 50px 内容盒 → 渲染层 2×1 的月日省略末尾「日」字（≈42px），
-       使 13px 完整保留且零裁切（见 render 中 bot2x1 注释） */
+   v3.34：月日改用小点分隔「10.21」（≈32px），此前「10月21」42px /「10月21日」55px，改点后 50px 内容盒更宽裕 */
 .pv-single-2x1 .pv-ld { gap: calc(0.14em + 10px); }   /* 上沿↔日、日↔下沿 各 +10px（基础 0.14em≈1.1px → 11.1px） */
 .pv-single-2x1 .pv-ld-day { font-size: 2.82em; }
 .pv-single-2x1 .pv-ld-top,
@@ -718,7 +720,7 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-wc2-row span { font-size: 0.73em; }
 /* targetDay：还有/天 13px、中间数字 24px、日程名 13px、日期拆两排（年 / 月日）10px */
 .pv-single-2x1 .pv-tg-pre,
-.pv-single-2x1 .pv-tg-unit { font-size: 1.287em; }   /* 还有/天 5→13px（em=13/10.1） */
+.pv-single-2x1 .pv-tg-unit { font-size: 0.99em; }   /* v3.34：还有/天 13→10px，与下方日期一致（em=10/10.1） */
 .pv-single-2x1 .pv-tg-days { font-size: 2.376em; }   /* 中间数字 25→24px（em=24/10.1） */
 .pv-single-2x1 .pv-tg-title { font-size: 1.287em; text-align: center; }  /* 日程名 6→13px（em=13/10.1）+ 水平置中（长名换行后每行居中） */
 .pv-single-2x1 .pv-tg-date { display: flex; flex-direction: column; align-items: center; gap: 0.04em; font-size: 0.99em; }  /* 日期 6.7→10px，两排（年 / 月日） */
@@ -731,7 +733,7 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-fd-row { flex-direction: column; align-items: center; gap: 0.1em; white-space: normal; }
 .pv-single-2x1 .pv-fd-v { font-size: 1.28em; }
 .pv-single-2x1 .pv-fd-d { font-size: 1.11em; }
-/* festivalNext：天数 10.7→12px；标签 9.2→10px */
-.pv-single-2x1 .pv-fnx-d { font-size: 0.81em; }
+/* festivalNext：天数 10.7→12px，v3.34 再→15px（em=15/14.8）；标签 9.2→10px */
+.pv-single-2x1 .pv-fnx-d { font-size: 1.014em; }
 .pv-single-2x1 .pv-fnx-k { font-size: 0.68em; }
 `;
