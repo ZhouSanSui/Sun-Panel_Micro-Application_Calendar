@@ -1,7 +1,7 @@
 {
   "appJsonVersion": "1.1",
   "author": "zhousansui",
-  "version": "3.24.261029-beta",
+  "version": "3.25.261029-beta",
   "entry": "main.js",
   "icon": "icon.png",
   "debug": false,
