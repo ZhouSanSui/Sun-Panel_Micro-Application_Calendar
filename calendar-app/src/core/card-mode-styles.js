@@ -742,4 +742,47 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-hd-days small { font-size: 0.433em; }  /* 天(单位) 13px（em=13/30，父为天数 30px） */
 .pv-single-2x1 .pv-hd-name { font-size: 1.014em; }        /* 节日名 15px（em=15/14.8） */
 .pv-single-2x1 .pv-hd-date { font-size: 0.676em; }        /* 日期 10px（em=10/14.8） */
+
+/* ===== v3.37：2×2 批量字号/布局微调（用户清单） =====
+   2×2 = 182×182，内容盒 156×156。以下 em = 目标px ÷ 该卡 rootPx（rootPx 由探针实测）。 */
+/* LED数码管 dotClock（rootPx 17.4）：时间 22.6→33px、日期 10.8→13px */
+.pv-single-2x2 .pv-dc-time { font-size: 1.897em; }
+.pv-single-2x2 .pv-dc-date { font-size: 0.747em; }
+/* 粗体大字钟 boldClock（rootPx 22）：时/分 33→40px；日期/星期 13.6→15px。
+   注意：.pv-bc-side 自带 font-size(≈13.6px)，span 的 em 相对它而非根 → em=15/13.63=1.1em */
+.pv-single-2x2 .pv-bc-nums b { font-size: 1.818em; }
+.pv-single-2x2 .pv-bc-side span { font-size: 1.1em; }
+/* 文字时钟 wordClock（rootPx 16）：副放大到「填满一排」。
+   0.85em(13.6px) 会让固有块 226 宽溢出 13px（audit 判 CLIP）→ 实测 0.80em(12.8px) 是可过审计的最大值：
+   11 个汉字 × 12.8px ≈ 141px，占满内容盒 156px 的约 90%，视觉上即「一整排」。 */
+.pv-single-2x2 .pv-wc-sub { font-size: 0.80em; }
+/* 竖向星期条 weekColumn（rootPx 15）：星期字 9→15px、头部 8.4→13px */
+.pv-single-2x2 .pv-wc2-row span { font-size: 1em; }
+.pv-single-2x2 .pv-wc2-head { font-size: 0.867em; }
+/* 胶囊倒计时 capsule（rootPx 13.5）：数字 17.5→33px 且改两排、单位 7.5→13px、标签 7.5→15px。
+   4 格在 33px 下单排需 ~220px > 156px 内容盒 → 必须拆两排（前两位 天/时 在上，其余 分/秒 在下，水平置中）。 */
+.pv-single-2x2 .pv-cp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-items: center; gap: 0.15em 0.5em; }
+.pv-single-2x2 .pv-cp-cell b { font-size: 2.444em; }
+.pv-single-2x2 .pv-cp-cell i { font-size: 0.963em; }
+.pv-single-2x2 .pv-cp-pill { font-size: 1.111em; }
+/* 节日卡 festival（rootPx 20.1）：日期 10.4→15px、倒计时 9.2→13px */
+.pv-single-2x2 .pv-fe-date { font-size: 0.746em; }
+.pv-single-2x2 .pv-fe-gap { font-size: 0.647em; }
+/* 进度格阵 yearGrid（rootPx 15）：年份/进度 7.5→13px。
+   注意：.pv-yg-head 自带 font-size(≈7.5px)，span/b 的 em 相对它而非根 → em=13/7.5=1.733em */
+.pv-single-2x2 .pv-yg-head span,
+.pv-single-2x2 .pv-yg-head b { font-size: 1.733em; }
+/* 多进度条 multiBars（rootPx 16）：年/月/周/日/生命 8.9→13px */
+.pv-single-2x2 .pv-mb-k { font-size: 0.8125em; }
+/* 周进度格 weekGrid：「本周」移到最左侧（同 1×2：foot 由 text-align:right 改 flex 两端对齐） */
+.pv-single-2x2 .pv-wg2-foot,
+.pv-single-2x4 .pv-wg2-foot,
+.pv-single-4x4 .pv-wg2-foot { display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
+/* 纵向日程表 verticalList：日期与时间移到最右侧（名称在左、日期时间在右） */
+.pv-single-2x2 .pv-vl-row b,
+.pv-single-2x4 .pv-vl-row b,
+.pv-single-4x4 .pv-vl-row b { order: 1; }
+.pv-single-2x2 .pv-vl-row span,
+.pv-single-2x4 .pv-vl-row span,
+.pv-single-4x4 .pv-vl-row span { order: 2; }
 `;
