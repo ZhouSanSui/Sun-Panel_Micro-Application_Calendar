@@ -638,7 +638,8 @@ export class WidgetConfig extends SunPanelPageElement {
       this._showHint(this._t('t', '该显示样式已在卡片中', 'This style is already on the card'));
       return;
     }
-    const item = c === 'blank' ? { c, s, n: this._nextBlankN() } : { c, s };
+    // v3.51：移除空白显示样式功能（不再支持添加空白单元）
+    const item = { c, s };
     if (!this._appendBlock(item)) return;
     this.capHint = null;
     this.requestUpdate();
@@ -650,14 +651,6 @@ export class WidgetConfig extends SunPanelPageElement {
     this._writeBlocks(this.cardBlocks.filter((_, i) => i !== idx));
     this._spanEdit = null;
     this.requestUpdate();
-  }
-
-  /** 下一个可用的空白序号（1,2,3… 取最小空缺） */
-  _nextBlankN() {
-    const used = new Set(this.cardBlocks.filter((b) => b.c === 'blank').map((b) => Number(b.n) || 0));
-    let cand = 1;
-    while (used.has(cand)) cand += 1;
-    return cand;
   }
 
   /**
@@ -695,14 +688,6 @@ export class WidgetConfig extends SunPanelPageElement {
       }
     }
     return { col: 0, row: 0 };
-  }
-
-  /** 空白填充：添加一个 1×1 的空白单元（不显示内容，仅占位；可添加多个） */
-  _addBlank() {
-    const item = { c: 'blank', s: 'space', n: this._nextBlankN() };
-    if (!this._appendBlock(item)) return;
-    this.capHint = null;
-    this.requestUpdate();
   }
 
   /** 卡片级置中：内容未填满时整体按方向居中 */
@@ -1283,7 +1268,7 @@ export class WidgetConfig extends SunPanelPageElement {
       // v1.43：去掉接管/锁定，单元级开关始终可点（点击即移交该轴）
       alignLocked: { h: false, v: false },
       alignDefault: { h: !unitAlignExplicit(info.b), v: !unitAlignExplicit(info.b) },
-      alignHint: this.t('CARD_ALIGN_UNIT_HINT'),
+      alignHint: null,
       t: (key, vars) => this.t(key, vars),
       onToggleAlign: (axis) => this._toggleAlignWithFeedback(axis),
       onFull: () => this._fillSpanFull(),

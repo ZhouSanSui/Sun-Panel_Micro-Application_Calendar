@@ -194,7 +194,7 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
   const out = sanitizeBlocks([
     { c: 'time', s: 'hm', span: { cols: 3, rows: 2 } },
     { c: 'calendar', s: 'month', span: { cols: 0, rows: 2 } },
-    { c: 'important', s: 'festival', span: { cols: 99, rows: 2 } },
+    { c: 'schedule', s: 'festival', span: { cols: 99, rows: 2 } },
   ], 'combo', '4x4');
   ok(out.length === 3, `sanitizeBlocks 应保留 3 条（实际 ${out.length}）`);
   ok(out[0].span && out[0].span.cols === 3 && out[0].span.rows === 2, '合法占格覆盖应被保留');
@@ -249,7 +249,7 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
 {
   // 四样式（festival/solarTerm/holidayGap/recent）声明 minArea=2：每轴下限退为 1，但面积约束禁 1×1
   for (const s of ['festival', 'solarTerm', 'holidayGap', 'recent']) {
-    const bd = spanBounds('combo', '2x2', { c: s === 'recent' ? 'schedule' : 'important', s });
+    const bd = spanBounds('combo', '2x2', { c: 'schedule', s });
     ok(bd.minArea === 2, `${s} 的 minArea 应为 2`);
     ok(bd.min.cols === 1 && bd.min.rows === 1, `${s} 面积下限模式下每轴下限退为 1`);
   }
@@ -278,11 +278,11 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
   // 降级链：2×2 放不下时，面积样式按 {2,1}/{1,2} 降级（而非跳过）
   // 1x2 卡（网格 4×2）：先放一个占满首行的块，仅剩 4×1 横条 → festival 降级为 2×1
   const lay = autoLayout(
-    [{ c: 'time', s: 'hm', span: { cols: 4, rows: 1 } }, { c: 'important', s: 'festival' }],
+    [{ c: 'time', s: 'hm', span: { cols: 4, rows: 1 } }, { c: 'schedule', s: 'festival' }],
     'combo', '1x2',
   );
   ok(lay.length === 2, `1x2 卡片应放下两单元（含降级），实际 ${lay.length}`);
-  const fz = lay.find((x) => x.c === 'important' && x.s === 'festival');
+  const fz = lay.find((x) => x.c === 'schedule' && x.s === 'festival');
   ok(fz && fz.span.cols === 2 && fz.span.rows === 1, `festival 2×2 放不下应降级 2×1，实际 ${fz ? `${fz.span.cols}×${fz.span.rows}` : '未放下'}`);
 
   // 2x1 卡（网格 2×4）：先放占满前三行的块，仅剩 2×1 竖条 → multiple 降级为 2×1（minSpan）
@@ -383,30 +383,6 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
   const a = sanitizeBlocks(null, 'combo', '2x2');
   a[0].span.cols = 1;
   ok(sanitizeBlocks(null, 'combo', '2x2')[0].span.cols === 2, '默认块应为深拷贝（修改不污染常量）');
-}
-
-// 9.2 空白单元：可重复、序号自动补齐、唯一标识不同
-{
-  const out = sanitizeBlocks([
-    { c: 'blank', s: 'space' },
-    { c: 'blank', s: 'space' },
-    { c: 'blank', s: 'space', n: 7 },
-  ], 'combo', '2x2');
-  ok(out.length === 3, `空白单元应全部保留（实际 ${out.length}）`);
-  ok(out[0].n === 1 && out[1].n === 2 && out[2].n === 7, `空白序号应为 1/2/7，实际 ${out.map((b) => b.n).join(',')}`);
-  ok(new Set(out.map(unitId)).size === 3, '空白单元的唯一标识应互不相同');
-  const ids = new Set(out.map(unitId));
-  ok(ids.has('blank:space:1') && ids.has('blank:space:7'), 'unitId 应带上空白序号');
-  // 与其他内容混合时普通单元仍去重
-  const mixed = sanitizeBlocks([
-    { c: 'time', s: 'hms' }, { c: 'time', s: 'hms' }, { c: 'blank', s: 'space' },
-  ], 'combo', '2x2');
-  ok(mixed.length === 2, '普通单元仍应去重，空白不去重');
-  // 空白单元按 1×1 落位，且能参与布局
-  const laid = autoLayout([{ c: 'blank', s: 'space', n: 1 }, { c: 'blank', s: 'space', n: 2 }], 'combo', '2x2');
-  ok(laid.length === 2, '两个空白单元都应落位');
-  checkLayout(laid, gridForSize('2x2'), '空白单元 2x2');
-  ok(laid[0].n === 1 && laid[1].n === 2, '布局结果应保留空白序号（渲染要用）');
 }
 
 // ---------- 10) v1.30 置中（单元级 / 卡片级） ----------

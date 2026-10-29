@@ -830,7 +830,8 @@ function renderInfoBlockInner(o) {
   const empty = (text) => html`<div class="pv-center"><div class="pv-sub" style="color:${label3}">${text}</div></div>`;
 
   // ---------- 拼接：日历 ----------
-  if (content === 'calendar') {
+  // v3.51：battery 走下方进图/电量条分支（calendar:battery），不进日历分支
+  if (content === 'calendar' && style !== 'battery') {
     if (style === 'week') {
       const days = weekDatesForNow(now, ws);
       const wkScheds = getUserStore()?.getSchedules() || [];
@@ -1014,7 +1015,8 @@ function renderInfoBlockInner(o) {
   }
 
   // ---------- 拼接：重要日期 ----------
-  if (!o.singleRow && content === 'important') {
+  if (!o.singleRow && (content === 'important' || content === 'schedule')
+    && (style === 'festival' || style === 'solarTerm' || style === 'holidayGap')) {
     let info = null;
     let sub = '';
     if (style === 'festival') {
@@ -1032,11 +1034,6 @@ function renderInfoBlockInner(o) {
       ? (isZh ? info.zh : info.en)
       : (isZh ? info.nameZh : info.nameEn);
     return flat ? countdownFlat(name, info.days, sub) : countdown(name, info.days, sub);
-  }
-
-  // ---------- 空白（只占位不显示内容） ----------
-  if (content === 'blank') {
-    return html`<div class="pv-blank"></div>`;
   }
 
   // ---------- 拼接：日程（仅拼接模式；单独模式的日程样式在下方「单独：日程」分支）----------
@@ -1723,7 +1720,7 @@ function renderInfoBlockInner(o) {
   }
 
   // ---------- 单独：进度 ----------
-  if (content === 'progress') {
+  if (content === 'progress' || (content === 'calendar' && style === 'battery')) {
     if (style === 'year') {
       const yp = yearProgress(now);
       const r = 24, c = 2 * Math.PI * r, off = c * (1 - yp / 100);
@@ -2280,7 +2277,7 @@ export function renderSpanEditor(o) {
   const {
     grid, target, span, bounds, name, theme, isZh, sizeLabel,
     occupied, align, isFull, singleLine, noUnits, showSchedule, onToggleShowSchedule, showHoliday, onToggleShowHoliday,
-    alignLocked, alignDefault, alignHint,
+    alignLocked, alignDefault,
     onPick, onResize, onReset, onClose,
     minimal,
   } = o;
@@ -2384,9 +2381,6 @@ export function renderSpanEditor(o) {
         ${minimal ? '' : alignToggle('v', isZh ? '垂直置中' : 'Center V')}
         ${singleLine === null || singleLine === undefined ? '' : toggle(isZh ? '单行显示' : 'One line', !!singleLine, () => onToggleSingleLine(), null, false, true)}
         ${noUnits === null || noUnits === undefined ? '' : toggle(isZh ? '简约显示' : 'Compact', !!noUnits, () => onToggleNoUnits(), null, false, true, isZh ? '简约显示，隐藏年/月/日单位' : 'Compact — hides year/month/day labels')}
-      </div>
-      ${alignHint ? html`<div class="se-hint">${alignHint}</div>` : ''}
-      <div class="se-actions">
         ${minimal ? '' : html`<button class="se-reset" @click=${onReset}>${isZh ? '自适应' : 'Auto'}</button>`}
         ${isFull ? html`<button class="se-reset" @click=${onFull}>FULL</button>` : ''}
         ${showSchedule === null || showSchedule === undefined ? '' : html`<button class="se-reset ${showSchedule ? 'on' : ''}" style="${showSchedule ? `background:${theme};color:#fff;border-color:${theme}` : ''}" @click=${() => onToggleShowSchedule()}>${isZh ? '显示日程' : 'Schedules'}</button>`}

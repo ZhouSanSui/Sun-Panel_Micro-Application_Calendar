@@ -96,7 +96,7 @@ const PRESETS = {
   '2x2': [['calendar', 'month'], ['time', 'hms'], ['schedule', 'recent']],
   '2x4': [['time', 'hms'], ['time', 'dateFullWeekday'], ['calendar', 'month'], ['schedule', 'multiple'], ['important', 'holidayGap']],
   '4x4': [['time', 'hms'], ['time', 'dateFullWeekday'], ['calendar', 'month'], ['calendar', 'week'], ['schedule', 'multiple'], ['important', 'holidayGap']],
-  '1xfull': [['time', 'hms'], ['time', 'dateFullWeekday'], ['important', 'holidayGap'], ['schedule', 'recent']],
+  '1xfull': [['time', 'hms'], ['time', 'dateFullWeekday'], ['schedule', 'holidayGap'], ['schedule', 'recent']],
 };
 
 for (const [size, list] of Object.entries(PRESETS)) {
@@ -117,7 +117,7 @@ for (const [size, list] of Object.entries(PRESETS)) {
 
 // 1×FULL 动态列数
 for (const w of [520, 760, 1080, 1440]) {
-  const sim = simulate('1xfull', w, 120, [{ c: 'time', s: 'hms' }, { c: 'time', s: 'dateFullWeekday' }, { c: 'important', s: 'holidayGap' }]);
+  const sim = simulate('1xfull', w, 120, [{ c: 'time', s: 'hms' }, { c: 'time', s: 'dateFullWeekday' }, { c: 'schedule', s: 'holidayGap' }]);
   ok(sim.grid.cols >= 4 && sim.grid.cols <= 10, `1xfull@${w}: 列数 ${sim.grid.cols} 应在 4~10`);
   ok(sim.laid.length >= 2, `1xfull@${w}: 应至少放下 2 块`);
   console.log(`1xfull @${w}px → 网格 ${sim.grid.cols}×${sim.grid.rows}，放下 ${sim.laid.length} 块`);
@@ -353,11 +353,6 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
   const before = (monthLine.slice(0, todayIdx).match(/pv-wk-cell/g) || []).length;
   ok(before === 9, `今日应位于正中（前有 9 天），实际 ${before}`);
 
-  // 空白单元：渲染为空占位
-  const blank = flatten(mk({ content: 'blank', style: 'space' })).join('');
-  ok(blank.includes('pv-blank'), '空白单元应渲染占位节点');
-  ok(!blank.includes('暂无'), '空白单元不应显示任何文案');
-
   // 多个日程：纵向空间越大显示条目越多；横向够宽时补日期
   // 需要一份日程数据：用无 api 的 UserStore（日程一律为今天之后的固定日期）
   await ensureAppState({});
@@ -416,12 +411,6 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
       '按钮隐藏后 .se-toggles 容器应保留');
     ok((fl(renderSpanEditor({ ...sb, singleLine: null })).match(/class="se-toggle [^"]*"/g) || []).length === 2,
       '按钮隐藏后应只剩水平/垂直置中两个开关');
-    // 副标题 .se-hint 在 .se-toggles 之外
-    const hinted = fl(renderSpanEditor({ ...sb, singleLine: null, alignHint: 'HINT_XYZ' }));
-    ok(hinted.includes('HINT_XYZ'), '单元级置中副标题应渲染');
-    ok(hinted.includes('se-hint'), '副标题应使用 .se-hint 类');
-    ok(hinted.indexOf('se-hint') > hinted.indexOf('</div>'),
-      '副标题应位于 .se-toggles 之外（独立元素）');
   }
 
   // v1.32 需求 3 回退：日历表头恢复为「年月」，不再升级为完整日期（无论占格多宽）
@@ -1352,11 +1341,11 @@ console.log('');
     ok(styleFitsSize('single', 'gauge', 'dial', size) === false,
       `v3.14：gauge 内容类在单独模式已合并，${size} 应返回 false`);
   }
-  // v3.14：拼接模式仍保留「重要日期」类（那套文字款没动）
-  ok(styleFitsSize('combo', 'important', 'festival', '2x2') === true,
-    '拼接模式仍保留 important 内容类');
-  ok(styleFitsSize('combo', 'important', 'holidayGap', '2x2') === true,
-    '拼接模式仍保留 important.holidayGap 样式');
+  // v3.51：拼接模式也把「重要日期」并入「日程」（图标沿用重要日期 ⭐）
+  ok(styleFitsSize('combo', 'schedule', 'festival', '2x2') === true,
+    '拼接模式 schedule 含 festival（原重要日期并入）');
+  ok(styleFitsSize('combo', 'schedule', 'holidayGap', '2x2') === true,
+    '拼接模式 schedule 含 holidayGap（原重要日期并入）');
   // v3.14：内容类别名表
   ok(aliasContent('important') === 'schedule' && aliasContent('gauge') === 'progress',
     'CONTENT_ALIAS 应把 important→schedule、gauge→progress');
@@ -1370,10 +1359,10 @@ console.log('');
     const mig2 = sanitizeBlocks([{ c: 'gauge', s: 'dial' }], 'single', '4x4');
     ok(mig2.length === 1 && mig2[0].c === 'progress' && mig2[0].s === 'dial',
       `旧 gauge.dial 配置应迁移到 progress.dial，实际 ${JSON.stringify(mig2[0] || {})}`);
-    // 拼接模式不能被迁移（COMBO_CONTENTS 仍保留 important）
+    // v3.51：拼接模式也迁移（重要日期已并入日程）
     const comboMig = sanitizeBlocks([{ c: 'important', s: 'festival', span: { cols: 2, rows: 1 } }], 'combo', '2x2');
-    ok(comboMig.length === 1 && comboMig[0].c === 'important',
-      '拼接模式的 important 配置不应被迁移');
+    ok(comboMig.length === 1 && comboMig[0].c === 'schedule',
+      '拼接模式的 important 配置也迁移到 schedule');
     // 渲染层也要认旧 key（存量配置不重新保存也能正常显示）
     const oldRender = flatten(renderInfoBlock({ ...base, content: 'important', style: 'festival', singleRow: true, size: '2x2' })).join('');
     ok(oldRender.includes('pv-fe-name'), '渲染层应接受旧 content key important（别名迁移）');
@@ -1389,19 +1378,14 @@ console.log('');
   ok(!nuGone.includes('pv-nu-time'), 'nextUp 渲染分支应已删除');
 }
 
-// v3.2：拼接模式也必须能放「进图」内容（此前只有单独模式可选进度样式）
-const comboProg = COMBO_CONTENTS.find((x) => x.key === 'progress');
-ok(!!comboProg, '拼接模式已提供进图内容');
-ok(comboProg && comboProg.styles.length >= 4, `拼接模式进图样式应至少 4 款，实际 ${comboProg ? comboProg.styles.length : 0}`);
-const comboBattery = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery' })).join('');
-ok(comboBattery.includes('pv-bt'), '拼接模式 年电量 应渲染 .pv-bt');
-const comboBar = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'week' })).join('');
-ok(comboBar.includes('本周') || comboBar.includes('Week'), '拼接模式 周进度 应带周标签');
-// 方阵型样式（四环进度 / 进度格阵 / 多进度条）在拼接模式的一行高格子里会被裁切（矩阵审计实测），
-// 故只保留单行进度样式；这里锁死，防止以后又被顺手加回去。
-for (const dense of ['ringProgress', 'yearGrid', 'multiBars']) {
-  ok(!comboProg.styles.some((x) => x.key === dense), `拼接模式不应提供方阵型样式 ${dense}`);
-}
+// v3.51：进图四样式合并为「电量条」（粒度可切 年/月/周/日），移到「日历」下；拼接不再单列 progress 内容
+const comboCal = COMBO_CONTENTS.find((x) => x.key === 'calendar');
+ok(!!comboCal, '拼接模式有日历内容');
+const calBattery = comboCal && comboCal.styles.find((x) => x.key === 'battery');
+ok(!!calBattery, '日历下提供电量条样式（原进图四样式合并）');
+ok(calBattery && Array.isArray(calBattery.opts) && calBattery.opts.includes('unit'), '电量条应带粒度选项(unit=年/月/周/日)');
+const comboBattery = flatten(renderInfoBlock({ ...base, content: 'calendar', style: 'battery' })).join('');
+ok(comboBattery.includes('pv-bt'), '日历:电量条 应渲染 .pv-bt');
 
 // ---------------------------------------------------------------------------
 // v3.3：年月日「两行」与 1×FULL 字号随内容区宽度

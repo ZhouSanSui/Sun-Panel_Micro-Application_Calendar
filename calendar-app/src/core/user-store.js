@@ -96,6 +96,8 @@ export const COMBO_CONTENTS = [
   { key: 'calendar', zh: '日历', en: 'Calendar', icon: '📅', styles: [
     { key: 'month', zh: '月日历', en: 'Month Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 2 }, opts: ['showSchedule', 'showHoliday'] },
     { key: 'week', zh: '周日历', en: 'Week Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 }, opts: ['showSchedule', 'showHoliday'] },
+    // v3.51：电量条（原「进图」四样式合并为一条，粒度可切 年/月/周/日）移到「日历」下
+    { key: 'battery', zh: '电量条', en: 'Battery', span: { cols: 2, rows: 1 }, minSpan: { cols: 2, rows: 1 }, opts: ['unit'], sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
   ] },
   { key: 'time', zh: '时间', en: 'Time', icon: '🕐', styles: [
     // 文字串不可压缩，故不声明 minSpan（放不下即视为空间不足，不做降级）
@@ -118,34 +120,15 @@ export const COMBO_CONTENTS = [
     { key: 'minute', zh: '分', en: 'Minute', span: { cols: 1, rows: 1 } },
     { key: 'second', zh: '秒', en: 'Second', span: { cols: 1, rows: 1 } },
   ] },
-  { key: 'important', zh: '重要日期', en: 'Important Dates', icon: '⭐', styles: [
-    // 倒数型单元竖向占位较高（大数字 + 单位 + 名称 + 说明），默认 2×2 保证可读；
-    // v1.40：minArea=2 放开下限——可缩至 1×2（宽扁）或 2×1（窄高），但禁 1×1（面积<2 不可读）
+  // v3.51：重要日期 + 日程 合并为「日程」（图标沿用重要日期的 ⭐），样式合并
+  { key: 'schedule', zh: '日程', en: 'Schedules', icon: '⭐', styles: [
+    // 原「重要日期」类（v3.51 并入）
     { key: 'festival', zh: '节日', en: 'Festival', span: { cols: 2, rows: 2 }, minArea: 2 },
     { key: 'solarTerm', zh: '节气', en: 'Solar Term', span: { cols: 2, rows: 2 }, minArea: 2 },
     { key: 'holidayGap', zh: '距放假', en: 'To Holiday', span: { cols: 2, rows: 2 }, minArea: 2 },
-  ] },
-  { key: 'schedule', zh: '日程', en: 'Schedules', icon: '🗓', styles: [
-    // v1.40：recent 同属倒数型，minArea=2 放开下限（1×2 / 2×1 可缩、禁 1×1）
+    // 原「日程」类
     { key: 'recent', zh: '最近日程', en: 'Recent', span: { cols: 2, rows: 2 }, minArea: 2 },
-    // v1.40：多个日程水平最低 2、垂直可到 1（用户要求「少显示一点就好」）
     { key: 'multiple', zh: '多个日程', en: 'Multiple', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 } },
-  ] },
-  // v3.2：拼接模式新增「进图」内容类——此前只有单独模式能放进度，拼接模式只能放日期/日程
-  // 每个样式都有独立的尺寸档，避免在某些卡片里挤成一团
-  { key: 'progress', zh: '进图', en: 'Progress', icon: '◴', styles: [
-    { key: 'month', zh: '月进度', en: 'Month', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
-    { key: 'week', zh: '周进度', en: 'Week', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
-    { key: 'day', zh: '今日进度', en: 'Today', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
-    // 多进度条 4 行在 1xfull 拼接块（1080×120 拆成 211×96）里仍会溢出 11px，
-    // 矩阵审计判为裁切，故拼接模式只保留单行进度（月/周/日/年电量），多行版本留在单独模式。
-    { key: 'battery', zh: '年电量', en: 'Year Battery', span: { cols: 2, rows: 1 }, minSpan: { cols: 2, rows: 1 }, sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
-    // 四环进度 / 进度格阵 是需要近正方形大面积的密集图形，拼接模式的格子常只有 1 行高，
-    // 强行放入会被裁切（矩阵审计实测溢出 60~157px），故只在单独模式提供。
-  ] },
-  // 空白填充：只占位不显示内容，可重复添加（用 n 序号区分）
-  { key: 'blank', zh: '空白', en: 'Blank', icon: '⬚', styles: [
-    { key: 'space', zh: '空白', en: 'Blank', span: { cols: 1, rows: 1 } },
   ] },
 ];
 
@@ -1029,11 +1012,8 @@ export function sanitizeBlocks(list, displayMode, size) {
     for (const b of src) {
       if (!b) continue;
       // v3.14：内容类合并后的旧 key 迁移（important→schedule、gauge→progress）。
-      // **只对单独模式生效** —— 拼接模式的 COMBO_CONTENTS 仍保留「重要日期」类
-      // （festival/solarTerm/holidayGap 那套文字款），无条件迁移会把拼接配置改错。
-      const c = displayMode === 'single'
-        ? aliasContent(typeof b === 'string' ? b : b.c)
-        : (typeof b === 'string' ? b : b.c);
+      // v3.51：拼接模式的 COMBO_CONTENTS 也已把「重要日期」并入「日程」，故单独+拼接都迁移。
+      const c = aliasContent(typeof b === 'string' ? b : b.c);
       const def = contents.find((x) => x.key === c);
       if (!def) continue;
       let s = typeof b === 'string' ? '' : b.s;
