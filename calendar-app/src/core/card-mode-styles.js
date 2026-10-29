@@ -794,10 +794,10 @@ export const CARD_MODE_CSS = `
    span/b 的 em 相对 .pv-yg-head（8.3px）→ em=13/8.3 */
 .pv-single-2x4 .pv-yg-head span,
 .pv-single-2x4 .pv-yg-head b { font-size: 1.566em; }
-/* 粗体大字钟 boldClock：2×4 时/分 39→61px（em=61/26，2×4 rootPx 26）；4×4 时/分 51→90px（em=90/34，4×4 rootPx 34）。
+/* 粗体大字钟 boldClock：2×4 时/分 39→61px（em=61/26，2×4 rootPx 26）；4×4 时/分 51→90→120px（em=120/34，4×4 rootPx 34）。
    .pv-bc-nums 无自身 font-size → em 相对根 */
 .pv-single-2x4 .pv-bc-nums b { font-size: 2.346em; }
-.pv-single-4x4 .pv-bc-nums b { font-size: 2.647em; }
+.pv-single-4x4 .pv-bc-nums b { font-size: 3.529em; }
 
 /* ===== v3.38：小月历 / 拼接月·周日历 支持「假期 + 日程」标记（与月视图 src/components/mainPage.js 同款） =====
    休息日（节假日 isOffDay、或周末且非调休）→ 日期数字用主题色（月视图 .day-num.rest{color:theme}）；

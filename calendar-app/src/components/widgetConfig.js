@@ -289,15 +289,18 @@ export class WidgetConfig extends SunPanelPageElement {
     const isZh = this._isZh();
     const vals = this._pendingOptsOf(this.pendingContent, cur.key) || {};
     // schedMode 的分段控件已经画在「关联日程」那一行的顶部，这里不再单独出一行
-    // v3.40：「显示日程 / 显示节假日」两个开关从竖排面板摘出，单独放进预览下方的开关行（对应拼接「自适应那排」）
+    // v3.40：「显示控制」合并成一行（左标题 + 右「日程 / 节假日」两个 chips），故把这两个键从逐行渲染里排除
     const keys = (need.includes('sched') ? need.filter((x) => x !== 'schedMode') : need)
       .filter((x) => x !== 'showSchedule' && x !== 'showHoliday');
-    if (!keys.length) return '';
+    const showCtrlRow = (need.includes('showSchedule') || need.includes('showHoliday'))
+      ? this._renderShowControlRow(this.pendingContent, cur.key, isZh) : '';
+    if (!keys.length && !showCtrlRow) return '';
     return html`
       <div class="style-opts-panel">
         <div class="style-opts-head">${this._t('t', '样式设置', 'Style options')}</div>
         <div class="style-opt-group">
           ${keys.map((k) => this._renderStyleOptRow(k, vals, theme, isZh))}
+          ${showCtrlRow}
         </div>
       </div>`;
   }
@@ -1158,7 +1161,6 @@ export class WidgetConfig extends SunPanelPageElement {
             <svg viewBox="0 0 8 13" width="8" height="13"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
-        ${this._renderShowToggles(theme, cd.key, cur.key, isZh)}
         <div class="style-counter">
           ${idx + 1}/${list.length}${isZh ? ` · ${cur.zh}` : ` · ${cur.en}`}
           <span class="counter-size">${isZh ? '尺寸' : 'size'} ${frameSpan.rows}×${frameSpan.cols}</span>
@@ -1168,30 +1170,21 @@ export class WidgetConfig extends SunPanelPageElement {
   }
 
   /**
-   * v3.40：单独模式下，把「显示日程 / 显示节假日」两个开关从竖排面板摘出，
-   * 放进预览下方的开关行（对应拼接模式「自适应那排」的位置：一排并列开关）。
-   * 仅当前样式声明了 showSchedule / showHoliday 才渲染；默认开（未设 = 开）。
+   * v3.40：单独模式「显示控制」一行（左标题 + 右「日程 / 节假日」两个 chips，仿「进度条」多选 chips 样式）。
+   * chip 点亮 = 显示、熄灭 = 隐藏，各自独立；默认亮（未设 = 开）。
    */
-  _renderShowToggles(theme, contentKey, styleKey, isZh) {
-    const cd = contentDef(this.displayMode, contentKey);
-    const st = cd && cd.styles.find((x) => x.key === styleKey);
-    const supported = st && Array.isArray(st.opts) && (st.opts.includes('showSchedule') || st.opts.includes('showHoliday'));
-    if (!supported) return '';
+  _renderShowControlRow(contentKey, styleKey, isZh) {
     const cv = this._pendingOptsOf(contentKey, styleKey) || {};
     const boolOf = (v) => (v === undefined || v === null) ? true : (v !== false && v !== '0' && v !== 0 && v !== 'false');
     const sOn = boolOf(cv.showSchedule);
     const hOn = boolOf(cv.showHoliday);
-    return html`
-      <div class="style-opt-toggles">
-        <div class="sot">
-          ${appleSwitch(sOn, () => this._setPendingOpt('showSchedule', sOn ? false : true), theme)}
-          <span class="sot-label">${isZh ? '显示日程' : 'Schedules'}</span>
-        </div>
-        <div class="sot">
-          ${appleSwitch(hOn, () => this._setPendingOpt('showHoliday', hOn ? false : true), theme)}
-          <span class="sot-label">${isZh ? '显示节假日' : 'Holidays'}</span>
-        </div>
-      </div>`;
+    return html`<div class="style-opt-row">
+      <span class="style-opt-label">${isZh ? '显示控制' : 'Display'}</span>
+      <span class="style-opt-ctrl"><span class="style-opt-chips">
+        <button class="style-opt-chip ${sOn ? 'active' : ''}" aria-pressed=${sOn ? 'true' : 'false'} @click=${() => this._setPendingOpt('showSchedule', sOn ? false : true)}>${isZh ? '日程' : 'Schedules'}</button>
+        <button class="style-opt-chip ${hOn ? 'active' : ''}" aria-pressed=${hOn ? 'true' : 'false'} @click=${() => this._setPendingOpt('showHoliday', hOn ? false : true)}>${isZh ? '节假日' : 'Holidays'}</button>
+      </span></span>
+    </div>`;
   }
 
   // ---------- 保存 ----------
@@ -1858,23 +1851,6 @@ ${CARD_MODE_CSS}
         /* v2.9「样式设置」：主色 / 文案 / 目标日
            v3.11：改为 Apple inset grouped list —— 组标题 + 一张圆角卡片 + 行间细分隔线 */
         .style-opts-panel { margin: 10px 0 4px; }
-        /* v3.40：单独模式预览下方的开关行（对应拼接「自适应那排」：一排并列开关） */
-        .style-opt-toggles {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 18px;
-          margin: 10px 4px 2px;
-          padding: 0 10px;
-        }
-        .style-opt-toggles .sot {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .style-opt-toggles .sot-label {
-          font-size: 13px;
-          color: var(--apple-label-2);
-        }
         .style-opts-head {
           font-size: 12px;
           font-weight: 600;

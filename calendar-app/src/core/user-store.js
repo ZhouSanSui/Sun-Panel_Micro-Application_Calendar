@@ -526,6 +526,11 @@ export function normalizeOpts(v) {
   const out = {};
   if (v.singleLine !== undefined) out.singleLine = !!v.singleLine;
   if (v.noUnits !== undefined) out.noUnits = !!v.noUnits;
+  // v3.40：显示日程 / 显示节假日 两个独立开关（布尔，默认开；未设不写）。
+  // 必须进白名单 —— sanitizeBlocks 每次保存都过 normalizeOpts，不在白名单的键会被剥掉
+  // → 开关「点了不生效」（v3.39/v3.40 连续两版踩坑：UI 状态变了但持久化被清）。
+  if (v.showSchedule !== undefined) out.showSchedule = !!v.showSchedule;
+  if (v.showHoliday !== undefined) out.showHoliday = !!v.showHoliday;
   // v2.9「样式设置」：主色 / 文案 / 目标日（各自独立校验，非法值丢弃而不是整体失效）
   if (typeof v.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.color)) out.color = v.color.toLowerCase();
   if (typeof v.text === 'string') {

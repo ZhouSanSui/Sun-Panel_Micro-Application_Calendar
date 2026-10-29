@@ -2381,13 +2381,13 @@ export function renderSpanEditor(o) {
         ${alignToggle('v', isZh ? '垂直置中' : 'Center V')}
         ${singleLine === null || singleLine === undefined ? '' : toggle(isZh ? '单行显示' : 'One line', !!singleLine, () => onToggleSingleLine(), null, false, true)}
         ${noUnits === null || noUnits === undefined ? '' : toggle(isZh ? '简约显示' : 'Compact', !!noUnits, () => onToggleNoUnits(), null, false, true, isZh ? '简约显示，隐藏年/月/日单位' : 'Compact — hides year/month/day labels')}
-        ${showSchedule === null || showSchedule === undefined ? '' : toggle(isZh ? '显示日程' : 'Schedules', !!showSchedule, () => onToggleShowSchedule(), null, false, true)}
-        ${showHoliday === null || showHoliday === undefined ? '' : toggle(isZh ? '显示节假日' : 'Holidays', !!showHoliday, () => onToggleShowHoliday(), null, false, true)}
       </div>
       ${alignHint ? html`<div class="se-hint">${alignHint}</div>` : ''}
       <div class="se-actions">
         <button class="se-reset" @click=${onReset}>${isZh ? '自适应' : 'Auto'}</button>
         ${isFull ? html`<button class="se-reset" @click=${onFull}>FULL</button>` : ''}
+        ${showSchedule === null || showSchedule === undefined ? '' : html`<button class="se-reset ${showSchedule ? 'on' : ''}" style="${showSchedule ? `background:${theme};color:#fff;border-color:${theme}` : ''}" @click=${() => onToggleShowSchedule()}>${isZh ? '显示日程' : 'Schedules'}</button>`}
+        ${showHoliday === null || showHoliday === undefined ? '' : html`<button class="se-reset ${showHoliday ? 'on' : ''}" style="${showHoliday ? `background:${theme};color:#fff;border-color:${theme}` : ''}" @click=${() => onToggleShowHoliday()}>${isZh ? '显示节假日' : 'Holidays'}</button>`}
       </div>
       ${target ? '' : html`<div class="se-warn">${isZh
     ? `当前放不下：${sizeLabel} 已无空位，请缩小占格或调整其他单元`
