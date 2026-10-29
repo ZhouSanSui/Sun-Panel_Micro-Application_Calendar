@@ -816,9 +816,11 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-dz-date { font-size: 1.323em; }
 /* 环形刻度钟：时间 43 */
 .pv-single-1xfull .pv-rc-time { font-size: 3.792em; }
-/* LED数码管：时间 40、日期 15；时间行盒压到 40px(line-height:1)+收点距，露出上方一排点 */
+/* LED数码管：时间 36(调小)、日期 15；时间行盒 line-height:1 + 点放大并铺满时间宽(space-between) */
 .pv-single-1xfull .pv-dc-left { gap: 0.06em; }
-.pv-single-1xfull .pv-dc-time { font-size: 3.527em; line-height: 1; }
+.pv-single-1xfull .pv-dc-time { font-size: 3.174em; line-height: 1; }
+.pv-single-1xfull .pv-dc-dots { justify-content: space-between; }
+.pv-single-1xfull .pv-dc-dots i { width: 0.28em; }
 .pv-single-1xfull .pv-dc-date { font-size: 1.323em; }
 /* 极简条钟：时间 43、日期 15 */
 .pv-single-1xfull .pv-st-time { font-size: 3.792em; }
