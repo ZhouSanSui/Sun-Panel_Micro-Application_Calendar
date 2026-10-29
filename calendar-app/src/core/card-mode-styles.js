@@ -268,8 +268,9 @@ export const CARD_MODE_CSS = `
 .pv-wc { justify-content: center; gap: 0.22em; width: 100%; }
 .pv-wc-main { font-size: 1.35em; font-weight: 300; letter-spacing: 0.06em; line-height: 1.15; text-align: center; }
 .pv-wc-sub { font-size: 0.6em; letter-spacing: 0.14em; opacity: 0.62; white-space: nowrap; }
-.pv-single-2x4 .pv-wc-main { font-size: 2.1em; }
-.pv-single-4x4 .pv-wc-main { font-size: 2.4em; }
+.pv-single-2x2 .pv-wc-main { font-size: 1.25em; }
+.pv-single-2x4 .pv-wc-main { font-size: 1.808em; }
+.pv-single-4x4 .pv-wc-main { font-size: 1.382em; }
 /* v3.12：后半段（副行 .pv-wc-sub）加大一倍 0.48em → 0.96em；
    align-items 从 baseline 改 center —— 副行放大后 baseline 对齐会让主字下沉。 */
 .pv-single-1xfull .pv-wc { flex-direction: row; align-items: center; justify-content: center; gap: 2.4em; }
