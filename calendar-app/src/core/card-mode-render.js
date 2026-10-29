@@ -1759,14 +1759,17 @@ function renderInfoBlockInner(o) {
       const ageN = Number(ageRaw), lifeN = Number(lifeRaw);
       const lifePct = Number.isFinite(ageN) && Number.isFinite(lifeN) && lifeN > 0
         ? Math.max(0, Math.min(100, (ageN / lifeN) * 100)) : null;
+      // v3.47：生命行值改显「当前年龄/预计年龄」（如 18/120），把默认 18/120 露出来（原只显百分比）
+      const lifeTxt = Number.isFinite(ageN) && Number.isFinite(lifeN) && lifeN > 0
+        ? `${Math.round(ageN)}/${Math.round(lifeN)}` : null;
       const rows = [
-        ['y', isZh ? '年' : 'Year', yearProgress(now)],
-        ['m', isZh ? '月' : 'Month', mp],
-        ['w', isZh ? '周' : 'Week', weekPct],
-        ['d', isZh ? '日' : 'Day', dayPct],
-        ['life', isZh ? '生命' : 'Life', lifePct],
+        ['y', isZh ? '年' : 'Year', yearProgress(now), null],
+        ['m', isZh ? '月' : 'Month', mp, null],
+        ['w', isZh ? '周' : 'Week', weekPct, null],
+        ['d', isZh ? '日' : 'Day', dayPct, null],
+        ['life', isZh ? '生命' : 'Life', lifePct, lifeTxt],
       ].filter(([k2, , v2]) => pickedBars.includes(k2) && v2 !== null)
-        .map(([, k2, v2]) => [k2, v2]);
+        .map(([, k2, v2, txt]) => [k2, v2, txt]);
       // v3.12：百分比一律整数、无小数 —— 「100.0%」有 6 个字符，实宽超过 .pv-mb-v 的定宽框
       // → 末尾的「%」被裁（用户截图实锤）。整数后是「100%」4 字符，留足余量。
       // 条的填充宽度仍保留 1 位小数（那是长度不是文本，不受定宽框约束）。
@@ -1780,10 +1783,10 @@ function renderInfoBlockInner(o) {
       const maxRows = isWideFull ? perCol * 2 : perCol;
       const shown = rows.slice(0, maxRows);
       return html`<div class="pv-col pv-mb">
-        ${shown.map(([k, v]) => html`<div class="pv-mb-row">
+        ${shown.map(([k, v, txt]) => html`<div class="pv-mb-row">
           <span class="pv-mb-k" style="color:${label3}">${k}</span>
           <b class="pv-mb-bar"><i style="width:${Math.max(0, Math.min(100, v)).toFixed(1)}%;background:${ac}"></i></b>
-          <span class="pv-mb-v" style="color:${label2}">${Math.round(v)}%</span>
+          <span class="pv-mb-v" style="color:${label2}">${txt != null ? txt : Math.round(v) + '%'}</span>
         </div>`)}
       </div>`;
     }
@@ -1855,7 +1858,7 @@ function renderInfoBlockInner(o) {
       return html`<div class="pv-col pv-lb">
         <div class="pv-lb-head" style="color:${label2}">${isZh ? `生命进度 ${pct}%` : `Life ${pct}%`}</div>
         <div class="pv-lb-scale">${Array.from({ length: N }, (_, i) => html`<i class="${i < filled ? 'on' : ''}" style="${i < filled ? `background:${ac}` : ''}"></i>`)}</div>
-        <div class="pv-lb-foot" style="color:${label3}">${isZh ? `已过 ${age} / ${span}` : `${age} / ${span}`}</div>
+        <div class="pv-lb-foot" style="color:${label3}">${isZh ? `已过 ${age}/${span}` : `${age}/${span}`}</div>
       </div>`;
     }
 
