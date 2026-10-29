@@ -289,7 +289,10 @@ export class WidgetConfig extends SunPanelPageElement {
     const isZh = this._isZh();
     const vals = this._pendingOptsOf(this.pendingContent, cur.key) || {};
     // schedMode 的分段控件已经画在「关联日程」那一行的顶部，这里不再单独出一行
-    const keys = need.includes('sched') ? need.filter((x) => x !== 'schedMode') : need;
+    // v3.40：「显示日程 / 显示节假日」两个开关从竖排面板摘出，单独放进预览下方的开关行（对应拼接「自适应那排」）
+    const keys = (need.includes('sched') ? need.filter((x) => x !== 'schedMode') : need)
+      .filter((x) => x !== 'showSchedule' && x !== 'showHoliday');
+    if (!keys.length) return '';
     return html`
       <div class="style-opts-panel">
         <div class="style-opts-head">${this._t('t', '样式设置', 'Style options')}</div>
@@ -779,16 +782,25 @@ export class WidgetConfig extends SunPanelPageElement {
   }
 
   /**
-   * v3.39：月历/周日历 的「显示日程与节假日」开关（默认开）。
-   * 关闭后渲染层不调 dayMarks —— 既不标休息日（日期数字保持灰），也不画日程圆点。
-   * opts 合并写，避免抹掉同单元的 singleLine/noUnits。
+   * v3.40：月历/周日历 的「显示日程」「显示节假日」两个独立开关（默认开）。
+   * 关闭后渲染层不再标休息日（日期数字保持灰）/ 不再画日程圆点。
+   * opts 合并写，避免抹掉同单元的 singleLine/noUnits / 另一个开关。
+   * 关键修复：读回走 unitOpts(...).showSchedule/showHoliday —— 这两个键现已透传，
+   * 否则读回恒为 undefined → ?? true 恒为开 → 关不掉（v3.39 踩坑）。
    */
-  _toggleSpanShowMarks() {
+  _toggleSpanShowSchedule() {
     const info = this._spanTargetInfo();
     if (!info) return;
     const cur = unitOpts(this.displayMode, this._size, info.b);
-    const next = !(cur.showMarks ?? true);
-    this._setBlockField(info.idx, { opts: { ...(info.b.opts || {}), showMarks: next } });
+    const next = !(cur.showSchedule ?? true);
+    this._setBlockField(info.idx, { opts: { ...(info.b.opts || {}), showSchedule: next } });
+  }
+  _toggleSpanShowHoliday() {
+    const info = this._spanTargetInfo();
+    if (!info) return;
+    const cur = unitOpts(this.displayMode, this._size, info.b);
+    const next = !(cur.showHoliday ?? true);
+    this._setBlockField(info.idx, { opts: { ...(info.b.opts || {}), showHoliday: next } });
   }
 
   /** 写入单元的附加字段（align/opts），保留 c/s/span/n */
@@ -1024,9 +1036,10 @@ export class WidgetConfig extends SunPanelPageElement {
     if (!info) return '';
     const theme = APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue;
     const isMonth = info.b.c === 'calendar' && info.b.s === 'month';
-    // v3.39：月历/周日历 才显示「显示日程与节假日」开关；默认开（未设 = 开）
+    // v3.40：月历/周日历 才显示「显示日程 / 显示节假日」两个独立开关；默认开（未设 = 开）
     const isCalMonthWeek = info.b.c === 'calendar' && (info.b.s === 'month' || info.b.s === 'week');
-    const showMarksVal = isCalMonthWeek ? (unitOpts(this.displayMode, info.size, info.b).showMarks ?? true) : null;
+    const showScheduleVal = isCalMonthWeek ? (unitOpts(this.displayMode, info.size, info.b).showSchedule ?? true) : null;
+    const showHolidayVal = isCalMonthWeek ? (unitOpts(this.displayMode, info.size, info.b).showHoliday ?? true) : null;
     return renderSpanEditor({
       grid: info.grid,
       target: info.target,
@@ -1043,9 +1056,11 @@ export class WidgetConfig extends SunPanelPageElement {
       noUnits: (info.b.c === 'time' && NO_UNITS_DATE_STYLES.includes(info.b.s))
         ? unitOpts(this.displayMode, info.size, info.b).noUnits
         : null,
-      // v3.39：月历/周日历 的「显示日程与节假日」开关（默认开）
-      showMarks: showMarksVal,
-      onToggleShowMarks: () => this._toggleSpanShowMarks(),
+      // v3.40：月历/周日历 的「显示日程 / 显示节假日」两个独立开关（默认开）
+      showSchedule: showScheduleVal,
+      onToggleShowSchedule: () => this._toggleSpanShowSchedule(),
+      showHoliday: showHolidayVal,
+      onToggleShowHoliday: () => this._toggleSpanShowHoliday(),
       theme,
       name: this._styleName(info.b),
       isZh: this._isZh(),
@@ -1143,12 +1158,40 @@ export class WidgetConfig extends SunPanelPageElement {
             <svg viewBox="0 0 8 13" width="8" height="13"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
+        ${this._renderShowToggles(theme, cd.key, cur.key, isZh)}
         <div class="style-counter">
           ${idx + 1}/${list.length}${isZh ? ` · ${cur.zh}` : ` · ${cur.en}`}
           <span class="counter-size">${isZh ? '尺寸' : 'size'} ${frameSpan.rows}×${frameSpan.cols}</span>
         </div>
       </div>
     `;
+  }
+
+  /**
+   * v3.40：单独模式下，把「显示日程 / 显示节假日」两个开关从竖排面板摘出，
+   * 放进预览下方的开关行（对应拼接模式「自适应那排」的位置：一排并列开关）。
+   * 仅当前样式声明了 showSchedule / showHoliday 才渲染；默认开（未设 = 开）。
+   */
+  _renderShowToggles(theme, contentKey, styleKey, isZh) {
+    const cd = contentDef(this.displayMode, contentKey);
+    const st = cd && cd.styles.find((x) => x.key === styleKey);
+    const supported = st && Array.isArray(st.opts) && (st.opts.includes('showSchedule') || st.opts.includes('showHoliday'));
+    if (!supported) return '';
+    const cv = this._pendingOptsOf(contentKey, styleKey) || {};
+    const boolOf = (v) => (v === undefined || v === null) ? true : (v !== false && v !== '0' && v !== 0 && v !== 'false');
+    const sOn = boolOf(cv.showSchedule);
+    const hOn = boolOf(cv.showHoliday);
+    return html`
+      <div class="style-opt-toggles">
+        <div class="sot">
+          ${appleSwitch(sOn, () => this._setPendingOpt('showSchedule', sOn ? false : true), theme)}
+          <span class="sot-label">${isZh ? '显示日程' : 'Schedules'}</span>
+        </div>
+        <div class="sot">
+          ${appleSwitch(hOn, () => this._setPendingOpt('showHoliday', hOn ? false : true), theme)}
+          <span class="sot-label">${isZh ? '显示节假日' : 'Holidays'}</span>
+        </div>
+      </div>`;
   }
 
   // ---------- 保存 ----------
@@ -1815,6 +1858,23 @@ ${CARD_MODE_CSS}
         /* v2.9「样式设置」：主色 / 文案 / 目标日
            v3.11：改为 Apple inset grouped list —— 组标题 + 一张圆角卡片 + 行间细分隔线 */
         .style-opts-panel { margin: 10px 0 4px; }
+        /* v3.40：单独模式预览下方的开关行（对应拼接「自适应那排」：一排并列开关） */
+        .style-opt-toggles {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 18px;
+          margin: 10px 4px 2px;
+          padding: 0 10px;
+        }
+        .style-opt-toggles .sot {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .style-opt-toggles .sot-label {
+          font-size: 13px;
+          color: var(--apple-label-2);
+        }
         .style-opts-head {
           font-size: 12px;
           font-weight: 600;

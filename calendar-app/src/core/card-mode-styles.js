@@ -750,7 +750,7 @@ export const CARD_MODE_CSS = `
 .pv-single-2x2 .pv-dc-date { font-size: 0.747em; }
 /* 粗体大字钟 boldClock（rootPx 22）：时/分 33→40px；日期/星期 13.6→15px。
    注意：.pv-bc-side 自带 font-size(≈13.6px)，span 的 em 相对它而非根 → em=15/13.63=1.1em */
-.pv-single-2x2 .pv-bc-nums b { font-size: 2.136em; }   /* 粗体时/分 40→47px（em=47/22） */
+.pv-single-2x2 .pv-bc-nums b { font-size: 2.773em; }   /* 粗体时/分 47→61px（em=61/22） */
 .pv-single-2x2 .pv-bc-side span { font-size: 1.1em; }
 /* 文字时钟 wordClock（rootPx 16）：副放大到「填满一排」。
    0.85em(13.6px) 会让固有块 226 宽溢出 13px（audit 判 CLIP）→ 实测 0.80em(12.8px) 是可过审计的最大值：
@@ -794,6 +794,10 @@ export const CARD_MODE_CSS = `
    span/b 的 em 相对 .pv-yg-head（8.3px）→ em=13/8.3 */
 .pv-single-2x4 .pv-yg-head span,
 .pv-single-2x4 .pv-yg-head b { font-size: 1.566em; }
+/* 粗体大字钟 boldClock：2×4 时/分 39→61px（em=61/26，2×4 rootPx 26）；4×4 时/分 51→90px（em=90/34，4×4 rootPx 34）。
+   .pv-bc-nums 无自身 font-size → em 相对根 */
+.pv-single-2x4 .pv-bc-nums b { font-size: 2.346em; }
+.pv-single-4x4 .pv-bc-nums b { font-size: 2.647em; }
 
 /* ===== v3.38：小月历 / 拼接月·周日历 支持「假期 + 日程」标记（与月视图 src/components/mainPage.js 同款） =====
    休息日（节假日 isOffDay、或周末且非调休）→ 日期数字用主题色（月视图 .day-num.rest{color:theme}）；
