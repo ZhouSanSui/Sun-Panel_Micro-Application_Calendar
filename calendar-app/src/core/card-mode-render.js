@@ -2212,7 +2212,7 @@ export function renderBlocksHTML(o) {
   const cellH = Math.max(1, o.cellH || 40);
   const pct = (v, total) => `${(v / total * 100).toFixed(3)}%`;
   return html`<div class="pv-blocks">
-    ${laid.map((b) => {
+    ${laid.map((b, bi) => {
     const blockW = b.span.cols * cellW;
     const blockH = b.span.rows * cellH;
     // v1.31：按块的实际像素比判定窄高块（竖排）
@@ -2246,7 +2246,7 @@ export function renderBlocksHTML(o) {
     const cls = `${b.c === 'blank' ? 'pv-block pv-blank' : 'pv-block'}${u < 10 ? ' pv-tight' : ''}`;
     return html`<div
         class="${cls}"
-        style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px"
+        style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px;z-index:${bi + 1};opacity:0.9"
       >${renderInfoBlockInner({
     ...o, content: b.c, style: b.s, span: b.span, opts, availW, availH, tall, small, flat, singleDays,
     // v3.3：窄块（宽 < 高）即使没到 2 倍，日期串也会被挤成三行 —— 显式两行，避免与预览观感不一致

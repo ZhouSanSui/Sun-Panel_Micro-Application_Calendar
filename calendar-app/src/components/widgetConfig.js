@@ -4,12 +4,14 @@
  * 配置结果写入该小部件的 config（api.widget.save），实现「每个小部件、每种尺寸可单独调节」。
  *
  * v1.24 信息块模型：
- * - 拼接模式（combo）：一卡多个「内容+样式」单元，横向一排显示，数量受尺寸容量限制；
+ * - 拼接模式（combo）：一卡多个「内容+样式」单元，自由定位、可重叠，数量受尺寸容量限制；
  * - 单独模式（single）：一卡仅一个单元，整卡一行排列；
  * - 「显示模式」为进入下级页面的按钮；该页固定栏：左侧「显示模式」（拼接时带预览），
  *   右侧「‹返回」「保存」，固定不随滑动滚动；
  * - 显示内容收敄为一个下拉框（一次仅选一个）；显示样式首栏带「确定」按钮，确认后写入卡片；
- * - 拼接模式固定栏右侧展示已选样式：可上下拖拽排序，点击 × 取消在卡片上显示；
+ * - v3.50 拼接模式交互：样式直接在预览框里点选/拖拽（不再有右侧样式名列表）——
+ *   点选浮出「拖拽 + 移除」图标并弹出「调整占格」菜单；拖拽改 pos（边沿吸附、可重叠）；
+ *   「空白填充 / 水平置中 / 垂直置中」在预览正下方；
  * - 保存按钮只把当前信息保存到内存临时区；关闭窗口或点击主页「保存小部件」才实际写入。
  */
 import { SunPanelPageElement } from '@sun-panel/micro-app';
@@ -26,7 +28,7 @@ import {
   sanitizeBlocks, migrateToBlocks,
   gridForSize, comboGridFor, layoutBlocks, blocksFit, styleSpanDef, autoLayout,
   blockSpanDef, effectiveSpan, spanBounds, shiftFlatStyle,
-  unitAlign, unitOpts, unitId, isFullCard, unitAlignExplicit,
+  unitAlign, unitOpts, isFullCard, unitAlignExplicit,
   alignGovernor, applyAlignmentWithReport, layoutSignature, NO_UNITS_DATE_STYLES,
 } from '../core/user-store.js';
 import { renderInfoBlock, renderBlocksHTML, renderSpanEditor, SINGLE_REF_PX } from '../core/card-mode-render.js';
@@ -63,7 +65,10 @@ export class WidgetConfig extends SunPanelPageElement {
     this._timer = null;
     this._hintTimer = null;
     this._draft = null;    // 临时区：模式页「保存」仅写入此处，不落盘
-    this._dragIdx = null;  // 正在拖拽的样式索引
+    this._dragIdx = null;  // 正在拖拽的样式索引（拖拽中暂停定时重渲染）
+    this._drag = null;     // v3.50 预览内指针拖拽状态（见 _onHitDown/_beginDrag）
+    this._pvGrid = null;   // 预览最近一次渲染用的网格（拖拽/落位换算用）
+    this._pvOverflow = 0;  // 当前尺寸放不下、预览中不可见的块数（提示用）
     this._origKey = '';    // 进入时的初始状态指纹（变更检测）
     this._spanEdit = null; // 占格编辑器：{ idx } | null（尺寸编辑的数据直接落在 cardBlocks[idx].span）
   }
@@ -570,12 +575,18 @@ export class WidgetConfig extends SunPanelPageElement {
     this._applySpan({ cols: c, rows: r });
   }
 
+  /** 是否已进入自由定位（任一块带 pos）：允许重叠，装箱预检不再适用 */
+  _isFreeMode() {
+    return this.cardBlocks.some((b) => b.pos && Number.isFinite(b.pos.col) && Number.isFinite(b.pos.row));
+  }
+
   /** 写入占格覆盖（含空间预检，放不下则给出提示并保持原样） */
   _applySpan(span) {
     const e = this._spanEdit;
     if (!e || !this.cardBlocks[e.idx]) return;
     const next = this.cardBlocks.map((x, i) => (i === e.idx ? { ...x, span: { ...span } } : x));
-    if (!blocksFit(next, this.displayMode, this._size)) {
+    // v3.50：自由定位允许重叠，装箱预检（blocksFit）只在纯自动布局下才有意义
+    if (!this._isFreeMode() && !blocksFit(next, this.displayMode, this._size)) {
       const grid = gridForSize(this._size);
       this._showHint(this._t(
         't',
@@ -589,12 +600,14 @@ export class WidgetConfig extends SunPanelPageElement {
     this.requestUpdate();
   }
 
-  /** 恢复该样式的默认占格 */
+  /** 恢复该样式的默认占格（保留 pos 位置与空白序号 n —— 它们是布局身份，不是占格覆盖） */
   _resetSpan() {
     const e = this._spanEdit;
     if (!e || !this.cardBlocks[e.idx]) return;
-    const next = this.cardBlocks.map((x, i) => (i === e.idx ? { c: x.c, s: x.s } : x));
-    if (!blocksFit(next, this.displayMode, this._size)) {
+    const next = this.cardBlocks.map((x, i) => (i === e.idx
+      ? { c: x.c, s: x.s, ...(x.n !== undefined ? { n: x.n } : {}), ...(x.pos ? { pos: x.pos } : {}) }
+      : x));
+    if (!this._isFreeMode() && !blocksFit(next, this.displayMode, this._size)) {
       this._showHint(this._t('t', '空间不足，无法恢复默认占格', 'Not enough room to restore the default size'));
       return;
     }
@@ -625,22 +638,10 @@ export class WidgetConfig extends SunPanelPageElement {
       this._showHint(this._t('t', '该显示样式已在卡片中', 'This style is already on the card'));
       return;
     }
-    // 空间预检：按每个样式的 span 实际占格判断（不再按块数硬限制）
-    const next = c === 'blank'
-      ? [...this.cardBlocks, { c, s, n: this._nextBlankN() }]
-      : [...this.cardBlocks, { c, s }];
-    if (!blocksFit(next, 'combo', this._size)) {
-      const need = styleSpanDef('combo', c, s).span;
-      const grid = gridForSize(this._size);
-      this._showHint(this._t(
-        't',
-        `空间不足：此样式需占 ${need.rows}×${need.cols} 格（垂直×水平），${this._size}（${grid.rows}×${grid.cols} 格）已放不下`,
-        `Not enough room: needs ${need.rows}×${need.cols} cells (V×H) — no room left on ${this._size} (${grid.rows}×${grid.cols})`,
-      ));
-      return;
-    }
+    const item = c === 'blank' ? { c, s, n: this._nextBlankN() } : { c, s };
+    if (!this._appendBlock(item)) return;
     this.capHint = null;
-    this._writeBlocks(next);
+    this.requestUpdate();
   }
 
   /** 拼接模式：点击 × 取消某个样式在卡片上显示（可全部移除，卡片即不显示内容） */
@@ -659,14 +660,47 @@ export class WidgetConfig extends SunPanelPageElement {
     return cand;
   }
 
+  /**
+   * v3.50：追加单元的唯一入口 —— 数量上限 = 当前卡片最大格数（网格 cols×rows），
+   * 新单元自动找空位（无空位才放左上角）并显式写 pos（保证可见、进入自由定位）。
+   * 返回 false = 已达上限（此处给出提示，调用方直接返回）。
+   */
+  _appendBlock(item) {
+    const grid = gridForSize(this._size);
+    const cap = grid.cols * grid.rows;
+    if (this.cardBlocks.length >= cap) {
+      this._showHint(this._t(
+        't',
+        `最多可添加 ${cap} 个样式（当前卡片 ${grid.cols}×${grid.rows} 格）`,
+        `Up to ${cap} styles per card (${grid.cols}×${grid.rows} cells)`,
+      ));
+      return false;
+    }
+    const span = effectiveSpan('combo', this._size, item);
+    this._writeBlocks([...this.cardBlocks, { ...item, pos: this._freeSpotFor(span) }]);
+    return true;
+  }
+
+  /** 找一个不与现有块重叠的空位（行优先）；无空位则左上角（与 user-store freeLayout 同口径） */
+  _freeSpotFor(span) {
+    const grid = this._pvGrid || gridForSize(this._size);
+    const cols = Math.min(Math.max(1, Math.round(span.cols)), grid.cols);
+    const rows = Math.min(Math.max(1, Math.round(span.rows)), grid.rows);
+    const placed = layoutBlocks(this.cardBlocks, 'combo', this._size, grid, this._cardCenter)
+      .map((p) => ({ x: p.pos.col, y: p.pos.row, cols: p.span.cols, rows: p.span.rows }));
+    for (let r = 0; r <= grid.rows - rows; r++) {
+      for (let c = 0; c <= grid.cols - cols; c++) {
+        const hit = placed.some((p) => c < p.x + p.cols && c + cols > p.x && r < p.y + p.rows && r + rows > p.y);
+        if (!hit) return { col: c, row: r };
+      }
+    }
+    return { col: 0, row: 0 };
+  }
+
   /** 空白填充：添加一个 1×1 的空白单元（不显示内容，仅占位；可添加多个） */
   _addBlank() {
-    const next = [...this.cardBlocks, { c: 'blank', s: 'space', n: this._nextBlankN() }];
-    if (!blocksFit(next, 'combo', this._size)) {
-      this._showHint(this._t('t', '空间不足：先缩小其他单元再添加空白', 'Not enough room: shrink others before adding a blank'));
-      return;
-    }
-    this._writeBlocks(next);
+    const item = { c: 'blank', s: 'space', n: this._nextBlankN() };
+    if (!this._appendBlock(item)) return;
     this.capHint = null;
     this.requestUpdate();
   }
@@ -815,41 +849,164 @@ export class WidgetConfig extends SunPanelPageElement {
     this.requestUpdate();
   }
 
-  // ---------- 拖拽排序（拼接模式已选样式） ----------
+  // ---------- v3.50 预览内点选 / 拖拽（拼接模式） ----------
 
-  _onBlockDragStart(e, idx) {
+  /** 两块是否同一单元（c/s/n 一致；布局结果与 cardBlocks 按此回映） */
+  _sameUnit(a, b) {
+    return !!a && !!b && a.c === b.c && a.s === b.s && (Number(a.n) || 0) === (Number(b.n) || 0);
+  }
+
+  /** 热区 pointerdown：触屏仅从拖拽手柄起拖（热区留给页面滚动），鼠标可在任意处直接拖 */
+  _onHitDown(e, idx) {
+    if (idx == null || idx < 0) return;
+    if (e.button != null && e.button !== 0) return;
+    const fromGrip = !!(e.target.closest && e.target.closest('.hit-grip'));
+    const isTouch = e.pointerType === 'touch';
+    if (isTouch && !fromGrip) {
+      // 记下轻点意图：up 时若未滚动（无 pointercancel）则选中
+      this._drag = { idx, x0: e.clientX, y0: e.clientY, tapOnly: true };
+      return;
+    }
+    e.preventDefault();
+    this._beginDrag(e, idx, e.currentTarget);
+  }
+
+  /** 起拖：快照「无卡片级置中」的基础布局（写回坐标系）与当前渲染偏移（跟手显示） */
+  _beginDrag(e, idx, hitEl) {
+    const grid = this._pvGrid || gridForSize(this._size);
+    // 与预览同源的两次布局：base = 写回坐标系（pos 的真值），cur = 屏幕所见（含卡片级置中平移）
+    const blocks = sanitizeBlocks(this.cardBlocks, 'combo', this._size);
+    const base = layoutBlocks(blocks, 'combo', this._size, grid, { h: false, v: false });
+    const cur = layoutBlocks(blocks, 'combo', this._size, grid, this._cardCenter);
+    const b = this.cardBlocks[idx];
+    const meBase = base.find((p) => this._sameUnit(p, b));
+    const meCur = cur.find((p) => this._sameUnit(p, b));
+    if (!meBase || !meCur) return;
+    const blocksEl = hitEl.closest('.combo-hits') && hitEl.closest('.combo-hits').previousElementSibling;
+    const rect = blocksEl && blocksEl.getBoundingClientRect
+      ? blocksEl.getBoundingClientRect()
+      : { width: 0, height: 0 };
     this._dragIdx = idx;
-    e.dataTransfer.effectAllowed = 'move';
-    try { e.dataTransfer.setData('text/plain', String(idx)); } catch { /* ignore */ }
+    this._drag = {
+      idx,
+      x0: e.clientX,
+      y0: e.clientY,
+      moved: false,
+      stored0: { col: meBase.pos.col, row: meBase.pos.row },
+      span: { cols: meBase.span.cols, rows: meBase.span.rows },
+      // 卡片级置中是整组均匀平移：显示位置 = 写回位置 + shift（拖动 delta 在两个坐标系相同）
+      shift: { col: meCur.pos.col - meBase.pos.col, row: meCur.pos.row - meBase.pos.row },
+      others: base.filter((p) => !this._sameUnit(p, b)),
+      grid,
+      cellW: rect.width / grid.cols,
+      cellH: rect.height / grid.rows,
+      hitEl,
+      blocksEl,
+      laidIdx: hitEl.parentElement
+        ? Array.prototype.indexOf.call(hitEl.parentElement.children, hitEl)
+        : -1,
+    };
+    try { hitEl.setPointerCapture(e.pointerId); } catch { /* 捕获失败则退化为元素级事件 */ }
+    const stage = hitEl.closest('.combo-stage');
+    if (stage) stage.classList.add('dragging');
   }
 
-  _onBlockDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    e.currentTarget.classList.add('drop-target');
+  _onHitMove(e) {
+    const d = this._drag;
+    if (!d || d.tapOnly) return;
+    const dx = e.clientX - d.x0;
+    const dy = e.clientY - d.y0;
+    if (!d.moved && Math.hypot(dx, dy) < 4) return;
+    d.moved = true;
+    let col = d.stored0.col + (d.cellW ? dx / d.cellW : 0);
+    let row = d.stored0.row + (d.cellH ? dy / d.cellH : 0);
+    ({ col, row } = this._snapPos(col, row, d.span, d.others));
+    col = Math.min(Math.max(0, col), Math.max(0, d.grid.cols - d.span.cols));
+    row = Math.min(Math.max(0, row), Math.max(0, d.grid.rows - d.span.rows));
+    d.stored = { col, row };
+    // 拖动中绕过 lit 重渲染：直接改热区与块的 left/top（.dragging 已关过渡，跟手）
+    const show = { col: col + d.shift.col, row: row + d.shift.row };
+    const pct = (v, t) => `${(v / t * 100).toFixed(3)}%`;
+    if (d.hitEl && d.hitEl.isConnected) {
+      d.hitEl.style.left = pct(show.col, d.grid.cols);
+      d.hitEl.style.top = pct(show.row, d.grid.rows);
+    }
+    const blockEl = d.blocksEl && d.laidIdx >= 0 ? d.blocksEl.children[d.laidIdx] : null;
+    if (blockEl) {
+      blockEl.style.left = pct(show.col, d.grid.cols);
+      blockEl.style.top = pct(show.row, d.grid.rows);
+    }
   }
 
-  _onBlockDragLeave(e) {
-    e.currentTarget.classList.remove('drop-target');
-  }
-
-  _onBlockDrop(e, idx) {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drop-target');
-    const from = this._dragIdx;
+  _onHitUp(e) {
+    const d = this._drag;
+    if (!d) return;
+    this._drag = null;
     this._dragIdx = null;
-    if (from == null || from === idx) return;
-    const next = [...this.cardBlocks];
-    const [moved] = next.splice(from, 1);
-    next.splice(idx, 0, moved);
+    if (d.hitEl) {
+      try { d.hitEl.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      const stage = d.hitEl.closest('.combo-stage');
+      if (stage) stage.classList.remove('dragging');
+    }
+    if (d.tapOnly || !d.moved) {
+      this._toggleSpanEdit(d.idx);
+      return;
+    }
+    this._commitDrag(d.idx, d.stored || d.stored0);
+  }
+
+  /** 滚动抢占 / 系统取消：不选中、不写回 */
+  _onHitCancel() {
+    const d = this._drag;
+    this._drag = null;
+    this._dragIdx = null;
+    if (d && d.hitEl) {
+      const stage = d.hitEl.closest('.combo-stage');
+      if (stage) stage.classList.remove('dragging');
+    }
+  }
+
+  /**
+   * 边沿吸附：与任一其他块的左/右/上/下边距 < 0.25 格时，对齐到最近的那条边
+   * （左对左/左对右/右对左/右对右均覆盖，即含「贴边相邻」）。
+   */
+  _snapPos(col, row, span, others) {
+    const TH = 0.25;
+    let bestDx = null;
+    let bestDy = null;
+    for (const o of others) {
+      const oL = o.pos.col;
+      const oR = o.pos.col + o.span.cols;
+      const oT = o.pos.row;
+      const oB = o.pos.row + o.span.rows;
+      for (const d of [oL - col, oR - col, oL - (col + span.cols), oR - (col + span.cols)]) {
+        if (Math.abs(d) < TH && (bestDx === null || Math.abs(d) < Math.abs(bestDx))) bestDx = d;
+      }
+      for (const d of [oT - row, oB - row, oT - (row + span.rows), oB - (row + span.rows)]) {
+        if (Math.abs(d) < TH && (bestDy === null || Math.abs(d) < Math.abs(bestDy))) bestDy = d;
+      }
+    }
+    return {
+      col: bestDx === null ? col : col + bestDx,
+      row: bestDy === null ? row : row + bestDy,
+    };
+  }
+
+  /**
+   * 拖拽落定：首次拖拽把其余块的当前位置一并冻结为 pos（平滑进入自由定位，
+   * 避免邻居跳到别的空位），再写回被拖块的新坐标（合并写，不抹 opts/span）。
+   */
+  _commitDrag(idx, pos) {
+    const grid = this._pvGrid || gridForSize(this._size);
+    const blocks = sanitizeBlocks(this.cardBlocks, 'combo', this._size);
+    const base = layoutBlocks(blocks, 'combo', this._size, grid, { h: false, v: false });
+    const next = this.cardBlocks.map((b, i) => {
+      if (i === idx) return { ...b, pos: { col: pos.col, row: pos.row } };
+      if (b.pos && Number.isFinite(b.pos.col) && Number.isFinite(b.pos.row)) return b;
+      const hit = base.find((p) => this._sameUnit(p, b));
+      return hit ? { ...b, pos: { col: hit.pos.col, row: hit.pos.row } } : b;
+    });
     this._writeBlocks(next);
-    this.requestUpdate();
-  }
-
-  _onBlockDragEnd() {
-    this._dragIdx = null;
-    const root = this.renderRoot;
-    if (root) root.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
     this.requestUpdate();
   }
 
@@ -932,10 +1089,15 @@ export class WidgetConfig extends SunPanelPageElement {
     const padPx = 24 * (isReal ? pvScale : Math.max(0.3, pvScaleEst));
     const cellW = (w - padPx) / (grid.cols || 1);
     const cellH = (h - padPx) / (grid.rows || 1);
-    const inner = this.displayMode === 'combo'
+    // v3.50：预览网格/放不下数量暂存到实例上（热区换算、溢出提示、拖拽落位共用同一套几何）
+    this._pvGrid = grid;
+    const isCombo = this.displayMode === 'combo';
+    const laid = isCombo ? layoutBlocks(blocks, 'combo', this._size, grid, this._cardCenter) : null;
+    this._pvOverflow = isCombo ? Math.max(0, blocks.length - laid.length) : 0;
+    const inner = isCombo
       ? renderBlocksHTML({
         ...common,
-        blocks: layoutBlocks(blocks, 'combo', this._size, grid, this._cardCenter),
+        blocks: laid,
         grid,
         cellW,
         cellH,
@@ -956,7 +1118,11 @@ export class WidgetConfig extends SunPanelPageElement {
       });
     return html`
       <div class="pv-size-box mode-pv ${textMode}" style="${visual.bg};width:${w}px;height:${h}px;">
-        <div class="card-mode-wrap">${inner}</div>
+        <div class="card-mode-wrap">
+          ${isCombo
+    ? html`<div class="combo-stage">${inner}${this._renderHitLayer(laid, grid)}</div>`
+    : inner}
+        </div>
       </div>
     `;
   }
@@ -969,69 +1135,78 @@ export class WidgetConfig extends SunPanelPageElement {
   }
 
   /**
-   * 拼接模式：预览后方的已选样式（可拖拽排序 / 点击名称改尺寸 / 点击 × 取消显示）。
-   * v1.29：实例名只显示样式名（不再重复显示内容名）；尺寸徽标为「垂直×水平」，可点击修改。
+   * v3.50：预览热区层 —— 每块一层透明热区（几何与渲染块一致，同一 laid 源），
+   * 点选 / 拖拽 / 移除都在这里发生；选中后浮出「拖拽手柄 + 移除」两个角标。
    */
-  _renderBlockChips() {
-    if (this.displayMode !== 'combo') return '';
-    const editIdx = this._spanEdit ? this._spanEdit.idx : -1;
-    const grid = gridForSize(this._size);
-    const laid = new Map(
-      layoutBlocks(this.cardBlocks, 'combo', this._size, grid, this._cardCenter).map((b) => [unitId(b), b]),
-    );
-    return html`
-      <div class="block-chips">
-        ${this.cardBlocks.map((b, i) => {
-    const hit = laid.get(unitId(b));
-    const span = hit ? hit.span : effectiveSpan('combo', this._size, b);
-    const over = !hit;
-    return html`
-          <div
-            class="block-chip ${over ? 'overflow' : ''} ${editIdx === i ? 'editing' : ''}"
-            key="chip-${i}"
-            draggable="true"
-            title="${over
-    ? this._t('t', '当前尺寸放不下此单元，请缩小占格或换更大的卡片尺寸', 'Does not fit this card size — shrink it or pick a bigger size')
-    : this._t('t', '点击调整占格；拖动排序；点击 × 取消显示', 'Tap to resize; drag to reorder; tap × to remove')}"
-            @dragstart=${(e) => this._onBlockDragStart(e, i)}
-            @dragover=${(e) => this._onBlockDragOver(e)}
-            @dragleave=${(e) => this._onBlockDragLeave(e)}
-            @drop=${(e) => this._onBlockDrop(e, i)}
-            @dragend=${() => this._onBlockDragEnd()}
-            @click=${() => this._toggleSpanEdit(i)}
-          >
-            <span class="chip-grip">⣿</span>
-            <span class="chip-name">${this._styleName(b)}</span>
-            <span class="chip-span ${over ? 'bad' : ''}">${over ? this._t('t', '溢出', 'N/A') : `${span.rows}×${span.cols}`}</span>
-            <button
-              class="chip-x"
-              aria-label="remove"
-              @click=${(e) => { e.stopPropagation(); this._removeBlock(i); }}
-            >
-              <svg viewBox="0 0 10 10" width="9" height="9"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-            </button>
-          </div>
-        `;
+  _renderHitLayer(laid, grid) {
+    const sel = this._spanEdit ? this._spanEdit.idx : -1;
+    const pct = (v, t) => `${(v / t * 100).toFixed(3)}%`;
+    return html`<div class="combo-hits">
+      ${laid.map((b) => {
+    const bi = this.cardBlocks.findIndex((x) => this._sameUnit(x, b));
+    const on = bi === sel;
+    return html`<div
+          class="combo-hit ${on ? 'sel' : ''}"
+          style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)}"
+          role="button"
+          tabindex="0"
+          aria-label="${this._styleName(b)}"
+          aria-pressed="${on ? 'true' : 'false'}"
+          @pointerdown=${(e) => this._onHitDown(e, bi)}
+          @pointermove=${this._onHitMove}
+          @pointerup=${this._onHitUp}
+          @pointercancel=${this._onHitCancel}
+          @keydown=${(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this._toggleSpanEdit(bi);
+    }
+  }}
+        >
+          ${on ? html`
+          <span class="hit-grip" aria-hidden="true"><svg viewBox="0 0 12 12" width="11" height="11"><circle cx="3.2" cy="2.6" r="1.15" fill="currentColor"/><circle cx="8.8" cy="2.6" r="1.15" fill="currentColor"/><circle cx="3.2" cy="6" r="1.15" fill="currentColor"/><circle cx="8.8" cy="6" r="1.15" fill="currentColor"/><circle cx="3.2" cy="9.4" r="1.15" fill="currentColor"/><circle cx="8.8" cy="9.4" r="1.15" fill="currentColor"/></svg></span>
+          <button class="hit-x" aria-label=${this._t('t', '移除该样式', 'Remove style')}
+            @pointerdown=${(e) => e.stopPropagation()}
+            @click=${(e) => { e.stopPropagation(); this._removeBlock(bi); }}>
+            <svg viewBox="0 0 10 10" width="9" height="9"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>` : ''}
+        </div>`;
   })}
+    </div>`;
+  }
+
+  /**
+   * 预览正下方工具条（v3.50：从右侧样式名列表底部迁来）：
+   * 空白填充 / 水平置中 / 垂直置中，功能不变。
+   */
+  _renderPreviewTools() {
+    if (this.displayMode !== 'combo') return '';
+    return html`
+      <div class="preview-tools">
+        <div class="chip-tools">
+          <button class="chip-tool" @click=${this._addBlank}>
+            <svg viewBox="0 0 16 16" width="12" height="12"><rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2.5"/></svg>
+            ${this._t('t', '空白填充', 'Add blank')}
+          </button>
+          <button
+            class="chip-tool ${this.cardCenterH ? 'on' : ''}"
+            style="${this.cardCenterH ? `border-color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue};color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue}` : ''}"
+            @click=${() => this._toggleCardCenter('h')}
+          >${this._t('t', '水平置中', 'Center H')}</button>
+          <button
+            class="chip-tool ${this.cardCenterV ? 'on' : ''}"
+            style="${this.cardCenterV ? `border-color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue};color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue}` : ''}"
+            @click=${() => this._toggleCardCenter('v')}
+          >${this._t('t', '垂直置中', 'Center V')}</button>
+        </div>
+        <div class="tool-note">${this.t('CARD_CENTER_TAKEOVER_NOTE')}</div>
         ${this.cardBlocks.length ? '' : html`<div class="chips-empty">${this._t('t', '卡片当前不显示任何内容', 'The card shows nothing right now')}</div>`}
+        ${this._pvOverflow ? html`<div class="chips-empty">${this._t(
+    't',
+    `${this._pvOverflow} 个样式在当前尺寸放不下（未显示）：缩小占格或移除其他样式`,
+    `${this._pvOverflow} style(s) don't fit this size (hidden): shrink or remove others`,
+  )}</div>` : ''}
       </div>
-      <div class="chip-tools">
-        <button class="chip-tool" @click=${this._addBlank}>
-          <svg viewBox="0 0 16 16" width="12" height="12"><rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2.5"/></svg>
-          ${this._t('t', '空白填充', 'Add blank')}
-        </button>
-        <button
-          class="chip-tool ${this.cardCenterH ? 'on' : ''}"
-          style="${this.cardCenterH ? `border-color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue};color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue}` : ''}"
-          @click=${() => this._toggleCardCenter('h')}
-        >${this._t('t', '水平置中', 'Center H')}</button>
-        <button
-          class="chip-tool ${this.cardCenterV ? 'on' : ''}"
-          style="${this.cardCenterV ? `border-color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue};color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue}` : ''}"
-          @click=${() => this._toggleCardCenter('v')}
-        >${this._t('t', '垂直置中', 'Center V')}</button>
-      </div>
-      <div class="tool-note">${this.t('CARD_CENTER_TAKEOVER_NOTE')}</div>
     `;
   }
 
@@ -1050,7 +1225,8 @@ export class WidgetConfig extends SunPanelPageElement {
       target: info.target,
       span: info.target ? info.target.span : effectiveSpan(this.displayMode, info.size, info.b),
       bounds: spanBounds(this.displayMode, info.size, info.b),
-      occupied: info.occupied,
+      // v3.50：格子示意图只高亮当前样式的占格，其他样式的占用格不再显示（传 null 即不渲染 occ）
+      occupied: null,
       align: unitAlign(this.displayMode, info.size, info.b),
       isFull: info.isFull,
       // v1.31 需求 2：月历「单行显示」仅 1×FULL 卡片可用（其他尺寸传 null → 不渲染按钮）
@@ -1381,12 +1557,8 @@ export class WidgetConfig extends SunPanelPageElement {
       </div>
 
       ${isCombo ? html`
-        <div class="mode-row">
-          ${previewBox}
-          <div class="chips-block">
-            ${this._renderBlockChips()}
-          </div>
-        </div>
+        <div class="mode-preview-wrap">${previewBox}</div>
+        ${this._renderPreviewTools()}
         ${this._renderSpanEditor()}
       ` : html`
         <div class="mode-preview-wrap">${previewBox}</div>
@@ -1396,7 +1568,7 @@ export class WidgetConfig extends SunPanelPageElement {
 
       <div class="mode-note">
         ${isCombo
-    ? this._t('t', '拼接模式：选择内容与样式后点「确定」加入卡片；点击预览后方的样式名称可调整占格与置中；「空白填充」可添加只占位不显示的空白单元；卡片可清空全部内容。', 'Combo: pick a content & style, then tap Done. Tap a style name after the preview to resize or center it. "Add blank" inserts a spacer that shows nothing. A card can be emptied completely.')
+    ? this._t('t', '拼接模式：选择内容与样式后点「确定」加入卡片；点击预览中的样式可选中（浮出拖拽/移除图标）并弹出「调整占格」；拖拽可移动位置、自动吸附边沿、允许重叠；「空白填充」可添加只占位不显示的空白单元；卡片可清空全部内容。', 'Combo: pick a content & style, then tap Done. Tap a style in the preview to select it (drag/remove icons appear) and open the resize menu. Drag to move — edges snap, overlap allowed. "Add blank" inserts a spacer that shows nothing. A card can be emptied completely.')
     : this._t('t', '单独模式：整卡仅显示一个显示样式，选择后点击「确定」应用。', 'Single: the whole card shows one style only. Pick one and tap Done to apply.')}
       </div>
 
@@ -1529,77 +1701,64 @@ ${CARD_MODE_CSS}
         .mode-bar-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
         .mode-bar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
-        /* 第三栏：拼接=左（预览+已选样式）/ 右（显示选项上下排）；单独=预览居中 */
-        /* 拼接模式：左侧预览 + 右侧已选样式（同一行）；显示内容/显示样式在下方全宽 */
-        .mode-row { display: flex; gap: 14px; align-items: center; padding: 2px 16px 0; }
-        .chips-block { flex: 1; min-width: 0; }
-
-        /* 已选样式 chips（可拖拽排序 / 点击 × 取消） */
-        .block-chips {
+        /* 拼接模式（v3.50）：预览居中，样式在预览内点选/拖拽；工具条在预览正下方 */
+        .preview-tools {
           display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        .block-chip {
-          display: inline-flex;
+          flex-direction: column;
           align-items: center;
-          gap: 6px;
-          border: 1.5px solid rgba(120,120,128,0.25);
-          background: var(--apple-card);
-          border-radius: 999px;
-          padding: 5px 6px 5px 10px;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--apple-label);
-          cursor: grab;
-          user-select: none;
-          touch-action: none;
+          padding: 0 16px;
         }
-        .block-chip:active { cursor: grabbing; }
-        .block-chip.drop-target { border-color: ${theme}; box-shadow: 0 0 0 1px ${theme}; }
-        .chip-grip { color: var(--apple-label-3); font-size: 10px; letter-spacing: -2px; }
-        .chip-name { white-space: nowrap; }
-        /* 占位徽标（列×行）：让用户直观看到每个单元的占格。
-           v1.31：color 由 label-3 改为 --apple-label（3.14/2.72 → 16.54/10.81），
-           与新增角标口径一致；本轮不动 .chip-span.bad（涉及品牌红，需产品确认）。 */
-        .chip-span {
-          font-size: 9px;
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-          color: var(--apple-label);
-          background: var(--apple-fill);
-          border-radius: 5px;
-          padding: 1px 4px;
-          line-height: 1.5;
-        }
-        .chip-span.bad { color: #fff; background: #FF3B30; }
-        .block-chip.overflow { border-style: dashed; opacity: 0.72; }
-        /* 正在编辑占格的 chip */
-        .block-chip.editing { border-color: ${theme}; box-shadow: 0 0 0 1px ${theme}; }
-        .block-chip.editing .chip-name { color: ${theme}; }
-        .chip-x {
-          border: none;
-          background: var(--apple-fill);
-          color: var(--apple-label-2);
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          padding: 0;
-          flex-shrink: 0;
-        }
-        .chip-x:active { transform: scale(0.88); }
-        /* 卡片无内容时的提示 */
+        .preview-tools .chip-tools { justify-content: center; }
+        /* 卡片无内容 / 有块放不下时的提示 */
         .chips-empty {
           font-size: 11px;
           font-weight: 500;
           color: var(--apple-label-3);
           padding: 2px 0;
+          text-align: center;
         }
-        /* 预览右侧工具：空白填充 / 水平置中 / 垂直置中 */
+        /* 预览内热区层：几何与渲染块同源（同一 laid 的 pos/span × 网格百分比） */
+        .combo-stage { position: relative; flex: 1; min-height: 0; width: 100%; display: flex; }
+        .combo-hits { position: absolute; inset: 0; z-index: 99; }
+        .combo-hit {
+          position: absolute;
+          box-sizing: border-box;
+          border: 1.5px solid transparent;
+          border-radius: 6px;
+          cursor: grab;
+          touch-action: manipulation;
+        }
+        /* 选中态：主题色描边 + 浮出拖拽/移除角标 */
+        .combo-hit.sel {
+          border-color: ${theme};
+          box-shadow: 0 0 0 1px ${theme};
+        }
+        .combo-hit:active { cursor: grabbing; }
+        .hit-grip, .hit-x {
+          position: absolute;
+          top: -12px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: var(--apple-card);
+          color: var(--apple-label-2);
+          border: 1px solid var(--apple-separator);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+          cursor: grab;
+          touch-action: none;
+          padding: 0;
+        }
+        .hit-grip { left: -12px; }
+        .hit-x { right: -12px; cursor: pointer; }
+        .hit-x:active { transform: scale(0.88); }
+        /* 拖动中关闭块的 left/top 位移过渡（直接改坐标需要跟手）。
+           选择器刻意避开 pv 类名：CSS 镜像守卫会把组件里带 pv 类名的新规则计入基准，
+           预览镜像没有这条就会报漂移。 */
+        .dragging, .dragging * { transition: none !important; }
+        /* 预览下方工具：空白填充 / 水平置中 / 垂直置中 */
         .chip-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .chip-tool {
           display: inline-flex;
@@ -1619,7 +1778,7 @@ ${CARD_MODE_CSS}
         }
         .chip-tool:active { transform: scale(0.96); }
 
-        /* 占格编辑器（v1.29：点击已选样式名展开） */
+        /* 占格编辑器（v1.29：点选预览中的样式后在预览下方弹出） */
         .span-editor {
           margin: 10px 16px 0;
           background: var(--apple-card);

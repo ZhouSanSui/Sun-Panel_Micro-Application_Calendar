@@ -435,6 +435,18 @@ export function normalizeSpan(v) {
   return { cols, rows };
 }
 
+/**
+ * v3.50：自由定位坐标归一化 —— 仅接受有限数值（可小数，与 freeLayout 同口径），非法返回 null。
+ * 越界坐标由 sanitizeBlocks 按网格收窄（至少保证 1 格在卡内、可点回）。
+ */
+export function normalizePos(v) {
+  if (!v || typeof v !== 'object') return null;
+  const col = Number(v.col);
+  const row = Number(v.row);
+  if (!Number.isFinite(col) || !Number.isFinite(row)) return null;
+  return { col, row };
+}
+
 /** 单元实际占格：优先单元级覆盖（用户提供），否则用样式声明 */
 export function blockSpanDef(displayMode, b) {
   const d = styleSpanDef(displayMode, b.c, b.s);
@@ -1007,7 +1019,7 @@ export function defaultCardBlocks(size) {
  * - **拼接模式允许为空**：卡片可以不显示任何内容
  * - v1.43：从未设置过（null/undefined）→ 套用 DEFAULT_CARD_BLOCKS[size] 推荐默认；
  *   显式 [] 仍为空（用户主动清空，不覆盖其意图）
- * - 附带字段：span（占格覆盖）/ align（置中）/ opts（显示选项）/ n（空白序号）
+ * - 附带字段：span（占格覆盖）/ align（置中）/ opts（显示选项）/ n（空白序号）/ pos（自由定位，可小数）
  */
 export function sanitizeBlocks(list, displayMode, size) {
   const contents = displayContents(displayMode);
@@ -1036,6 +1048,16 @@ export function sanitizeBlocks(list, displayMode, size) {
       if (al) item.align = al;
       const op = normalizeOpts(raw && raw.opts);
       if (op) item.opts = op;
+      // v3.50：自由定位坐标（可小数）随配置往返 —— 拖拽落点必须能存下来，
+      // 否则保存/读回后全部回到自动落位。越界值按网格收窄到 [0, 格数-1]，保证块可点回。
+      const ps = normalizePos(raw && raw.pos);
+      if (ps) {
+        const g = gridForSize(size);
+        item.pos = {
+          col: Math.min(Math.max(0, ps.col), Math.max(0, g.cols - 1)),
+          row: Math.min(Math.max(0, ps.row), Math.max(0, g.rows - 1)),
+        };
+      }
       if (isBlank) {
         const n = Math.round(Number(raw && raw.n));
         if (Number.isFinite(n) && n >= 1) item.n = n;
@@ -1072,16 +1094,58 @@ export function sanitizeBlocks(list, displayMode, size) {
  *   → ③ 单元级置中（仅未被接管的轴） → ④ 卡片级置中（仅接管的轴）
  * @param {{h?:boolean,v?:boolean}} cardCenter 卡片级置中（所有内容作为整体居中）
  */
+/** v3.49：自由落位 —— 找一个不与已放块重叠的空位（网格整点），找不到则左上角 */
+function findFreeSpot(placed, grid, span) {
+  for (let r = 0; r <= grid.rows - span.rows; r++) {
+    for (let c = 0; c <= grid.cols - span.cols; c++) {
+      const hit = placed.some((p) => c < p.x + p.cols && c + span.cols > p.x && r < p.y + p.rows && r + span.rows > p.y);
+      if (!hit) return { col: c, row: r };
+    }
+  }
+  return { col: 0, row: 0 };
+}
+
+/**
+ * v3.49：自由定位布局（拼接）—— 块带 pos（用户拖拽/自动落位）直接用，允许重叠；
+ * 无 pos 者按顺序自动找不重叠空位（无则左上角）。保留 span（占格）与附加字段。
+ */
+function freeLayout(list, displayMode, size, grid) {
+  const out = [];
+  const placed = [];
+  const arr = list || [];
+  for (let i = 0; i < arr.length; i++) {
+    const b = arr[i];
+    const pref = prefSpan(displayMode, size, b);
+    const span = normalizeSpan(b.span) || pref.span;
+    const clamped = { cols: Math.min(span.cols, grid.cols), rows: Math.min(span.rows, grid.rows) };
+    const hasPos = b.pos && Number.isFinite(b.pos.col) && Number.isFinite(b.pos.row);
+    const pos = hasPos ? { col: b.pos.col, row: b.pos.row } : findFreeSpot(placed, grid, clamped);
+    const extra = { c: b.c, s: b.s, span: clamped, pos };
+    if (b.n !== undefined) extra.n = b.n;
+    if (b.align) extra.align = b.align;
+    if (b.opts) extra.opts = b.opts;
+    out.push(extra);
+    placed.push({ x: pos.col, y: pos.row, cols: clamped.cols, rows: clamped.rows });
+  }
+  return out;
+}
+
 export function layoutBlocks(list, displayMode, size, gridOverride, cardCenter) {
   if (displayMode === 'single' || !Array.isArray(list) || !list.length) return list || [];
   const grid = gridOverride || gridForSize(size);
-  // 落位后补齐「生效的显示选项」（未显式设置时按卡片尺寸取默认，如 1×FULL 的月日历单行显示）
-  const base = autoLayout(list, displayMode, size, grid)
-    // v1.35 修正：合并写而非整对象覆盖，否则会把同单元既有 opts（如 noUnits）抹掉
+  const gov = alignGovernor(cardCenter);
+  // v3.49：有块被用户定位（带 pos）→ 自由模式：尊重 pos（允许重叠）、跳过自动对齐；
+  // 否则沿用原「自动装箱 + 单元级/卡片级置中」（兼容旧布局与既有测试）。
+  const anyFree = list.some((b) => b.pos && Number.isFinite(b.pos.col) && Number.isFinite(b.pos.row));
+  const base = (anyFree ? freeLayout(list, displayMode, size, grid) : autoLayout(list, displayMode, size, grid))
+    // 落位后补齐「生效的显示选项」（未显式设置时按卡片尺寸取默认，如 1×FULL 的月日历单行显示）
     .map((b) => (singleLineOn(displayMode, size, b)
       ? { ...b, opts: { ...(b.opts || {}), singleLine: true } }
       : b));
-  const gov = alignGovernor(cardCenter);
+  if (anyFree) {
+    // 自由定位：跳过单元级对齐（绝对定位），仅卡片级置中（bbox）开启时整体居中
+    return applyCardCenter(base, grid, { h: gov.h === 'card', v: gov.v === 'card' });
+  }
   // ① 单元级：仅在未被卡片级接管的轴上（互斥，不再相加 → 杜绝偏移翻倍/贴边）
   const { layout: aligned } = applyAlignmentWithReport(base, displayMode, size, grid, {
     h: gov.h === 'unit',
