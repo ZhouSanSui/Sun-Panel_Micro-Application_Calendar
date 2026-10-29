@@ -144,7 +144,8 @@ const CONTENT_FIT = {
     holiday: { w: 5.4, wEn: 6.2, h: 4.0 },
   },
   schedule: {
-    recent: { w: 3.47, wEn: 4.98, h: 5.64 },
+    // v3.55：recent 与节日同构（同一 countdown），固有尺寸同步 festival 宽比（否则高瘦→tightH 省掉天后/副标题）
+    recent: { w: 7.4, wEn: 8.5, h: 3.0 },
     // v1.40：recent 同属倒数型，flat/tall 同源（仅 recent 触发，multiple 不劫持）
     __flat: { w: 6.97, wEn: 8.95, h: 2.79 },
     __tall: { w: 3.47, wEn: 4.98, h: 5.64 },
@@ -160,6 +161,9 @@ const CONTENT_FIT = {
     // 名称 1.32em×最长 3 字（腊八节）+ 行距 0.2em + 胶囊 2.26em ≈ 6.42em；
     // 2×4/4×4 上名称涨到 1.5em → 取 7.4em 覆盖两档 multipliers（名字超长时 ellipsis 兜底）。
     festival: { w: 7.4, wEn: 8.5, h: 3.0 },
+    // v3.55：节气/距放假 与节日同构（同一 countdown），固有尺寸同步 festival，否则回落 __default 高瘦 →省掉天后/副标题
+    solarTerm: { w: 7.4, wEn: 8.5, h: 3.0 },
+    holidayGap: { w: 7.4, wEn: 8.5, h: 3.0 },
     // v2.9：胶囊倒计时（年倒计时 d/h/m/s 四个数字格 + 胶囊标题）
     capsule: { w: 11.2, wEn: 11.8, h: 3.4 },
     // v2.9：目标倒计时卡（标题 + 大天数 + 日期）
@@ -1885,14 +1889,12 @@ function renderInfoBlockInner(o) {
       const uBt = unitOf('year');
       const capBt = UNIT_CAP[uBt];
       const pct = Math.max(0, Math.min(100, unitElapsed(uBt) * 100));
-      const segs = 10;
+      // v3.55：移除条中竖线（分段刻度 <u>）与条下方的点（pv-bt-nub），只留纯进度条
       return html`<div class="pv-col pv-bt">
         <div class="pv-bt-head"><span style="color:${label3}">${isZh ? capBt.zh : capBt.en}</span><b style="color:${acb}">${Math.round(pct)}%</b></div>
         <div class="pv-bt-body" style="border-color:${acb}">
           <i style="width:${Math.max(2, Math.round(pct))}%;background:${acb}"></i>
-          ${Array.from({ length: segs - 1 }, (_, i) => html`<u style="left:${((i + 1) * 100) / segs}%"></u>`)}
         </div>
-        <div class="pv-bt-nub" style="background:${acb}"></div>
       </div>`;
     }
     if (style === 'heatYear') {
