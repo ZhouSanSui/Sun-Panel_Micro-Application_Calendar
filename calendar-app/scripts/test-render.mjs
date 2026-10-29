@@ -1655,16 +1655,13 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
       })).join('');
       ok(rowCount(h) === 5, `multiBars 在 ${size} 无 opts 时应渲染 5 行（含生命 ${mbDef}），实际 ${rowCount(h)}`);
       ok(h.includes('生命'), `multiBars 在 ${size} 应含「生命」行标签`);
-      // 年/月/周/日 百分比一律整数（用户要求「都不显示小数」）；
-      // v3.47：生命行改显「当前年龄/预计年龄」（如 18/120），把默认 18/120 露出来（原显百分比 15%）。
+      // 百分比一律整数（用户要求「都不显示小数」）。
       // 注意只查 .pv-mb-v 的**文本**：条的填充宽度仍是 `width:80.0%`（那是长度不是文本）。
       const vals = (h.match(/class="pv-mb-v"[^>]*>([^<]*)</g) || []).map((x) => x.replace(/^[^>]*>/, '').replace(/<$/, ''));
-      ok(vals.length === 5, `multiBars 在 ${size} 应有 5 个值文本，实际 ${vals.length}`);
-      ok(vals.slice(0, 4).every((v) => /^\d+%$/.test(v)),
-        `multiBars 在 ${size} 年/月/周/日 应为整数百分比（如 80%），实际 ${JSON.stringify(vals)}`);
-      ok(/^\d+\/\d+$/.test(vals[4] || ''),
-        `multiBars 在 ${size} 生命行应为「当前年龄/预计年龄」（如 18/120），实际 ${vals[4]}`);
-      ok(h.includes(mbDef), `multiBars 生命行应显示默认 ${mbDef}（当前年龄/预计年龄），实际未见`);
+      ok(vals.length === 5, `multiBars 在 ${size} 应有 5 个百分比文本，实际 ${vals.length}`);
+      ok(vals.every((v) => /^\d+%$/.test(v)),
+        `multiBars 在 ${size} 百分比应为整数（如 80%），实际 ${JSON.stringify(vals)}`);
+      ok(/15%/.test(h), `multiBars 生命行应为 18/120 = 15%，实际未见`);
     }
   }
 }

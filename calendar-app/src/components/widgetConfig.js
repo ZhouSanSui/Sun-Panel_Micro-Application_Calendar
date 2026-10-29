@@ -353,15 +353,17 @@ export class WidgetConfig extends SunPanelPageElement {
       const max = meta.max ?? 999;
       const raw = v === '' || v == null ? '' : Number(v);
       const has = Number.isFinite(raw);
+      // v3.48：新建/未设置时显示默认值（age=18、life=120）而非「—」；步进也从默认值起算
+      const defNum = Number(meta.def);
+      const defOk = Number.isFinite(defNum);
       const step = (d) => {
-        // 未设置（age 的 def 是空串）时从 0 起算，再夹到 [min, max]
-        const from = has ? raw : 0;
+        const from = has ? raw : (defOk ? defNum : 0);
         this._setPendingOpt(k, String(Math.min(max, Math.max(min, from + d))));
       };
       return row(html`<span class="style-opt-stepper">
             <button class="style-opt-step" aria-label=${this._t('t', '减少', 'Decrease')}
               @click=${() => step(-1)}>−</button>
-            <span class="style-opt-num">${has ? raw : '—'}</span>
+            <span class="style-opt-num">${has ? raw : (defOk ? defNum : '—')}</span>
             <button class="style-opt-step" aria-label=${this._t('t', '增加', 'Increase')}
               @click=${() => step(1)}>+</button>
           </span>`);
