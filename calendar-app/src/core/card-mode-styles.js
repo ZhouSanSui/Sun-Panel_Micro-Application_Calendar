@@ -825,10 +825,10 @@ export const CARD_MODE_CSS = `
 /* 文字时钟：主 43、副 15 */
 .pv-single-1xfull .pv-wc-main { font-size: 3.792em; }
 .pv-single-1xfull .pv-wc-sub { font-size: 1.323em; letter-spacing: 0.06em; }
-/* 今日大数字：改左右结构，数字 43、日期 15 */
-.pv-single-1xfull .pv-dn { flex-direction: row; align-items: baseline; justify-content: center; gap: 0.32em; }
+/* 今日大数字：改左右结构，数字 43、日期 15 垂直置中 */
+.pv-single-1xfull .pv-dn { flex-direction: row; align-items: center; justify-content: center; gap: 0.32em; }
 .pv-single-1xfull .pv-dn-num { font-size: 3.792em; line-height: 1; }
-.pv-single-1xfull .pv-dn-sub { font-size: 1.323em; }
+.pv-single-1xfull .pv-dn-sub { font-size: 1.323em; line-height: 1; }
 /* 农历日：三段式 —— 左「干支年/月」两排 15｜中「农历日」43｜右「月日/周」两排 15（周字前缀随 bot2x1） */
 .pv-single-1xfull .pv-ld { flex-direction: row; align-items: center; justify-content: center; gap: 0.55em; }
 .pv-single-1xfull .pv-ld-top,
@@ -838,16 +838,16 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-ld-sol,
 .pv-single-1xfull .pv-ld-wd { display: block; white-space: nowrap; }
 .pv-single-1xfull .pv-ld-day { font-size: 3.792em; line-height: 1; }
-/* 日时堆叠：左时间 15 + 行距收紧，右数字 43 */
+/* 日时堆叠：左时间 12 + 行距 1，右数字 43 */
 .pv-single-1xfull .pv-ds-row b,
-.pv-single-1xfull .pv-ds-row i { font-size: 1.323em; }
-.pv-single-1xfull .pv-ds-row { line-height: 0.86; }
+.pv-single-1xfull .pv-ds-row i { font-size: 1.058em; }
+.pv-single-1xfull .pv-ds-row { line-height: 1; }
 .pv-single-1xfull .pv-ds-left { gap: 0.02em; }
 .pv-single-1xfull .pv-ds-day { font-size: 3.792em; }
-/* 胶囊倒计时：数字 43、单位 15、标题 30 */
+/* 胶囊倒计时：数字 43、单位 15、标题 24 */
 .pv-single-1xfull .pv-cp-cell b { font-size: 3.792em; }
 .pv-single-1xfull .pv-cp-cell i { font-size: 1.323em; }
-.pv-single-1xfull .pv-cp-pill { font-size: 2.646em; }
+.pv-single-1xfull .pv-cp-pill { font-size: 2.117em; line-height: 1; }
 /* 目标倒计时：日程名 18、还有/天/日期 15 */
 .pv-single-1xfull .pv-tg-title { font-size: 1.587em; text-align: right; }
 .pv-single-1xfull .pv-tg-pre,
@@ -863,8 +863,12 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-yb-foot { font-size: 1.323em; }
 .pv-single-1xfull .pv-yb-foot span { font-size: 1em; }
 .pv-single-1xfull .pv-yb-foot b { font-size: 1em; font-weight: 400; }
-/* 周进度格：本周 15 + 移到最左 */
-.pv-single-1xfull .pv-wg2-foot { font-size: 1.323em; display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
+/* 周进度格：星期/日期/本周 15 + 收紧行高/间距（50px 内容盒内不裁切） */
+.pv-single-1xfull .pv-wg2-cell span { font-size: 1.323em; line-height: 1; }
+.pv-single-1xfull .pv-wg2-cell b { font-size: 1.323em; line-height: 1; }
+.pv-single-1xfull .pv-wg2-cell { padding: 0.04em 0; gap: 0.04em; }
+.pv-single-1xfull .pv-wg2 { gap: 0.05em; }
+.pv-single-1xfull .pv-wg2-foot { font-size: 1.323em; line-height: 1; display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
 .pv-single-1xfull .pv-wg2-foot span { font-size: 1em; }
 .pv-single-1xfull .pv-wg2-foot b { font-size: 1em; font-weight: 400; }
 /* 四环进度：年/月/周/日 + 数字 15 */
