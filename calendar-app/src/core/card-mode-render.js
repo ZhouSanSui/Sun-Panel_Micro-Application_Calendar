@@ -1217,6 +1217,8 @@ function renderInfoBlockInner(o) {
       const monTxt = parts ? (LUNAR_MONTH_CN[parts.month - 1] || `${parts.month}月`) : '';
       const gz = ganzhiYear(now.getFullYear());
       const is2x1 = o.size === '2x1';
+      // v3.41：1×FULL 也走「干支年/月」「月日/周」两排拆分（三段式布局用），周字前缀随 bot2x1 自带
+      const isSplit = is2x1 || o.size === '1xfull';
       const top = parts
         ? `${gz.zh}年 ${parts.leap ? '闰' : ''}${monTxt}`
         : `${now.getFullYear()}`;
@@ -1233,9 +1235,9 @@ function renderInfoBlockInner(o) {
         ? html`<span class="pv-ld-sol">${now.getMonth() + 1}·${now.getDate()}</span><span class="pv-ld-wd">周${WEEK_FULL_ZH[now.getDay()]}</span>`
         : html`<span class="pv-ld-sol">${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span><span class="pv-ld-wd">${now.toLocaleDateString('en-US', { weekday: 'short' })}</span>`;
       return html`<div class="pv-col pv-ld">
-        <div class="pv-ld-top" style="color:${label3}">${is2x1 ? top2x1 : top}</div>
+        <div class="pv-ld-top" style="color:${label3}">${isSplit ? top2x1 : top}</div>
         <div class="pv-ld-day" style="color:${ac}">${dayTxt}</div>
-        <div class="pv-ld-bot" style="color:${label2}">${is2x1 ? bot2x1 : bot}</div>
+        <div class="pv-ld-bot" style="color:${label2}">${isSplit ? bot2x1 : bot}</div>
       </div>`;
     }
 

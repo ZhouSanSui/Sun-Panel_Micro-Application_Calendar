@@ -806,4 +806,73 @@ export const CARD_MODE_CSS = `
 /* 休息日的颜色由渲染层按主题色内联给出（.rest 只作语义标记，避免写死色值） */
 .pv-dots { position: absolute; left: 0; right: 0; bottom: 0.06em; display: flex; gap: 2px; justify-content: center; pointer-events: none; }
 .pv-dot { width: 3.5px; height: 3.5px; border-radius: 50%; flex: 0 0 auto; }
+
+/* ===== v3.41：1×FULL 单独模式字号 / 布局微调（用户指定 px） =====
+   根字号 baseFull = 76/6.7 = 11.34px。多数元素 em 相对根 = 目标px/11.34：
+     43px→3.792em、40px→3.527em、30px→2.646em、20px→1.764em、18px→1.587em、15px→1.323em。
+   嵌套父级（yg-head 5.67px）另算。 */
+/* 双区时间：时间 43、日期 15 */
+.pv-single-1xfull .pv-dz-time { font-size: 3.792em; }
+.pv-single-1xfull .pv-dz-date { font-size: 1.323em; }
+/* 环形刻度钟：时间 43 */
+.pv-single-1xfull .pv-rc-time { font-size: 3.792em; }
+/* LED数码管：时间 40、日期 15 */
+.pv-single-1xfull .pv-dc-time { font-size: 3.527em; }
+.pv-single-1xfull .pv-dc-date { font-size: 1.323em; }
+/* 极简条钟：时间 43、日期 15 */
+.pv-single-1xfull .pv-st-time { font-size: 3.792em; }
+.pv-single-1xfull .pv-st-date { font-size: 1.323em; letter-spacing: 0.02em; }
+/* 文字时钟：主 43、副 15 */
+.pv-single-1xfull .pv-wc-main { font-size: 3.792em; }
+.pv-single-1xfull .pv-wc-sub { font-size: 1.323em; letter-spacing: 0.06em; }
+/* 今日大数字：改左右结构，数字 43、日期 15 */
+.pv-single-1xfull .pv-dn { flex-direction: row; align-items: baseline; justify-content: center; gap: 0.32em; }
+.pv-single-1xfull .pv-dn-num { font-size: 3.792em; line-height: 1; }
+.pv-single-1xfull .pv-dn-sub { font-size: 1.323em; }
+/* 农历日：三段式 —— 左「干支年/月」两排 15｜中「农历日」43｜右「月日/周」两排 15（周字前缀随 bot2x1） */
+.pv-single-1xfull .pv-ld { flex-direction: row; align-items: center; justify-content: center; gap: 0.55em; }
+.pv-single-1xfull .pv-ld-top,
+.pv-single-1xfull .pv-ld-bot { display: flex; flex-direction: column; align-items: center; gap: 0.06em; font-size: 1.323em; line-height: 1.12; }
+.pv-single-1xfull .pv-ld-gz,
+.pv-single-1xfull .pv-ld-mon,
+.pv-single-1xfull .pv-ld-sol,
+.pv-single-1xfull .pv-ld-wd { display: block; white-space: nowrap; }
+.pv-single-1xfull .pv-ld-day { font-size: 3.792em; line-height: 1; }
+/* 日时堆叠：左时间 15 + 行距收紧，右数字 43 */
+.pv-single-1xfull .pv-ds-row b,
+.pv-single-1xfull .pv-ds-row i { font-size: 1.323em; }
+.pv-single-1xfull .pv-ds-row { line-height: 0.86; }
+.pv-single-1xfull .pv-ds-left { gap: 0.02em; }
+.pv-single-1xfull .pv-ds-day { font-size: 3.792em; }
+/* 胶囊倒计时：数字 43、单位 15、标题 30 */
+.pv-single-1xfull .pv-cp-cell b { font-size: 3.792em; }
+.pv-single-1xfull .pv-cp-cell i { font-size: 1.323em; }
+.pv-single-1xfull .pv-cp-pill { font-size: 2.646em; }
+/* 目标倒计时：日程名 18、还有/天/日期 15 */
+.pv-single-1xfull .pv-tg-title { font-size: 1.587em; text-align: right; }
+.pv-single-1xfull .pv-tg-pre,
+.pv-single-1xfull .pv-tg-unit { font-size: 1.323em; }
+.pv-single-1xfull .pv-tg-date { font-size: 1.323em; text-align: right; }
+/* 节日卡：标签 30、日期 15、倒计天 20 */
+.pv-single-1xfull .pv-fe-name { font-size: 2.646em; text-align: right; }
+.pv-single-1xfull .pv-fe-date { font-size: 1.323em; text-align: right; }
+.pv-single-1xfull .pv-fe-gap { font-size: 1.764em; }
+/* 进度格阵：年/进度 15（yg-head 整体提，子级继承） */
+.pv-single-1xfull .pv-yg-head { font-size: 1.323em; }
+/* 年月条阵：今年 15 */
+.pv-single-1xfull .pv-yb-foot { font-size: 1.323em; }
+.pv-single-1xfull .pv-yb-foot span { font-size: 1em; }
+.pv-single-1xfull .pv-yb-foot b { font-size: 1em; font-weight: 400; }
+/* 周进度格：本周 15 + 移到最左 */
+.pv-single-1xfull .pv-wg2-foot { font-size: 1.323em; display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
+.pv-single-1xfull .pv-wg2-foot span { font-size: 1em; }
+.pv-single-1xfull .pv-wg2-foot b { font-size: 1em; font-weight: 400; }
+/* 四环进度：年/月/周/日 + 数字 15 */
+.pv-single-1xfull .pv-rp-legend { font-size: 1.323em; }
+/* 电量条：今年已过 15 */
+.pv-single-1xfull .pv-bt-head { font-size: 1.323em; }
+.pv-single-1xfull .pv-bt-head b { font-size: 1em; font-weight: 400; }
+/* 分层进度条：行距收小，修「年/日」上下裁切 */
+.pv-single-1xfull .pv-sb { gap: 0.02em; }
+.pv-single-1xfull .pv-sb-row { gap: 0.28em; }
 `;
