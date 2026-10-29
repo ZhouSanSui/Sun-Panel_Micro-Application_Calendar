@@ -95,10 +95,10 @@ export class WidgetConfig extends SunPanelPageElement {
     }
     this.displayMode = displayMode;
     this.cardBlocks = sanitizeBlocks(blocks, displayMode, size);
-    // 待确认的「显示内容 + 显示样式」：默认取当前第一个单元（卡片可以为空，故需兜底）
-    const first = this.cardBlocks[0] || { c: 'calendar', s: 'month' };
-    this.pendingContent = first.c;
-    this.pendingStyle = first.s;
+    // 待确认的「显示内容 + 显示样式」：拼接默认「日期时间」+第一个；单独默认当前单元（无则日期时间+第一个）
+    const pend = this._defaultPending(this.displayMode);
+    this.pendingContent = pend.c;
+    this.pendingStyle = pend.s;
     this.cardCenterH = c.cardCenterH ?? g.cardCenterH ?? false;
     this.cardCenterV = c.cardCenterV ?? g.cardCenterV ?? false;
     this.themeColor = merge('themeColor', 'blue');
@@ -209,6 +209,16 @@ export class WidgetConfig extends SunPanelPageElement {
 
   // ---------- 显示模式交互 ----------
 
+  /** 进入某模式时「显示内容 + 显示样式」的默认值：
+   *  拼接 → 日期时间 + 其第一个样式；单独 → 当前单元（无则日期时间 + 第一个）。
+   *  注：单/拼的「日期时间」内容键不同（single=timeDate、combo=time）。 */
+  _defaultPending(mode) {
+    const dateKey = mode === 'combo' ? 'time' : 'timeDate';
+    if (mode === 'combo') return { c: dateKey, s: defaultStyleFor('combo', dateKey) };
+    const b = this.cardBlocks && this.cardBlocks[0];
+    return b ? { c: b.c, s: b.s } : { c: dateKey, s: defaultStyleFor('single', dateKey) };
+  }
+
   _setDisplayMode(v) {
     if (this.displayMode === v) return;
     this.displayMode = v;
@@ -216,8 +226,9 @@ export class WidgetConfig extends SunPanelPageElement {
     this.cardBlocks = sanitizeBlocks(null, v, this._size);
     this.cardCenterH = false;
     this.cardCenterV = false;
-    this.pendingContent = this.cardBlocks[0].c;
-    this.pendingStyle = this.cardBlocks[0].s;
+    const pend = this._defaultPending(v);
+    this.pendingContent = pend.c;
+    this.pendingStyle = pend.s;
     this.capHint = null;
     this._spanEdit = null;
     this.requestUpdate();

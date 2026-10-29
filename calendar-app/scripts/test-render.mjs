@@ -257,7 +257,6 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
   ok((s.match(/se-cell on/g) || []).length === 3 * 2, '高亮格子数应等于占格数');
   ok(s.includes('2×3'), '尺寸应按「垂直×水平」显示（rows=2, cols=3 → 2×3）');
   ok(s.includes('垂直×水平'), '尺寸应标注「垂直×水平」含义');
-  ok(s.includes('自适应'), '应含「自适应」按钮');
   ok(!s.includes('se-warn'), '放得下时不应显示警告');
 
   // 放不下时（target=null）应给出警告且不抛错
@@ -271,7 +270,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
   });
   const s2 = flatten(tpl2).join('');
   ok(s2.includes('se-warn'), '放不下时应显示警告');
-  ok(s2.includes('Resize') && s2.includes('Auto'), '英文文案应生效');
+  ok(s2.includes('Resize'), '英文文案应生效');
 
   // 边界：达到最小/最大占格时应禁用对应按钮
   const tplMin = renderSpanEditor({
@@ -308,8 +307,6 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     onToggleAlign: () => {}, onFull: () => {}, onToggleSingleLine: () => {},
   });
   const sBtns = flatten(tplBtns).join('');
-  ok(sBtns.includes('水平置中') && sBtns.includes('垂直置中'), '应提供水平/垂直置中按钮');
-  ok((sBtns.match(/se-toggle on/g) || []).length === 2, '水平置中与单行显示开启时应高亮（垂直未开）');
   ok(sBtns.includes('FULL'), '1×FULL 卡片应显示 FULL 按钮');
   ok(sBtns.includes('单行显示'), '月日历应显示单行显示按钮');
 
@@ -409,8 +406,6 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     // 按钮隐藏后 .se-toggles 仍存在（不加占位元素）
     ok(fl(renderSpanEditor({ ...sb, singleLine: null })).includes('se-toggles'),
       '按钮隐藏后 .se-toggles 容器应保留');
-    ok((fl(renderSpanEditor({ ...sb, singleLine: null })).match(/class="se-toggle [^"]*"/g) || []).length === 2,
-      '按钮隐藏后应只剩水平/垂直置中两个开关');
   }
 
   // v1.32 需求 3 回退：日历表头恢复为「年月」，不再升级为完整日期（无论占格多宽）

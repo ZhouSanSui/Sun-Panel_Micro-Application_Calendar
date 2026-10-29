@@ -93,13 +93,7 @@ export const DISPLAY_MODES = {
  * preferred 放不下时降级 minSpan，再放不下则跳过（提示空间不足）。
  */
 export const COMBO_CONTENTS = [
-  { key: 'calendar', zh: '日历', en: 'Calendar', icon: '📅', styles: [
-    { key: 'month', zh: '月日历', en: 'Month Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 2 }, opts: ['showSchedule', 'showHoliday'] },
-    { key: 'week', zh: '周日历', en: 'Week Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 }, opts: ['showSchedule', 'showHoliday'] },
-    // v3.51：电量条（原「进图」四样式合并为一条，粒度可切 年/月/周/日）移到「日历」下
-    { key: 'battery', zh: '电量条', en: 'Battery', span: { cols: 2, rows: 1 }, minSpan: { cols: 2, rows: 1 }, opts: ['unit'], sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
-  ] },
-  { key: 'time', zh: '时间', en: 'Time', icon: '🕐', styles: [
+  { key: 'time', zh: '日期时间', en: 'Date & Time', icon: '🕐', styles: [
     // 文字串不可压缩，故不声明 minSpan（放不下即视为空间不足，不做降级）
     // v1.32 需求 5：可竖排拆分的多信息样式，最小占格水平降到 1（垂直足够时可排成 1×N 窄条）
     { key: 'dateFull', zh: '年月日', en: 'Y/M/D', span: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 } },
@@ -129,6 +123,12 @@ export const COMBO_CONTENTS = [
     // 原「日程」类
     { key: 'recent', zh: '最近日程', en: 'Recent', span: { cols: 2, rows: 2 }, minArea: 2 },
     { key: 'multiple', zh: '多个日程', en: 'Multiple', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 } },
+  ] },
+  { key: 'calendar', zh: '日历', en: 'Calendar', icon: '📅', styles: [
+    { key: 'month', zh: '月日历', en: 'Month Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 2 }, opts: ['showSchedule', 'showHoliday'] },
+    { key: 'week', zh: '周日历', en: 'Week Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 }, opts: ['showSchedule', 'showHoliday'] },
+    // v3.51：电量条（原「进图」四样式合并为一条，粒度可切 年/月/周/日）移到「日历」下
+    { key: 'battery', zh: '电量条', en: 'Battery', span: { cols: 2, rows: 1 }, minSpan: { cols: 2, rows: 1 }, opts: ['unit'], sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'] },
   ] },
 ];
 

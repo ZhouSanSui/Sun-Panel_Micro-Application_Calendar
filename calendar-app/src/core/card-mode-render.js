@@ -2276,19 +2276,16 @@ export function renderBlocksHTML(o) {
 export function renderSpanEditor(o) {
   const {
     grid, target, span, bounds, name, theme, isZh, sizeLabel,
-    occupied, align, isFull, singleLine, noUnits, showSchedule, onToggleShowSchedule, showHoliday, onToggleShowHoliday,
-    alignLocked, alignDefault,
-    onPick, onResize, onReset, onClose,
-    minimal,
+    occupied, isFull, singleLine, noUnits, showSchedule, onToggleShowSchedule, showHoliday, onToggleShowHoliday,
+    alignLocked,
+    onPick, onResize, onClose,
   } = o;
   const tr = (key, vars) => (typeof o.t === 'function' ? o.t(key, vars) : null);
-  const onToggleAlign = o.onToggleAlign || (() => {});
   const onFull = o.onFull || (() => {});
   const onToggleSingleLine = o.onToggleSingleLine || (() => {});
   const onToggleNoUnits = o.onToggleNoUnits || (() => {});
   const onUnlock = o.onUnlock || (() => {});
   const locked = { h: !!(alignLocked && alignLocked.h), v: !!(alignLocked && alignLocked.v) };
-  const isDef = { h: !!(alignDefault && alignDefault.h), v: !!(alignDefault && alignDefault.v) };
   const min = bounds && bounds.min ? bounds.min : { cols: 1, rows: 1 };
   const max = bounds && bounds.max ? bounds.max : grid;
   // v1.40：面积下限（minArea>0，如四样式禁 1×1）时，单轴降到 1 仍可能面积不达标，
@@ -2339,10 +2336,6 @@ export function renderSpanEditor(o) {
   ? html`<span class="se-tag">${tr('CARD_ALIGN_TAKEOVER_TAG') || (isZh ? '接管' : 'Taken over')}</span>`
   : (isDefault ? html`<span class="se-tag">${tr('CARD_ALIGN_DEFAULT_TAG') || (isZh ? '默认' : 'Default')}</span>` : '')}</button>`;
   };
-  /** 单元级置中开关（带「接管/默认」三态） */
-  const alignToggle = (axis, label) => toggle(
-    label, !!(align && align[axis]), () => onToggleAlign(axis), axis, isDef[axis],
-  );
   const stepRow = (label, val, dec, inc, offMin, offMax) => html`
     <div class="se-row">
       <span class="se-lab">${label}</span>
@@ -2377,11 +2370,8 @@ export function renderSpanEditor(o) {
         </div>
       </div>
       <div class="se-toggles">
-        ${minimal ? '' : alignToggle('h', isZh ? '水平置中' : 'Center H')}
-        ${minimal ? '' : alignToggle('v', isZh ? '垂直置中' : 'Center V')}
         ${singleLine === null || singleLine === undefined ? '' : toggle(isZh ? '单行显示' : 'One line', !!singleLine, () => onToggleSingleLine(), null, false, true)}
         ${noUnits === null || noUnits === undefined ? '' : toggle(isZh ? '简约显示' : 'Compact', !!noUnits, () => onToggleNoUnits(), null, false, true, isZh ? '简约显示，隐藏年/月/日单位' : 'Compact — hides year/month/day labels')}
-        ${minimal ? '' : html`<button class="se-reset" @click=${onReset}>${isZh ? '自适应' : 'Auto'}</button>`}
         ${isFull ? html`<button class="se-reset" @click=${onFull}>FULL</button>` : ''}
         ${showSchedule === null || showSchedule === undefined ? '' : html`<button class="se-reset ${showSchedule ? 'on' : ''}" style="${showSchedule ? `background:${theme};color:#fff;border-color:${theme}` : ''}" @click=${() => onToggleShowSchedule()}>${isZh ? '显示日程' : 'Schedules'}</button>`}
         ${showHoliday === null || showHoliday === undefined ? '' : html`<button class="se-reset ${showHoliday ? 'on' : ''}" style="${showHoliday ? `background:${theme};color:#fff;border-color:${theme}` : ''}" @click=${() => onToggleShowHoliday()}>${isZh ? '显示节假日' : 'Holidays'}</button>`}
