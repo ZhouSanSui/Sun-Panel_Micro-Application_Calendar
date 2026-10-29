@@ -2,7 +2,8 @@
  * Apple 风格 UI 组件库（Lit html 片段 + 共享样式）
  * 参考 iOS Setting / Calendar 设计规范
  */
-import { html, css } from 'lit';
+import { html, css, nothing } from 'lit';
+import { Directive, directive, PartType } from 'lit-html/directive.js';
 
 /** Apple 系统色板 */
 export const APPLE_COLORS = {
@@ -142,12 +143,48 @@ export function appleButton(label, onClick, { color = APPLE_COLORS.red, filled =
   `;
 }
 
+/**
+ * v3.53：`<select>` 选中值同步 —— 必须放在 options 子部件之后，让本部件提交时
+ * `<option>` 已全部就位，再对齐 select.value。
+ *
+ * 为什么不能用 `.value=${value}` 属性绑定（「显示内容」下拉偶发为空的根因）：
+ * lit 按模板顺序先提交 select 的属性部件、后提交 options 子部件（实测：属性提交时
+ * DOM 里还是旧 options / 空 select）。模式切换（拼接↔单独）就地更新 options 时，
+ * value 赋值撞上旧值列表失配 → selectedIndex 被清成 -1（下拉只显示空白+›箭头）。
+ * 随后两条「自愈」路径又都被 lit 的原始值脏检查拦住：
+ *   1) `.value` 值不变时永不重提交（AttributePart._$setValue 的 change 判定）；
+ *   2) `?selected` 布尔值不变时 toggleAttribute 不执行，无法借属性变更恢复选中。
+ * 于是空白持续到用户手动改选为止。这里改为 options 就位后显式赋值，每轮渲染
+ * 都对齐，任何进入路径恒显示当前选中项。
+ */
+class SelectValueSync extends Directive {
+  constructor(partInfo) {
+    super(partInfo);
+    if (partInfo.type !== PartType.CHILD) {
+      throw new Error('selectValueSync must be used in a child part (after options)');
+    }
+  }
+
+  render() {
+    return nothing;
+  }
+
+  update(part, [value]) {
+    const sel = part.parentNode;
+    const want = value == null ? '' : String(value);
+    if (sel && sel.value !== want) sel.value = want;
+    return nothing;
+  }
+}
+const selectValueSync = directive(SelectValueSync);
+
 /** 下拉选择器（替代分段按钮的紧凑选项） */
 export function appleSelect(options, value, onChange, color = APPLE_COLORS.blue) {
   return html`
     <div class="apple-select" style="--sel-color:${color}">
-      <select class="apple-select-el" .value=${value} @change=${(e) => onChange(e.target.value)}>
+      <select class="apple-select-el" @change=${(e) => onChange(e.target.value)}>
         ${options.map((opt) => html`<option value="${opt.value}" ?selected=${opt.value === value}>${opt.label}</option>`)}
+        ${selectValueSync(value)}
       </select>
       <svg class="apple-select-chevron" viewBox="0 0 8 13" width="8" height="13"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
