@@ -221,9 +221,12 @@ export class WidgetConfig extends SunPanelPageElement {
 
   _setDisplayMode(v) {
     if (this.displayMode === v) return;
+    // v3.54：保存当前模式的单元，切走再切回时恢复（避免单独↔拼接来回切把样式掉回默认）
+    this._savedBlocks = this._savedBlocks || {};
+    this._savedBlocks[this.displayMode] = this.cardBlocks;
     this.displayMode = v;
-    // 切换模式时单元重置为该模式默认（避免跨模式无效组合）
-    this.cardBlocks = sanitizeBlocks(null, v, this._size);
+    const saved = this._savedBlocks[v];
+    this.cardBlocks = (saved && saved.length) ? saved : sanitizeBlocks(null, v, this._size);
     this.cardCenterH = false;
     this.cardCenterV = false;
     const pend = this._defaultPending(v);

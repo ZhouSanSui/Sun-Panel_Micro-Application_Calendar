@@ -2240,7 +2240,10 @@ export function renderBlocksHTML(o) {
     const availH = blockH / u - 2 * FIT_PAD;
     // v1.43：块根字号过小时（<10px，典型为 48px 小块）附加 pv-tight，
     // 隐藏说明级小字（.pv-sub），避免出现 5px 左右不可读的副标题
-    const cls = `${b.c === 'blank' ? 'pv-block pv-blank' : 'pv-block'}${u < 10 ? ' pv-tight' : ''}`;
+    // v3.54：节日族（节日/节气/距放假/最近日程）在高块 rows≥2 不加 pv-tight —— 1×N 窄高块会隐藏「天后/下个节日」
+    const feFam = ['festival', 'solarTerm', 'holidayGap', 'recent'].includes(b.s);
+    const tight = u < 10 && !(feFam && b.span.rows >= 2);
+    const cls = `${b.c === 'blank' ? 'pv-block pv-blank' : 'pv-block'}${tight ? ' pv-tight' : ''}`;
     return html`<div
         class="${cls}"
         style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px;z-index:${bi + 1};opacity:0.9"
