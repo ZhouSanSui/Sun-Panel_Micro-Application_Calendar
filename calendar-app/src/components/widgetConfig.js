@@ -1176,30 +1176,24 @@ export class WidgetConfig extends SunPanelPageElement {
   }
 
   /**
-   * 预览正下方工具条（v3.50：从右侧样式名列表底部迁来）：
-   * 空白填充 / 水平置中 / 垂直置中，功能不变。
+   * 预览正下方工具条（v3.51）：重置卡片 / 自动排列。
+   * 重置卡片 = 清空所有样式；自动排列 = 自动排布（非重叠）、格满（放不下）的多余样式移除。
+   * 取代原「空白填充 / 水平置中 / 垂直置中」（v3.51 用户要求移除多块控制，单独模式本就无这些）。
    */
   _renderPreviewTools() {
     if (this.displayMode !== 'combo') return '';
     return html`
       <div class="preview-tools">
         <div class="chip-tools">
-          <button class="chip-tool" @click=${this._addBlank}>
-            <svg viewBox="0 0 16 16" width="12" height="12"><rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2.5"/></svg>
-            ${this._t('t', '空白填充', 'Add blank')}
+          <button class="chip-tool" @click=${() => this._resetCard()}>
+            <svg viewBox="0 0 16 16" width="12" height="12"><path d="M2.5 8a5.5 5.5 0 1 1 5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 4.5v3.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            ${this._t('t', '重置卡片', 'Reset card')}
           </button>
-          <button
-            class="chip-tool ${this.cardCenterH ? 'on' : ''}"
-            style="${this.cardCenterH ? `border-color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue};color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue}` : ''}"
-            @click=${() => this._toggleCardCenter('h')}
-          >${this._t('t', '水平置中', 'Center H')}</button>
-          <button
-            class="chip-tool ${this.cardCenterV ? 'on' : ''}"
-            style="${this.cardCenterV ? `border-color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue};color:${APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue}` : ''}"
-            @click=${() => this._toggleCardCenter('v')}
-          >${this._t('t', '垂直置中', 'Center V')}</button>
+          <button class="chip-tool" @click=${() => this._autoArrange()}>
+            <svg viewBox="0 0 16 16" width="12" height="12"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            ${this._t('t', '自动排列', 'Auto arrange')}
+          </button>
         </div>
-        <div class="tool-note">${this.t('CARD_CENTER_TAKEOVER_NOTE')}</div>
         ${this.cardBlocks.length ? '' : html`<div class="chips-empty">${this._t('t', '卡片当前不显示任何内容', 'The card shows nothing right now')}</div>`}
         ${this._pvOverflow ? html`<div class="chips-empty">${this._t(
     't',
@@ -1208,6 +1202,39 @@ export class WidgetConfig extends SunPanelPageElement {
   )}</div>` : ''}
       </div>
     `;
+  }
+
+  /** 重置卡片：清空预览框中所有样式 */
+  _resetCard() {
+    this._writeBlocks([]);
+    this._spanEdit = null;
+    this.requestUpdate();
+  }
+
+  /** 自动排列：把预览框中样式自动排布（非重叠，行优先找空位）；格满放不下的多余样式移除 */
+  _autoArrange() {
+    const grid = gridForSize(this._size);
+    const occ = [];
+    const kept = [];
+    for (const b of this.cardBlocks) {
+      const sp = effectiveSpan('combo', this._size, b);
+      const clamped = { cols: Math.min(sp.cols, grid.cols), rows: Math.min(sp.rows, grid.rows) };
+      let pos = null;
+      for (let r = 0; r <= grid.rows - clamped.rows && !pos; r++) {
+        for (let c = 0; c <= grid.cols - clamped.cols; c++) {
+          const hit = occ.some((p) => c < p.col + p.cols && c + clamped.cols > p.col && r < p.row + p.rows && r + clamped.rows > p.row);
+          if (!hit) { pos = { col: c, row: r }; break; }
+        }
+      }
+      // 找到空位 → 保留；放不下（格满）→ 丢弃（移除多余）
+      if (pos) {
+        kept.push({ ...b, span: clamped, pos });
+        occ.push({ ...pos, cols: clamped.cols, rows: clamped.rows });
+      }
+    }
+    this._writeBlocks(kept);
+    this._spanEdit = null;
+    this.requestUpdate();
   }
 
   /** 占格编辑器（v1.29）：标题 + 卡片网格示意 + 垂直/水平步进 + 自适应 */
@@ -1227,6 +1254,8 @@ export class WidgetConfig extends SunPanelPageElement {
       bounds: spanBounds(this.displayMode, info.size, info.b),
       // v3.50：格子示意图只高亮当前样式的占格，其他样式的占用格不再显示（传 null 即不渲染 occ）
       occupied: null,
+      // v3.51：配置页隐藏「水平置中/垂直置中/自适应」多块控制（主页面仍显示）
+      minimal: true,
       align: unitAlign(this.displayMode, info.size, info.b),
       isFull: info.isFull,
       // v1.31 需求 2：月历「单行显示」仅 1×FULL 卡片可用（其他尺寸传 null → 不渲染按钮）
