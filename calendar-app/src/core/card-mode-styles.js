@@ -816,8 +816,9 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-dz-date { font-size: 1.323em; }
 /* 环形刻度钟：时间 43 */
 .pv-single-1xfull .pv-rc-time { font-size: 3.792em; }
-/* LED数码管：时间 40、日期 15 */
-.pv-single-1xfull .pv-dc-time { font-size: 3.527em; }
+/* LED数码管：时间 40、日期 15；时间行盒压到 40px(line-height:1)+收点距，露出上方一排点 */
+.pv-single-1xfull .pv-dc-left { gap: 0.06em; }
+.pv-single-1xfull .pv-dc-time { font-size: 3.527em; line-height: 1; }
 .pv-single-1xfull .pv-dc-date { font-size: 1.323em; }
 /* 极简条钟：时间 43、日期 15 */
 .pv-single-1xfull .pv-st-time { font-size: 3.792em; }
@@ -857,18 +858,18 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-fe-name { font-size: 2.646em; text-align: right; }
 .pv-single-1xfull .pv-fe-date { font-size: 1.323em; text-align: right; }
 .pv-single-1xfull .pv-fe-gap { font-size: 1.764em; }
-/* 进度格阵：年/进度 15（yg-head 整体提，子级继承） */
-.pv-single-1xfull .pv-yg-head { font-size: 1.323em; }
-/* 年月条阵：今年 15 */
-.pv-single-1xfull .pv-yb-foot { font-size: 1.323em; }
+/* 进度格阵：年/进度 13（yg-head 整体提，子级继承） */
+.pv-single-1xfull .pv-yg-head { font-size: 1.146em; }
+/* 年月条阵：今年 13、百分比也缩 2px（15→13） */
+.pv-single-1xfull .pv-yb-foot { font-size: 1.146em; }
 .pv-single-1xfull .pv-yb-foot span { font-size: 1em; }
 .pv-single-1xfull .pv-yb-foot b { font-size: 1em; font-weight: 400; }
-/* 周进度格：星期/日期/本周 15 + 收紧行高/间距（50px 内容盒内不裁切） */
+/* 周进度格：星期/日期 15 + 收紧行高/间距（50px 内容盒内不裁切）；本周/百分比 13 */
 .pv-single-1xfull .pv-wg2-cell span { font-size: 1.323em; line-height: 1; }
 .pv-single-1xfull .pv-wg2-cell b { font-size: 1.323em; line-height: 1; }
 .pv-single-1xfull .pv-wg2-cell { padding: 0.04em 0; gap: 0.04em; }
 .pv-single-1xfull .pv-wg2 { gap: 0.05em; }
-.pv-single-1xfull .pv-wg2-foot { font-size: 1.323em; line-height: 1; display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
+.pv-single-1xfull .pv-wg2-foot { font-size: 1.146em; line-height: 1; display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
 .pv-single-1xfull .pv-wg2-foot span { font-size: 1em; }
 .pv-single-1xfull .pv-wg2-foot b { font-size: 1em; font-weight: 400; }
 /* 四环进度：年/月/周/日 + 数字 15 */
