@@ -574,6 +574,8 @@ function renderInfoBlockInner(o) {
   const DAYS = (t && t('MAIN_DAYS')) || (isZh ? '天' : 'd');
   // v2.9「样式设置」：主色覆盖（未设置时回落到主题色）
   const opt = o.opts || {};
+  // v3.39：小月历 / 拼接月·周日历 的「显示日程与节假日」开关；默认开（未设 = 开）
+  const showMarks = opt.showMarks !== false && opt.showMarks !== '0' && opt.showMarks !== 0;
   // v2.12：优先取「关联日程」里挑中的那条（自定义日程已写回日历，因此同样命中）
   const schedPick = (() => {
     // v3.6：schedMode === 'auto' 时忽略选中项，直接取「之后最近的一条日程」
@@ -830,17 +832,20 @@ function renderInfoBlockInner(o) {
   if (content === 'calendar') {
     if (style === 'week') {
       const days = weekDatesForNow(now, ws);
+      const wkScheds = getUserStore()?.getSchedules() || [];
       // 窄高块：7 个日期改为 7 行，行内「日期（左）+ 星期（右）」
       if (tall) {
         return html`<div class="pv-col">
           <div class="pv-wkv">
             ${days.map((d) => {
-    const isT = formatDate(d) === todayStrV;
+    const ds = formatDate(d);
+    const isT = ds === todayStrV;
+    const mk = showMarks ? dayMarks(ds, d, wkScheds) : null;
     const wd = isZh
       ? `周${WEEK_FULL_ZH[d.getDay()]}`
       : d.toLocaleDateString('en-US', { weekday: 'short' });
     const fg = isT ? '#fff' : label3;
-    return html`<div class="pv-wkv-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};` : ''}color:${fg}"><span class="pv-wkv-d" style="color:${isT ? '#fff' : label2}">${d.getDate()}</span><span class="pv-wkv-w" style="color:${fg}">${wd}</span></div>`;
+    return html`<div class="pv-wkv-cell ${isT ? 'today' : ''}${mk && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};` : `color:${fg}`}"><span class="pv-wkv-d" style="color:${isT ? '#fff' : (mk && mk.isRest ? theme : label2)}">${d.getDate()}</span><span class="pv-wkv-w" style="color:${fg}">${wd}</span>${mk && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
           </div>
         </div>`;
@@ -850,7 +855,8 @@ function renderInfoBlockInner(o) {
           ${days.map((d) => {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
-    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d">${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span></div>`;
+    const mk = showMarks ? dayMarks(ds, d, wkScheds) : null;
+    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}${mk && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${mk && mk.isRest ? theme : label3}`}"><span class="pv-wk-d">${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${mk && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
         </div>
       </div>`;
@@ -869,8 +875,8 @@ function renderInfoBlockInner(o) {
           ${days.map((d) => {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
-    const mk = dayMarks(ds, d, wkScheds);
-    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d"${mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
+    const mk = showMarks ? dayMarks(ds, d, wkScheds) : null;
+    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d"${mk && mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${mk && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
         </div>
       </div>`;
@@ -887,8 +893,8 @@ function renderInfoBlockInner(o) {
         ${cells.map((cell) => {
     const ds = formatDate(cell.date);
     const isT = ds === todayStrV;
-    const mk = dayMarks(ds, cell.date, moScheds);
-    return html`<span class="pv-c ${cell.inMonth ? '' : 'out'} ${isT ? 'today' : ''}${mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${mk.isRest ? theme : label3}`}">${cell.date.getDate()}${mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
+    const mk = showMarks ? dayMarks(ds, cell.date, moScheds) : null;
+    return html`<span class="pv-c ${cell.inMonth ? '' : 'out'} ${isT ? 'today' : ''}${mk && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${mk && mk.isRest ? theme : label3}`}">${cell.date.getDate()}${mk && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
   })}
       </div>
     </div>`;
@@ -1321,9 +1327,9 @@ function renderInfoBlockInner(o) {
     const isT = cell.date.getFullYear() === now.getFullYear()
       && cell.date.getMonth() === now.getMonth()
       && cell.date.getDate() === now.getDate();
-    const mk = dayMarks(formatDate(cell.date), cell.date, mmScheds);
-    const cls = `pv-mm-c${cell.inMonth ? '' : ' out'}${isT ? ' now' : ''}${mk.isRest && !isT ? ' rest' : ''}`;
-    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${mk.isRest ? ac : label3}`}">${cell.date.getDate()}${mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
+    const mk = showMarks ? dayMarks(formatDate(cell.date), cell.date, mmScheds) : null;
+    const cls = `pv-mm-c${cell.inMonth ? '' : ' out'}${isT ? ' now' : ''}${mk && mk.isRest && !isT ? ' rest' : ''}`;
+    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${mk && mk.isRest ? ac : label3}`}">${cell.date.getDate()}${mk && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
   })}</div>
       </div>`;
     }
@@ -2079,6 +2085,8 @@ export function renderInfoBlock(o) {
   const gated = !!(o.singleRow && o.size && o.content && o.style
     && SINGLE_CONTENTS.some((c) => c.key === o.content)
     && !styleFitsSize('single', o.content, o.style, o.size));
+  // v3.39：小月历 / 拼接月·周日历 的「显示日程与节假日」开关；默认开（未设 = 开）
+  const showMarks = o.opts ? (o.opts.showMarks !== false && o.opts.showMarks !== '0' && o.opts.showMarks !== 0) : true;
   // v3.3：单独模式的 tall 不再由调用方凭尺寸名猜，改为按真实像素几何判定 ——
   // 预览框是按 real×pvScale 缩出来的，只要两边都传 w/h，方向判定就完全一致。
   const geo = Number.isFinite(o.w) && Number.isFinite(o.h) && o.w > 0 && o.h > 0;
@@ -2270,7 +2278,7 @@ export function renderBlocksHTML(o) {
 export function renderSpanEditor(o) {
   const {
     grid, target, span, bounds, name, theme, isZh, sizeLabel,
-    occupied, align, isFull, singleLine, noUnits,
+    occupied, align, isFull, singleLine, noUnits, showMarks, onToggleShowMarks,
     alignLocked, alignDefault, alignHint,
     onPick, onResize, onReset, onClose,
   } = o;
@@ -2374,6 +2382,7 @@ export function renderSpanEditor(o) {
         ${alignToggle('v', isZh ? '垂直置中' : 'Center V')}
         ${singleLine === null || singleLine === undefined ? '' : toggle(isZh ? '单行显示' : 'One line', !!singleLine, () => onToggleSingleLine(), null, false, true)}
         ${noUnits === null || noUnits === undefined ? '' : toggle(isZh ? '简约显示' : 'Compact', !!noUnits, () => onToggleNoUnits(), null, false, true, isZh ? '简约显示，隐藏年/月/日单位' : 'Compact — hides year/month/day labels')}
+        ${showMarks === null || showMarks === undefined ? '' : toggle(isZh ? '显示日程与节假日' : 'Schedules & holidays', !!showMarks, () => onToggleShowMarks(), null, false, true)}
       </div>
       ${alignHint ? html`<div class="se-hint">${alignHint}</div>` : ''}
       <div class="se-actions">

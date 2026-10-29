@@ -94,8 +94,8 @@ export const DISPLAY_MODES = {
  */
 export const COMBO_CONTENTS = [
   { key: 'calendar', zh: '日历', en: 'Calendar', icon: '📅', styles: [
-    { key: 'month', zh: '月日历', en: 'Month Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 2 } },
-    { key: 'week', zh: '周日历', en: 'Week Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 } },
+    { key: 'month', zh: '月日历', en: 'Month Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 2 }, opts: ['showMarks'] },
+    { key: 'week', zh: '周日历', en: 'Week Calendar', span: { cols: 2, rows: 2 }, minSpan: { cols: 2, rows: 1 }, opts: ['showMarks'] },
   ] },
   { key: 'time', zh: '时间', en: 'Time', icon: '🕐', styles: [
     // 文字串不可压缩，故不声明 minSpan（放不下即视为空间不足，不做降级）
@@ -186,7 +186,7 @@ export const SINGLE_CONTENTS = [
     // v3.11：面相方形卡 / 窄高卡补的三款（1×1、2×1 上原来能选的样式大多是为大卡设计的）
     // v3.13：dayNum 扩到 2x1/2x4/4x4/1xfull；miniMonth 扩到 4x4；stackTime 扩到 2x1
     { key: 'dayNum', zh: '今日大数字', en: 'Day Number', sizes: ['1x2', '2x1', '2x2', '2x4', '4x4', '1xfull'], opts: ['color'] },
-    { key: 'miniMonth', zh: '小月历', en: 'Mini Month', sizes: ['2x2', '2x4', '4x4'], opts: ['color'] },
+    { key: 'miniMonth', zh: '小月历', en: 'Mini Month', sizes: ['2x2', '2x4', '4x4'], opts: ['color', 'showMarks'] },
     { key: 'stackTime', zh: '竖排时间', en: 'Stacked Time', sizes: ['2x1', '2x2'], opts: ['color'] },
     // ===== v3.12 新增：专为 1×1 方卡 / 2×1 窄高卡设计的时间/日期类 =====
     // 1×1（346×346，内容盒仅 6.6em 见方）：主数字 + 短词 + 极少辅助
@@ -272,6 +272,8 @@ export const STYLE_OPT_FIELDS = {
   sched: { type: 'schedule', zh: '关联日程', en: 'Schedule', def: '' },
   // v3.6：关联日程的两种来源 —— pick 手动选一条 / auto 顺序显示（自动取最近）
   schedMode: { type: 'select', zh: '日程来源', en: 'Source', def: 'pick', choices: [['pick', '选择日程'], ['auto', '顺序显示（最近的日程）']] },
+  // v3.39：小月历 / 拼接月·周日历 的「显示日程与节假日」开关（默认开，旧配置未设时等同开启）
+  showMarks: { type: 'switch', zh: '显示日程与节假日', en: 'Show schedules & holidays', def: true },
 };
 
 /**

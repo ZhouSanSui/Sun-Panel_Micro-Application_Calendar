@@ -412,6 +412,10 @@ export class WidgetConfig extends SunPanelPageElement {
       return row(html`<input class="style-opt-input" type="date" .value=${v}
         @change=${(e) => this._setPendingOpt(k, e.target.value)} />`);
     }
+    if (meta.type === 'switch') {
+      const on = v === '' || v == null ? !!meta.def : (v === true || v === 'true' || v === '1' || v === 1);
+      return row(appleSwitch(on, () => this._setPendingOpt(k, on ? false : true), theme));
+    }
     return row(html`<input class="style-opt-input" type="text" maxlength=${meta.max || 24}
       placeholder=${isZh ? '留空用默认文案' : 'Empty = default'}
       .value=${v}
@@ -774,6 +778,19 @@ export class WidgetConfig extends SunPanelPageElement {
     if (next) this._showHint(this.t('CARD_NO_UNITS_ON'));
   }
 
+  /**
+   * v3.39：月历/周日历 的「显示日程与节假日」开关（默认开）。
+   * 关闭后渲染层不调 dayMarks —— 既不标休息日（日期数字保持灰），也不画日程圆点。
+   * opts 合并写，避免抹掉同单元的 singleLine/noUnits。
+   */
+  _toggleSpanShowMarks() {
+    const info = this._spanTargetInfo();
+    if (!info) return;
+    const cur = unitOpts(this.displayMode, this._size, info.b);
+    const next = !(cur.showMarks ?? true);
+    this._setBlockField(info.idx, { opts: { ...(info.b.opts || {}), showMarks: next } });
+  }
+
   /** 写入单元的附加字段（align/opts），保留 c/s/span/n */
   _setBlockField(idx, patch) {
     const next = this.cardBlocks.map((x, i) => (i === idx ? { ...x, ...patch } : x));
@@ -1007,6 +1024,9 @@ export class WidgetConfig extends SunPanelPageElement {
     if (!info) return '';
     const theme = APPLE_COLORS[this.themeColor] || APPLE_COLORS.blue;
     const isMonth = info.b.c === 'calendar' && info.b.s === 'month';
+    // v3.39：月历/周日历 才显示「显示日程与节假日」开关；默认开（未设 = 开）
+    const isCalMonthWeek = info.b.c === 'calendar' && (info.b.s === 'month' || info.b.s === 'week');
+    const showMarksVal = isCalMonthWeek ? (unitOpts(this.displayMode, info.size, info.b).showMarks ?? true) : null;
     return renderSpanEditor({
       grid: info.grid,
       target: info.target,
@@ -1023,6 +1043,9 @@ export class WidgetConfig extends SunPanelPageElement {
       noUnits: (info.b.c === 'time' && NO_UNITS_DATE_STYLES.includes(info.b.s))
         ? unitOpts(this.displayMode, info.size, info.b).noUnits
         : null,
+      // v3.39：月历/周日历 的「显示日程与节假日」开关（默认开）
+      showMarks: showMarksVal,
+      onToggleShowMarks: () => this._toggleSpanShowMarks(),
       theme,
       name: this._styleName(info.b),
       isZh: this._isZh(),

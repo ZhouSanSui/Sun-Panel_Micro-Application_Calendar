@@ -746,16 +746,16 @@ export const CARD_MODE_CSS = `
 /* ===== v3.37：2×2 批量字号/布局微调（用户清单） =====
    2×2 = 182×182，内容盒 156×156。以下 em = 目标px ÷ 该卡 rootPx（rootPx 由探针实测）。 */
 /* LED数码管 dotClock（rootPx 17.4）：时间 22.6→33px、日期 10.8→13px */
-.pv-single-2x2 .pv-dc-time { font-size: 1.897em; }
+.pv-single-2x2 .pv-dc-time { font-size: 1.724em; }   /* LED 时间 33→30px（em=30/17.4） */
 .pv-single-2x2 .pv-dc-date { font-size: 0.747em; }
 /* 粗体大字钟 boldClock（rootPx 22）：时/分 33→40px；日期/星期 13.6→15px。
    注意：.pv-bc-side 自带 font-size(≈13.6px)，span 的 em 相对它而非根 → em=15/13.63=1.1em */
-.pv-single-2x2 .pv-bc-nums b { font-size: 1.818em; }
+.pv-single-2x2 .pv-bc-nums b { font-size: 2.136em; }   /* 粗体时/分 40→47px（em=47/22） */
 .pv-single-2x2 .pv-bc-side span { font-size: 1.1em; }
 /* 文字时钟 wordClock（rootPx 16）：副放大到「填满一排」。
    0.85em(13.6px) 会让固有块 226 宽溢出 13px（audit 判 CLIP）→ 实测 0.80em(12.8px) 是可过审计的最大值：
    11 个汉字 × 12.8px ≈ 141px，占满内容盒 156px 的约 90%，视觉上即「一整排」。 */
-.pv-single-2x2 .pv-wc-sub { font-size: 0.80em; }
+.pv-single-2x2 .pv-wc-sub { font-size: 0.688em; }   /* 文字时钟副 12.8→11px（em=11/16） */
 /* 竖向星期条 weekColumn（rootPx 15）：星期字 9→15px、头部 8.4→13px */
 .pv-single-2x2 .pv-wc2-row span { font-size: 1em; }
 .pv-single-2x2 .pv-wc2-head { font-size: 0.867em; }
@@ -786,10 +786,19 @@ export const CARD_MODE_CSS = `
 .pv-single-2x4 .pv-vl-row span,
 .pv-single-4x4 .pv-vl-row span { order: 2; }
 
+/* ===== v3.39：2×4 字号微调 =====
+   2×4 = 394×182，内容盒 368×156（每轴扣 26）。以下 em = 目标px ÷ 实测父级 px。 */
+/* 竖向星期条 weekColumn（2×4 rootPx 15）：头部 8.4→13px。.pv-wc2-head 无自身 font-size，em 相对根 → em=13/15 */
+.pv-single-2x4 .pv-wc2-head { font-size: 0.867em; }
+/* 进度格阵 yearGrid（2×4 rootPx 16.6，.pv-yg-head 自身 8.3px）：年份/进度 7.5→13px。
+   span/b 的 em 相对 .pv-yg-head（8.3px）→ em=13/8.3 */
+.pv-single-2x4 .pv-yg-head span,
+.pv-single-2x4 .pv-yg-head b { font-size: 1.566em; }
+
 /* ===== v3.38：小月历 / 拼接月·周日历 支持「假期 + 日程」标记（与月视图 src/components/mainPage.js 同款） =====
    休息日（节假日 isOffDay、或周末且非调休）→ 日期数字用主题色（月视图 .day-num.rest{color:theme}）；
    当日日程 → 最多 3 个 3.5px 彩色圆点（月视图 .dots{bottom:3px} / .dot{3.5px}），今日格上圆点转白。 */
-.pv-mm-c, .pv-c, .pv-wk-cell { position: relative; }
+.pv-mm-c, .pv-c, .pv-wk-cell, .pv-wkv-cell { position: relative; }
 /* 休息日的颜色由渲染层按主题色内联给出（.rest 只作语义标记，避免写死色值） */
 .pv-dots { position: absolute; left: 0; right: 0; bottom: 0.06em; display: flex; gap: 2px; justify-content: center; pointer-events: none; }
 .pv-dot { width: 3.5px; height: 3.5px; border-radius: 50%; flex: 0 0 auto; }
