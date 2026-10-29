@@ -785,4 +785,12 @@ export const CARD_MODE_CSS = `
 .pv-single-2x2 .pv-vl-row span,
 .pv-single-2x4 .pv-vl-row span,
 .pv-single-4x4 .pv-vl-row span { order: 2; }
+
+/* ===== v3.38：小月历 / 拼接月·周日历 支持「假期 + 日程」标记（与月视图 src/components/mainPage.js 同款） =====
+   休息日（节假日 isOffDay、或周末且非调休）→ 日期数字用主题色（月视图 .day-num.rest{color:theme}）；
+   当日日程 → 最多 3 个 3.5px 彩色圆点（月视图 .dots{bottom:3px} / .dot{3.5px}），今日格上圆点转白。 */
+.pv-mm-c, .pv-c, .pv-wk-cell { position: relative; }
+/* 休息日的颜色由渲染层按主题色内联给出（.rest 只作语义标记，避免写死色值） */
+.pv-dots { position: absolute; left: 0; right: 0; bottom: 0.06em; display: flex; gap: 2px; justify-content: center; pointer-events: none; }
+.pv-dot { width: 3.5px; height: 3.5px; border-radius: 50%; flex: 0 0 auto; }
 `;

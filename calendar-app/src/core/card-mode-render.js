@@ -21,13 +21,28 @@ import {
   daysInMonth, weekOfYear, ganzhiYear,
 } from './date-utils.js';
 import { solarToLunarParts, LUNAR_DAY_CN, LUNAR_MONTH_CN } from './picker.js';
-import { getNextOccurrence } from './schedule.js';
+import { getNextOccurrence, getSchedulesOfDay } from './schedule.js';
+import { APPLE_COLORS } from './apple-ui.js';
 import { autoLayout, STYLE_OPT_FIELDS, styleFitsSize, SINGLE_CONTENTS, aliasContent } from './user-store.js';
 import { getNextHoliday, getNextSolarTerm, getNextFestival } from './highlights.js';
 import { getUserStore, getHolidayService } from './app-state.js';
 
 const WEEK_FULL_ZH = ['日', '一', '二', '三', '四', '五', '六'];
 const WEEK_MIN_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/**
+ * v3.38：月视图同款的「假期 / 日程」标记（小月历与拼接月、周日历共用）。
+ * 判定与 src/components/mainPage.js 月视图一致：
+ *   休息日 = 节假日 isOffDay，或周末且非调休上班；日程 = 该日日程（最多 3 个彩色圆点）。
+ * @returns {{isRest:boolean, dots:string[]}}
+ */
+function dayMarks(dateStr, date, scheds) {
+  const hol = getHolidayService()?.getHolidayInfo(dateStr) || null;
+  const weekend = date.getDay() === 0 || date.getDay() === 6;
+  const isRest = !!(hol && hol.isOffDay) || (weekend && !(hol && hol.isMakeupWorkday));
+  const items = scheds && scheds.length ? getSchedulesOfDay(scheds, dateStr) : [];
+  return { isRest, dots: items.slice(0, 3).map((s) => APPLE_COLORS[s.item.color] || APPLE_COLORS.red) };
+}
 
 /** 软禁用状态的锁图标（纯装饰，读屏忽略） */
 const LOCK_ICON = html`<svg class="se-lock" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3.4 5.2V3.9a2.6 2.6 0 015.2 0v1.3" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.3" y="5.2" width="7.4" height="5" rx="1.4" fill="currentColor" opacity=".8"/></svg>`;
@@ -848,18 +863,21 @@ function renderInfoBlockInner(o) {
         : 19;
       const side = (total - 1) / 2;
       const days = Array.from({ length: side * 2 + 1 }, (_, i) => addDays(now, i - side));
+      const wkScheds = getUserStore()?.getSchedules() || [];
       return html`<div class="pv-col">
         <div class="pv-wk" style="grid-template-columns:repeat(${days.length},1fr)">
           ${days.map((d) => {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
-    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d">${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span></div>`;
+    const mk = dayMarks(ds, d, wkScheds);
+    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d"${mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
         </div>
       </div>`;
     }
     // month：月日历（v1.32 回退：表头仍为「年月」，不再升级为完整日期）
     const cells = getMonthGrid(now.getFullYear(), now.getMonth() + 1, ws);
+    const moScheds = getUserStore()?.getSchedules() || [];
     const head = isZh
       ? `${now.getFullYear()}年${now.getMonth() + 1}月`
       : now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -869,7 +887,8 @@ function renderInfoBlockInner(o) {
         ${cells.map((cell) => {
     const ds = formatDate(cell.date);
     const isT = ds === todayStrV;
-    return html`<span class="pv-c ${cell.inMonth ? '' : 'out'} ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}">${cell.date.getDate()}</span>`;
+    const mk = dayMarks(ds, cell.date, moScheds);
+    return html`<span class="pv-c ${cell.inMonth ? '' : 'out'} ${isT ? 'today' : ''}${mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${mk.isRest ? theme : label3}`}">${cell.date.getDate()}${mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
   })}
       </div>
     </div>`;
@@ -1287,6 +1306,7 @@ function renderInfoBlockInner(o) {
     if (style === 'miniMonth') {
       const ac = accentOf(theme);
       const cells = getMonthGrid(now.getFullYear(), now.getMonth() + 1, ws);
+      const mmScheds = getUserStore()?.getSchedules() || [];
       const wdZh = ['日', '一', '二', '三', '四', '五', '六'];
       const wdEn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
       const wdOrder = Array.from({ length: 7 }, (_, i) => (isZh ? wdZh : wdEn)[(ws + i) % 7]);
@@ -1301,8 +1321,9 @@ function renderInfoBlockInner(o) {
     const isT = cell.date.getFullYear() === now.getFullYear()
       && cell.date.getMonth() === now.getMonth()
       && cell.date.getDate() === now.getDate();
-    const cls = `pv-mm-c${cell.inMonth ? '' : ' out'}${isT ? ' now' : ''}`;
-    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${label3}`}">${cell.date.getDate()}</span>`;
+    const mk = dayMarks(formatDate(cell.date), cell.date, mmScheds);
+    const cls = `pv-mm-c${cell.inMonth ? '' : ' out'}${isT ? ' now' : ''}${mk.isRest && !isT ? ' rest' : ''}`;
+    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${mk.isRest ? ac : label3}`}">${cell.date.getDate()}${mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
   })}</div>
       </div>`;
     }
