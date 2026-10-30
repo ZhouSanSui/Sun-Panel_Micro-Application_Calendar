@@ -432,6 +432,14 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-tg-pre, .pv-single-1xfull .pv-tg-unit { font-size: 0.5em; }
 .pv-single-1xfull .pv-tg-title { font-size: 0.9em; text-align: right; }
 .pv-single-1xfull .pv-tg-date { font-size: 0.85em; text-align: right; }
+/* v3.64 1×FULL 新排版：左=还有X天(上)+日期时间(下)；右=日程名(上)+备注(下)，无备注放大日程名 */
+.pv-single-1xfull .pv-tg-left { flex-direction: column; justify-content: center; gap: 0.5em; }
+.pv-single-1xfull .pv-tg-left-top { display: flex; align-items: baseline; gap: 0.28em; }
+.pv-single-1xfull .pv-tg-left-bottom { display: flex; align-items: baseline; gap: 0.5em; }
+.pv-single-1xfull .pv-tg-right { flex-direction: column; align-items: flex-end; justify-content: center; gap: 0.35em; text-align: right; }
+.pv-single-1xfull .pv-tg-note { font-size: 1.0em; text-align: right; width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 无备注 → 日程名放大 */
+.pv-single-1xfull .pv-tg-right.pv-tg-nonote .pv-tg-title { font-size: 2.4em; }
 .pv-single-1xfull .pv-hd-days { font-size: 2.6em; }
 .pv-single-1xfull .pv-hd-name { font-size: 0.9em; text-align: right; }
 .pv-single-1xfull .pv-hd-date { font-size: 0.7em; text-align: right; }

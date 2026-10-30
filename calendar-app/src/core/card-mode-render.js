@@ -596,7 +596,7 @@ function renderInfoBlockInner(o) {
         .filter((e) => e.n)
         .sort((a, b) => diffDays(a.n.date, b.n.date));
       if (!all.length) return null;
-      return { title: all[0].x.title || all[0].x.name || '', date: all[0].n.dateStr, time: all[0].x.time };
+      return { title: all[0].x.title || all[0].x.name || '', date: all[0].n.dateStr, time: all[0].x.time, note: all[0].x.note || '' };
     }
     const sel = opt.sched;
     if (!sel) return null;
@@ -619,7 +619,7 @@ function renderInfoBlockInner(o) {
         iso = `${thisY}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
       }
     }
-    return { title: hit.title || hit.name || '', date: iso, time: hit.time };
+    return { title: hit.title || hit.name || '', date: iso, time: hit.time, note: hit.note || '' };
   })();
   const accentOf = (fb) => (typeof opt.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(opt.color) ? opt.color : fb);  const pct = (p) => Math.max(0, Math.min(100, p)).toFixed(1);
   // v3.11：统一「统计粒度」进度 —— dial / semiGauge / battery 共用（用户要求这 3 个也能选年/月/周/日）。
@@ -1781,6 +1781,8 @@ function renderInfoBlockInner(o) {
       const ac = accentOf(theme);
       const title = (schedPick && schedPick.title) || (typeof opt.text === 'string' && opt.text ? opt.text : (isZh ? '目标日' : 'Target'));
       const iso = (schedPick && schedPick.date) || (typeof opt.date === 'string' ? opt.date : '');
+      // v3.64：关联日程的备注（无备注时右侧日程名放大）
+      const note = (schedPick && schedPick.note) ? schedPick.note : '';
       // v3.56：关联日程时显示其具体时间（手动目标日 / 无时间则不显示）
       const schedTime = (schedPick && schedPick.time) ? String(schedPick.time).slice(0, 5) : '';
       const is2x1 = o.size === '2x1';
@@ -1796,22 +1798,45 @@ function renderInfoBlockInner(o) {
         ? html`<span class="pv-tg-y">${iso.slice(0, 4)}</span><span class="pv-tg-md">${iso.slice(5)}</span>`
         : iso;
       const timeNode = schedTime ? html`<span class="pv-tg-time" style="color:${label3}">${isFull ? ` ${schedTime}` : schedTime}</span>` : '';
-      return html`<div class="pv-col pv-tg">
-        ${left === null
-    ? html`<div class="pv-sub" style="color:${label3}">${isZh ? '未设置目标日' : 'No target date'}</div>`
-    : html`<div class="pv-tg-left">
-            <div class="pv-center">
-              <span class="pv-tg-pre" style="color:${label3}">${left >= 0 ? (isZh ? '还有' : 'in') : (isZh ? '已过' : 'over')}</span>
+      const preTxt = left >= 0 ? (isZh ? '还有' : 'in') : (isZh ? '已过' : 'over');
+      const unitTxt = isZh ? '天' : Math.abs(left) === 1 ? 'day' : 'days';
+      if (left === null) {
+        return html`<div class="pv-col pv-tg">
+          <div class="pv-sub" style="color:${label3}">${isZh ? '未设置目标日' : 'No target date'}</div>
+        </div>`;
+      }
+      // v3.64：1×FULL 新排版 —— 左：还有X天(上) + 日期时间(下)；右：日程名(上) + 备注(下)，无备注则放大日程名
+      if (isFull) {
+        return html`<div class="pv-col pv-tg pv-tg-full">
+          <div class="pv-tg-left">
+            <div class="pv-tg-left-top">
+              <span class="pv-tg-pre" style="color:${label3}">${preTxt}</span>
               <span class="pv-tg-days" style="color:${ac}">${Math.abs(left)}</span>
-              <span class="pv-tg-unit" style="color:${label3}">${isZh ? '天' : Math.abs(left) === 1 ? 'day' : 'days'}</span>
+              <span class="pv-tg-unit" style="color:${label3}">${unitTxt}</span>
+            </div>
+            <div class="pv-tg-left-bottom">
+              <span class="pv-tg-date" style="color:${label3}">${iso}</span>${timeNode}
             </div>
           </div>
-          <div class="pv-tg-right">
+          <div class="pv-tg-right ${note ? '' : 'pv-tg-nonote'}">
             <div class="pv-tg-title" style="color:${label2}">${title}</div>
-            ${isFull
-    ? html`<div class="pv-tg-date" style="color:${label3}">${date2x1}${timeNode}</div>`
-    : html`<div class="pv-tg-date" style="color:${label3}">${date2x1}</div>${timeNode}`}
-          </div>`}
+            ${note ? html`<div class="pv-tg-note" style="color:${label3}">${note}</div>` : ''}
+          </div>
+        </div>`;
+      }
+      // 非 1×FULL：维持原结构（左=天数组，右=标题 + 目标日/时分）
+      return html`<div class="pv-col pv-tg">
+        <div class="pv-tg-left">
+          <div class="pv-center">
+            <span class="pv-tg-pre" style="color:${label3}">${preTxt}</span>
+            <span class="pv-tg-days" style="color:${ac}">${Math.abs(left)}</span>
+            <span class="pv-tg-unit" style="color:${label3}">${unitTxt}</span>
+          </div>
+        </div>
+        <div class="pv-tg-right">
+          <div class="pv-tg-title" style="color:${label2}">${title}</div>
+          <div class="pv-tg-date" style="color:${label3}">${date2x1}</div>${timeNode}
+        </div>
       </div>`;
     }
     // recentEvent：最近事项列表
