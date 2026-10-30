@@ -434,10 +434,12 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-tg-date { font-size: 0.85em; text-align: right; }
 /* v3.64 1×FULL 新排版：左=还有X天(上)+日期时间(下)；右=日程名(上)+备注(下)，无备注放大日程名 */
 /* v3.65：缩小「还有X天」与日期时间的间距；日程名/备注左侧对齐；整体居中 */
-.pv-single-1xfull .pv-tg-left { flex-direction: column; justify-content: center; gap: 0.15em; }
-.pv-single-1xfull .pv-tg-left-top { display: flex; align-items: baseline; gap: 0.28em; }
-.pv-single-1xfull .pv-tg-left-bottom { display: flex; align-items: baseline; gap: 0.5em; }
-.pv-single-1xfull .pv-tg-right { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.35em; text-align: left; }
+/* v3.66：两组作为「一个整体」居中，组间 3px 重叠（gap 归零 + 右组左移 3px） */
+.pv-single-1xfull .pv-tg { gap: 0; }
+.pv-single-1xfull .pv-tg-left { flex-direction: column; justify-content: center; gap: 0.15em; align-items: center; }
+.pv-single-1xfull .pv-tg-left-top { display: flex; align-items: baseline; gap: 0.28em; justify-content: center; }
+.pv-single-1xfull .pv-tg-left-bottom { display: flex; align-items: baseline; gap: 0.5em; justify-content: center; }
+.pv-single-1xfull .pv-tg-right { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.35em; text-align: left; margin-left: -3px; }
 .pv-single-1xfull .pv-tg-note { font-size: 1.0em; text-align: left; width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* 无备注 → 日程名放大 */
 .pv-single-1xfull .pv-tg-right.pv-tg-nonote .pv-tg-title { font-size: 2.4em; }
