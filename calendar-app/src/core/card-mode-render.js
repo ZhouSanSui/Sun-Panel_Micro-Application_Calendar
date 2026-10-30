@@ -428,6 +428,15 @@ const SCH_NAME_MIN_PX = 12;
 /** 日程名基础字号（em）与行高 —— 仅用于「按下限抬高后反推行高」，须与 CSS 一致 */
 const SCH_NAME_EM = 0.75;
 const SCH_NAME_LINE_H = 1.2;
+/**
+ * v3.70：右侧元信息（日期时间 / 剩余天数）的字号下限 = 日程名下限 - 2 = **10px**。
+ * 低 2px 是层级需要：元信息属次级信息，视觉重量应弱于主信息（日程名），但同样不能跌破可识别线。
+ * 与 CSS 的 .pv-sch-list .pv-sch-meta / .pv-sch-days 必须**双向同步**。
+ */
+const SCH_META_MIN_PX = 10;
+/** 元信息基础字号（em）：宽档=日期时间 0.5em；窄档=剩余天数 0.66em（v3.69：比日期串短，故放大一档） */
+const SCH_META_EM_WIDE = 0.5;
+const SCH_DAYS_EM_NARROW = 0.66;
 
 /**
  * 取内容固有尺寸（未声明回退到内容默认，再回退到通用值）。
@@ -1081,8 +1090,14 @@ function renderInfoBlockInner(o) {
       // 实际行高」重算 maxRows，本质是以「减少显示条数」换取「名字可读」。
       const uPx = Number.isFinite(o.blockU) ? o.blockU : 0;
       const nameEm = uPx > 0 ? Math.max(SCH_NAME_EM, SCH_NAME_MIN_PX / uPx) : SCH_NAME_EM;
+      // v3.70：右侧元信息同样有 10px 下限（比日程名低 2px 以拉开层级），行高也要随之抬高
+      const metaBaseEm = wide ? SCH_META_EM_WIDE : SCH_DAYS_EM_NARROW;
+      const metaEm = uPx > 0 ? Math.max(metaBaseEm, SCH_META_MIN_PX / uPx) : metaBaseEm;
       const nameRowH = nameEm * SCH_NAME_LINE_H;
-      const rowH = wide ? Math.max(SCH_ROW_H_WIDE, nameRowH) : Math.max(SCH_ROW_H_NARROW, nameRowH);
+      const metaRowH = metaEm * SCH_NAME_LINE_H;
+      const rowH = wide
+        ? Math.max(SCH_ROW_H_WIDE, nameRowH, metaRowH)
+        : Math.max(SCH_ROW_H_NARROW, nameRowH, metaRowH);
       // 行数按「实测行高 + 行距」折算；上限取「可显示条数」与「高度可容纳条数」的较小值，
       // 避免日程不足时强塞空行、又能在够高时多显示。（溢出保护逻辑不变）
       const maxRows = Math.max(1, Math.min(20,

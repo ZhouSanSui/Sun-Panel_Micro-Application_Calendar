@@ -36,8 +36,11 @@ export const CARD_MODE_CSS = `
    占格调小时不再无限缩小字号，改为「少显示几行」来保可读性。
    ★ 必须与 card-mode-render.js 的 SCH_NAME_MIN_PX / SCH_NAME_EM 双向同步 */
 .pv-sch-list .pv-sch-name { font-size: max(12px, 0.75em); }
-/* 窄布局（占格 <4）右侧只显示剩余天数：比日期串短，放大一档与日程名的视觉重量匹配 */
-.pv-sch-row .pv-sch-days { font-size: 0.66em; font-weight: 600; }
+/* 窄布局（占格 <4）右侧只显示剩余天数：比日期串短，放大一档与日程名的视觉重量匹配。
+   v3.70：与日期时间一样加 10px 下限（= 日程名下限 12px - 2，次级信息略弱于主信息）。 */
+.pv-sch-row .pv-sch-days { font-size: max(10px, 0.66em); font-weight: 600; }
+/* 宽布局右侧「日期 + 时间」。v3.70：同样加 10px 下限，★ 须与 JS 的 SCH_META_MIN_PX 同步 */
+.pv-sch-list .pv-sch-meta { font-size: max(10px, 0.5em); }
 .pv-sub { font-size: 0.66em; line-height: 1.3; }
 .pv-tight .pv-sub { display: none; }
 .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }
