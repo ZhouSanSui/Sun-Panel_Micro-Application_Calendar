@@ -969,7 +969,7 @@ function renderInfoBlockInner(o) {
     const wdOrder = Array.from({ length: 7 }, (_, i) => (isZh ? wdShortZh : wdShortEn)[(ws + i) % 7]);
     return html`<div class="pv-col">
       <div class="pv-cal-head pv-row2" style="color:${label2}">${head}</div>
-      ${o.showCalWd === false ? '' : html`<div class="pv-mm-wd">${wdOrder.map((w) => html`<i style="color:${label3}">${w}</i>`)}</div>`}
+      <div class="pv-mm-wd">${wdOrder.map((w) => html`<i style="color:${label3}">${w}</i>`)}</div>
       <div class="pv-mini-grid">
         ${cells.map((cell) => {
     const ds = formatDate(cell.date);
@@ -2545,11 +2545,6 @@ export function renderBlocksHTML(o) {
       blockU: u,
       // v3.79：多段日期样式的最优行数（>1 → 用紧凑文案：年份取两位、星期省掉「周」字）
       multiRows,
-      // v3.79：月历格阵星期表头的显示门控。
-      // 只在**极小卡**（1×1/1×2/2×1，块宽 <120px）隐藏：这些卡 96px 高要塞 8 行
-      // （7 行日期 + 表头），每行 12px、字号必然 < 5.5px 触发 audit SUB，物理上无解。
-      // 单独模式不传此参数 → 默认显示。
-      showCalWd: blockW >= 120,
       // v3.3：窄块（宽 < 高）即使没到 2 倍，日期串也会被挤成三行 —— 显式两行，避免与预览观感不一致
       narrow: blockW < blockH,
       // v1.44：窄块（<150px）日期串年份降为两位，给「数值+单位」留同排空间
