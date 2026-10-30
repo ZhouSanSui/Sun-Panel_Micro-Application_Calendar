@@ -343,7 +343,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
   })).join('');
   const cells = (monthLine.match(/pv-wk-cell/g) || []).length;
   ok(cells === 19, `单行月历应显示 19 天（实际 ${cells}）`);
-  ok(monthLine.includes('repeat(19,1fr)'), '单行月历应为 19 列网格');
+  ok(monthLine.includes('repeat(19, minmax(0, 1fr))'), '单行月历应为 19 列网格（minmax 防溢出）');
   const todayIdx = monthLine.indexOf('class="pv-wk-cell today"');
   ok(todayIdx > 0, '单行月历应标记今日');
   // 今日应在水平正中（第 10 格，前后各 9 天）
@@ -378,7 +378,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
   ok(cnt(narrow) >= 3, `默认空间至少显示 3 条（实际 ${cnt(narrow)}）`);
   ok(cnt(tall) <= 8, '条目数应受上限约束');
   ok(!narrow.includes('月') || !/\d+月\d+日/.test(narrow), '横向空间不足时不显示具体日期');
-  ok(/\d+月\d+日/.test(wide), '横向空间足够时应显示具体日期');
+  ok(/\d{2}-\d{2}-\d{2}/.test(wide), '横向空间足够时应显示具体日期（YY-MM-DD）');
 }
 
 // ---------- 7) v1.31 八条需求回归断言 ----------
@@ -423,7 +423,7 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     const single = fl(mkBlock({
       content: 'calendar', style: 'month', span: { cols: 6, rows: 2 }, opts: { singleLine: true },
     }));
-    ok(single.includes('repeat(19,1fr)'), '单行月历默认 19 列');
+    ok(single.includes('repeat(19, minmax(0, 1fr))'), '单行月历默认 19 列（minmax 防溢出）');
     // 动态天数：块越宽显示越多（今日居中 → 奇数）
     ok(singleLineDays(1056, 96) > singleLineDays(422, 96),
       `月历单行天数应随宽度增加（1056px=${singleLineDays(1056, 96)} / 422px=${singleLineDays(422, 96)}）`);
@@ -439,8 +439,8 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     ok(wide.includes('pv-sch-row'), 'cols>=4 的多日程应使用「日程名 + 两行小字」布局');
     ok(wide.includes('pv-sch-name'), '多日程宽布局应含日程名节点');
     ok(wide.includes('pv-sch-meta'), '多日程宽布局应含右侧元信息节点');
-    ok(wide.includes('pv-sch-date') && wide.includes('pv-sch-time'),
-      '多日程宽布局应有「年月日」与「时分秒」两行');
+    ok(wide.includes('pv-sch-meta') && /\d{2}-\d{2}-\d{2}/.test(wide),
+      '多日程宽布局应含「YY-MM-DD」日期元信息（v3.56 改为紧凑单行日期）');
     const narrow = fl(mkBlock({
       content: 'schedule', style: 'multiple', span: { cols: 2, rows: 2 },
     }));

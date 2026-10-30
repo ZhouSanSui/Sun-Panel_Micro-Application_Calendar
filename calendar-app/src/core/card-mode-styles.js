@@ -18,7 +18,7 @@ export const CARD_MODE_CSS = `
 .pv-row2 { font-size: 0.82em; font-weight: 600; }
 .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; width: 100%; }
 .pv-sch-name { font-size: 0.75em; font-weight: 600; line-height: 1.2; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pv-sch-meta { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; font-size: 0.5em; line-height: 1.2; white-space: nowrap; }
+.pv-sch-meta { display: flex; flex-direction: row; align-items: center; flex: 0 0 auto; font-size: 0.5em; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pv-sch-line { line-height: 1.25; }
 .pv-sch-date { opacity: 0.95; }
 .pv-sch-time { opacity: 0.8; }
@@ -30,10 +30,11 @@ export const CARD_MODE_CSS = `
 .pv-flip { display: inline-flex; gap: 0.25em; align-items: center; }
 .pv-flip-box { font-size: 1.375em; font-weight: 800; padding: 0.25em 0.5em; border-radius: 0.375em; font-variant-numeric: tabular-nums; }
 .pv-ap { font-size: 0.6875em; font-weight: 600; }
-.pv-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; }
-.pv-wk-cell { display: flex; flex-direction: column; align-items: center; border-radius: 0.375em; padding: 0.1875em 0; }
-.pv-wk-d { font-size: 0.75em; font-weight: 600; }
-.pv-wk-w { font-size: 0.5em; }
+/* v3.57：周历网格改用 minmax(0,1fr)，窄块（拼接多列）下不会再因内容最小宽溢出而裁切右侧星期 */
+.pv-wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.125em; }
+.pv-wk-cell { display: flex; flex-direction: column; align-items: center; border-radius: 0.375em; padding: 0.1875em 0; min-width: 0; }
+.pv-wk-d { font-size: 0.75em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pv-wk-w { font-size: 0.5em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pv-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.125em; margin-top: 0; }
 .pv-vstack { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 0.1875em; container-type: inline-size; }
 .pv-vstack.t { gap: 0.125em; }
@@ -229,6 +230,7 @@ export const CARD_MODE_CSS = `
 .pv-tg-pre, .pv-tg-unit { font-size: 0.5em; }
 .pv-tg-days { font-size: 2.5em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-tg-date { font-size: 0.66em; letter-spacing: 0.03em; white-space: nowrap; }
+.pv-tg-time { font-size: 0.5em; opacity: 0.82; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* multiBars：多条进度 */
 .pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
 /* v3.10 1×FULL：原来 4 条挤成一行，标签(1.7em)+百分比(3.1em) 两个定宽块吃掉大半，
@@ -437,7 +439,7 @@ export const CARD_MODE_CSS = `
 .pv-mm { width: 100%; height: 100%; gap: 0.16em; justify-content: center; }
 .pv-mm-head { flex: 0 0 auto; font-size: 0.46em; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
 .pv-mm-wd { flex: 0 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.06em; font-size: 0.38em; font-weight: 700; text-align: center; line-height: 1.2; }
-.pv-mm-wd i { font-style: normal; }
+.pv-mm-wd i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-mm-grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 0.06em; }
 .pv-mm-c { display: flex; align-items: center; justify-content: center; font-size: 0.44em; font-weight: 600; line-height: 1; border-radius: 0.26em; font-variant-numeric: tabular-nums; }
 .pv-mm-c.out { opacity: 0.26; }
@@ -583,12 +585,15 @@ export const CARD_MODE_CSS = `
 .pv-fnx-v { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 1.05em; font-weight: 800; line-height: 1.08; white-space: nowrap; }
 .pv-fnx-d { flex: 0 0 auto; font-size: 0.72em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* ⑥ verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」 */
-.pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: center; gap: 0.14em; }
-.pv-vl-head { flex: 0 0 auto; font-size: 0.66em; font-weight: 700; }
-.pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; }
-.pv-vl-row { flex: 1 1 0; min-height: 0; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); }
-.pv-vl-row span { flex: 0 0 auto; font-size: 0.62em; font-variant-numeric: tabular-nums; }
+/* ⑥ verticalList 纵向日程表：列出全部日程，可上下拖动滚动；标题旁「回到顶部」按钮复位 */
+.pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: flex-start; gap: 0.14em; min-height: 0; }
+.pv-vl-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 0.4em; font-size: 0.66em; font-weight: 700; }
+.pv-vl-top { flex: 0 0 auto; appearance: none; border: 0.08em solid color-mix(in srgb, currentColor 22%, transparent); background: transparent; color: inherit; opacity: 0.7; font: inherit; font-size: 0.92em; font-weight: 700; line-height: 1; padding: 0.18em 0.5em; border-radius: 0.5em; cursor: pointer; }
+.pv-vl-top:hover { opacity: 1; }
+.pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; overflow-y: auto; overscroll-behavior: contain; touch-action: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.pv-vl-list::-webkit-scrollbar { display: none; }
+.pv-vl-row { flex: 0 0 auto; min-height: 1.3em; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); }
+.pv-vl-row span { flex: 0 0 auto; font-size: 0.62em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.86em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-vl-next { flex: 0 0 auto; font-size: 0.54em; font-weight: 700; white-space: nowrap; }
 

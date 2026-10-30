@@ -149,9 +149,10 @@ const CONTENT_FIT = {
     // v1.40：recent 同属倒数型，flat/tall 同源（仅 recent 触发，multiple 不劫持）
     __flat: { w: 6.97, wEn: 8.95, h: 2.79 },
     __tall: { w: 3.47, wEn: 4.98, h: 5.64 },
-    multiple: { w: 6.6, wEn: 8.0, h: 3.7 },
-    // 占格水平 ≥4：日期（≈7.9em/0.5em 字号）+ 日程名，两行小字版
-    multipleWide: { w: 11.0, wEn: 12.0, h: 3.4 },
+    // v3.56：日期改为 YY-MM-DD HH:MM（带时间约 6em/0.5em 字号），放宽固有宽避免裁切
+    multiple: { w: 8.4, wEn: 9.2, h: 3.7 },
+    // 占格水平 ≥4：日程名（左）+ 紧凑日期时间（右），单行
+    multipleWide: { w: 12.0, wEn: 13.0, h: 3.4 },
     // v3.14 合并遗留：节日卡 / 假期倒计时从 important 并入 schedule，固有尺寸必须跟着搬 ——
     // 否则 fitFor 回落到 schedule.__default（5.0×4.0），与实测（important.holiday 5.4×4.0）
     // 差 7%，单独模式基准字号（v3.15 起由 fitFor 解算）会系统性偏小。
@@ -594,7 +595,7 @@ function renderInfoBlockInner(o) {
         .filter((e) => e.n)
         .sort((a, b) => diffDays(a.n.date, b.n.date));
       if (!all.length) return null;
-      return { title: all[0].x.title || all[0].x.name || '', date: all[0].n.dateStr };
+      return { title: all[0].x.title || all[0].x.name || '', date: all[0].n.dateStr, time: all[0].x.time };
     }
     const sel = opt.sched;
     if (!sel) return null;
@@ -617,7 +618,7 @@ function renderInfoBlockInner(o) {
         iso = `${thisY}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
       }
     }
-    return { title: hit.title || hit.name || '', date: iso };
+    return { title: hit.title || hit.name || '', date: iso, time: hit.time };
   })();
   const accentOf = (fb) => (typeof opt.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(opt.color) ? opt.color : fb);  const pct = (p) => Math.max(0, Math.min(100, p)).toFixed(1);
   // v3.11：统一「统计粒度」进度 —— dial / semiGauge / battery 共用（用户要求这 3 个也能选年/月/周/日）。
@@ -877,7 +878,7 @@ function renderInfoBlockInner(o) {
       const days = Array.from({ length: side * 2 + 1 }, (_, i) => addDays(now, i - side));
       const wkScheds = getUserStore()?.getSchedules() || [];
       return html`<div class="pv-col">
-        <div class="pv-wk" style="grid-template-columns:repeat(${days.length},1fr)">
+        <div class="pv-wk" style="grid-template-columns:repeat(${days.length}, minmax(0, 1fr))">
           ${days.map((d) => {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
@@ -1042,68 +1043,63 @@ function renderInfoBlockInner(o) {
 
   // ---------- 拼接：日程（仅拼接模式；单独模式的日程样式在下方「单独：日程」分支）----------
   if (!o.singleRow && content === 'schedule') {
-    if (style === 'multiple') {
-      // 按块内可用空间自适应：横向够宽时补具体日期，纵向够高时多显示几条
-      const availW = Number.isFinite(o.availW) ? o.availW : 8;
-      const availH = Number.isFinite(o.availH) ? o.availH : 6;
-      const wide = !!(o.opts && o.opts.wide);
-      const withDate = availW >= 13;
-      const withWeek = availW >= 17;
-      // v1.34 需求 3：行数按「实测行高 + 行距」折算（旧公式固定除 1.3em，对宽布局
-      // 行高 1.25em 估算不足 → 末行被裁）。总高 = n×rowH + (n-1)×gap ≤ availH - 余量。
-      const rowH = wide ? SCH_ROW_H_WIDE : SCH_ROW_H_NARROW;
-      const rows = Math.max(1, Math.min(8,
-        Math.floor((availH - SCH_ROWS_RESERVE + SCH_ROW_GAP) / (rowH + SCH_ROW_GAP))));
-      const top = upcoming.slice(0, rows);
-      if (!top.length) return empty(isZh ? '暂无日程' : 'No schedules');
-      // 剩余空间匀进行距（单侧增量有上限），避免列表顶部堆叠、底部留大洞
-      const contentH = rows * rowH + (rows - 1) * SCH_ROW_GAP;
-      const extra = rows > 1
-        ? Math.min(SCH_GAP_MAX_EXTRA, Math.max(0, availH - SCH_ROWS_RESERVE - contentH) / (rows - 1))
-        : 0;
-      const gapEm = (SCH_ROW_GAP + extra).toFixed(3);
-      // 占格水平 ≥4：日程名在左，右侧缩小的「年月日 / 时分秒」两行
-      // （wide 由 renderBlocksHTML 并入 opts，见该处 SCH_MULTI_WIDE_COLS 判定）
-      if (wide) {
+      if (style === 'multiple') {
+        // 按块内可用空间自适应：横向够宽时补具体日期，纵向够高时多显示几条
+        const availW = Number.isFinite(o.availW) ? o.availW : 8;
+        const availH = Number.isFinite(o.availH) ? o.availH : 6;
+        const wide = !!(o.opts && o.opts.wide);
+        // v3.56：日期格式与纵向日程表一致 → YY-MM-DD HH:MM（无时间只显示日期），不再带星期
+        const p2 = (n) => String(n).padStart(2, '0');
+        const metaOf = (item, next) => {
+          const d = next.date;
+          const dt = `${String(d.getFullYear()).slice(-2)}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+          const t = item.time ? String(item.time).slice(0, 5) : '';
+          return t ? `${dt} ${t}` : dt;
+        };
+        // meta 估算宽度（em）：数字/标点约 0.42em/字，含时间比无时间宽
+        const metaEm = (item) => (item.time ? (isZh ? 5.8 : 6.2) : (isZh ? 4.4 : 4.8));
+        const rowH = wide ? SCH_ROW_H_WIDE : SCH_ROW_H_NARROW;
+        // 行数按「实测行高 + 行距」折算；上限取「可显示条数」与「高度可容纳条数」的较小值，
+        // 避免日程不足时强塞空行、又能在够高时多显示。
+        const maxRows = Math.max(1, Math.min(20,
+          Math.floor((availH - SCH_ROWS_RESERVE + SCH_ROW_GAP) / (rowH + SCH_ROW_GAP))));
+        const top = upcoming.slice(0, maxRows);
+        if (!top.length) return empty(isZh ? '暂无日程' : 'No schedules');
+        const rows = top.length;
+        // 剩余空间匀进行距（单侧增量有上限），填满高度、避免底部留洞
+        const contentH = rows * rowH + (rows - 1) * SCH_ROW_GAP;
+        const extra = rows > 1
+          ? Math.min(SCH_GAP_MAX_EXTRA, Math.max(0, availH - SCH_ROWS_RESERVE - contentH) / (rows - 1))
+          : 0;
+        const gapEm = (SCH_ROW_GAP + extra).toFixed(3);
+        if (wide) {
+          return html`<div class="pv-col" style="gap:${gapEm}em">
+            ${top.map(({ item, next }) => {
+      // 标题可容纳字符数：可用宽 - 右侧 meta 预留（em），再按名称字号（≈0.72em）折算
+      const keep = Math.max(3, Math.min(30, Math.floor((availW - metaEm(item)) / 0.72)));
+      const title = item.title.length > keep ? `${item.title.slice(0, keep)}…` : item.title;
+      return html`<div class="pv-sch-row">
+              <span class="pv-sch-name" style="color:${label}">${title}</span>
+              <span class="pv-sch-meta" style="color:${label3}">${metaOf(item, next)}</span>
+            </div>`;
+  })}
+          </div>`;
+        }
         return html`<div class="pv-col" style="gap:${gapEm}em">
           ${top.map(({ item, next }) => {
-    const dateTxt = isZh
-      ? `${next.date.getFullYear()}年${next.date.getMonth() + 1}月${next.date.getDate()}日`
-      : next.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    const timeTxt = item.time || (isZh ? '全天' : 'All day');
-    // 标题可容纳字符数：availW - 右侧 meta 预留（实测 meta 两行最宽≈3.72em：zh「2026年10月22日」
-    // 9 字符 @0.5em + gap 0.5em + 0.6em 安全余量；旧值 7.5em 为 meta 改两行前的预留，过保守）
-    const keep = Math.max(3, Math.min(24, Math.floor((availW - 4.8) / 0.75)));
-    const title = item.title.length > keep ? `${item.title.slice(0, keep)}…` : item.title;
-    return html`<div class="pv-sch-row">
-              <span class="pv-sch-name" style="color:${label}">${title}</span>
-              <span class="pv-sch-meta" style="color:${label3}">
-                <span class="pv-sch-date">${dateTxt}</span>
-                <span class="pv-sch-time">${timeTxt}</span>
-              </span>
+      const d = diffDays(next.date, now);
+      const meta = metaOf(item, next);
+      // 标题可容纳字符数：可用宽 - 日期占位 - 倒计时占位（≈2.4em），按名称字号折算
+      const units = availW / 0.72;
+      const keep = Math.max(3, Math.min(26, Math.floor(units - metaEm(item) / 0.72 - 2.4)));
+      const left = keep;
+      const title = item.title.length > left ? `${item.title.slice(0, left)}…` : item.title;
+      return html`<div class="pv-row2 pv-sch-line" style="color:${label}">
+              ${meta ? html`<span style="color:${label3}">${meta}</span> ` : ''}${title} <b style="color:${theme}">${d === 0 ? TODAY : `${d}${DAYS}`}</b>
             </div>`;
   })}
         </div>`;
       }
-      return html`<div class="pv-col" style="gap:${gapEm}em">
-        ${top.map(({ item, next }) => {
-    const d = diffDays(next.date, now);
-    const dateTxt = withDate
-      ? (isZh
-        ? `${next.date.getMonth() + 1}月${next.date.getDate()}日${withWeek ? ` 周${WEEK_FULL_ZH[next.date.getDay()]}` : ''}`
-        : `${next.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${withWeek ? ` ${WEEK_MIN_EN[next.date.getDay()]}` : ''}`)
-      : '';
-    // 标题可容纳字符数：按行字号（0.75em）折算，带日期时再减去日期占位
-    const units = availW / 0.75;
-    const keep = withDate ? Math.floor(units - 8) : Math.floor(units * 0.9);
-    const left = Math.max(3, Math.min(20, keep));
-    const title = item.title.length > left ? `${item.title.slice(0, left)}…` : item.title;
-    return html`<div class="pv-row2 pv-sch-line" style="color:${label}">
-            ${dateTxt ? html`<span style="color:${label3}">${dateTxt}</span> ` : ''}${title} <b style="color:${theme}">${d === 0 ? TODAY : `${d}${DAYS}`}</b>
-          </div>`;
-  })}
-      </div>`;
-    }
     // recent：最近日程
     const first = upcoming[0];
     if (!first) return empty(isZh ? '暂无日程' : 'No schedules');
@@ -1647,34 +1643,57 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
 
-    // ⑥ schedule.verticalList 纵向日程表（2×1）：每行「时间（左）+ 事件名（右）」，条数按高度定
+    // ⑥ schedule.verticalList 纵向日程表：列出全部日程，可上下拖动滚动；标题旁「回到顶部」按钮复位
     if (style === 'verticalList') {
       const ac = accentOf(theme);
-      // v3.21：2×2 / 2×4 / 4×4 每行同时显示「日期 + 时间」，并移除「下一项」标签（用户要求）
-      const showDate = o.size === '2x2' || o.size === '2x4' || o.size === '4x4';
+      // v3.21：2×2 / 2×4 / 4×4 每行同时显示「日期 + 时间」；v3.56：日期加两位年 → YY-MM-DD HH:MM
+      // 2×1 完全不显示时间（仅日程名）
+      const showMeta = o.size === '2x2' || o.size === '2x4' || o.size === '4x4';
       const list = (getUserStore()?.getSchedules() || [])
         .map((item) => ({ item, next: getNextOccurrence(item, now) }))
         .filter((x) => x.next)
         .sort((a, b) => diffDays(a.next.date, b.next.date));
       if (!list.length) return empty(isZh ? '暂无日程' : 'No schedules');
-      // 条数由高度决定（v312 规格 §8.2）：2×1 内容盒高 13.935em，每行 1.35em
-      const availH2 = Number(o.availH);
-      const nRows = Number.isFinite(availH2) && availH2 > 0
-        ? Math.max(2, Math.min(5, Math.floor((availH2 - 1.4) / 1.35)))
-        : 3;
-      const rows = list.slice(0, nRows);
-      const timeOf = (r) => (r.item.time ? String(r.item.time).slice(0, 5) : '');
-      const dateOf = (r) => { const d = r.next.date; return `${d.getMonth() + 1}/${d.getDate()}`; };
+      const p2 = (n) => String(n).padStart(2, '0');
+      const metaOf = (r) => {
+        const d = r.next.date;
+        const dt = `${String(d.getFullYear()).slice(-2)}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+        const t = r.item.time ? String(r.item.time).slice(0, 5) : '';
+        return t ? `${dt} ${t}` : dt;
+      };
+      // 拖动滚动：记录起点，move 时按位移反向滚动（触摸式）
+      const onVlDown = (e) => {
+        const sc = e.currentTarget;
+        sc._vy = e.clientY; sc._vtop = sc.scrollTop;
+        try { sc.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      };
+      const onVlMove = (e) => {
+        const sc = e.currentTarget;
+        if (sc._vy == null) return;
+        sc.scrollTop = sc._vtop - (e.clientY - sc._vy);
+      };
+      const onVlUp = (e) => { e.currentTarget._vy = null; };
+      // 回到顶部：滚动容器回到最近日程
+      const onVlTop = (e) => {
+        const sc = e.currentTarget.closest('.pv-vl') && e.currentTarget.closest('.pv-vl').querySelector('.pv-vl-list');
+        if (sc) sc.scrollTop = 0;
+      };
+      const topLabel = isZh ? '顶部' : 'Top';
       return html`<div class="pv-col pv-vl">
-        <div class="pv-vl-head" style="color:${label3}">${isZh ? `今日 ${rows.length} 项` : `${rows.length} today`}</div>
-        <div class="pv-vl-list">${rows.map((r, i) => {
+        <div class="pv-vl-head" style="color:${label3}">
+          <span>${isZh ? `今日 ${list.length} 项` : `${list.length} today`}</span>
+          <button class="pv-vl-top" @click=${onVlTop} title="${isZh ? '回到最近日程' : 'Back to top'}">${topLabel}</button>
+        </div>
+        <div class="pv-vl-list" @pointerdown=${onVlDown} @pointermove=${onVlMove} @pointerup=${onVlUp} @pointercancel=${onVlUp}>
+          ${list.map((r, i) => {
     const nm = r.item.title || r.item.name || '';
-    const left = showDate ? `${dateOf(r)} ${timeOf(r)}` : timeOf(r);
+    const left = showMeta ? metaOf(r) : '';
     return html`<div class="pv-vl-row">
-            <span style="color:${i === 0 ? ac : label3}">${left}</span>
-            <b style="color:${i === 0 ? label : label2}">${nm}</b>
-          </div>`;
-  })}</div>
+              ${left ? html`<span style="color:${i === 0 ? ac : label3}">${left}</span>` : ''}
+              <b style="color:${i === 0 ? label : label2}">${nm}</b>
+            </div>`;
+  })}
+        </div>
       </div>`;
     }
 
@@ -1685,7 +1704,10 @@ function renderInfoBlockInner(o) {
       const ac = accentOf(theme);
       const title = (schedPick && schedPick.title) || (typeof opt.text === 'string' && opt.text ? opt.text : (isZh ? '目标日' : 'Target'));
       const iso = (schedPick && schedPick.date) || (typeof opt.date === 'string' ? opt.date : '');
+      // v3.56：关联日程时显示其具体时间（手动目标日 / 无时间则不显示）
+      const schedTime = (schedPick && schedPick.time) ? String(schedPick.time).slice(0, 5) : '';
       const is2x1 = o.size === '2x1';
+      const isFull = o.size === '1xfull';
       let left = null;
       if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
         const [y, m, d] = iso.split('-').map(Number);
@@ -1696,6 +1718,7 @@ function renderInfoBlockInner(o) {
       const date2x1 = is2x1 && /^\d{4}-\d{2}-\d{2}$/.test(iso)
         ? html`<span class="pv-tg-y">${iso.slice(0, 4)}</span><span class="pv-tg-md">${iso.slice(5)}</span>`
         : iso;
+      const timeNode = schedTime ? html`<span class="pv-tg-time" style="color:${label3}">${isFull ? ` ${schedTime}` : schedTime}</span>` : '';
       return html`<div class="pv-col pv-tg">
         ${left === null
     ? html`<div class="pv-sub" style="color:${label3}">${isZh ? '未设置目标日' : 'No target date'}</div>`
@@ -1708,7 +1731,9 @@ function renderInfoBlockInner(o) {
           </div>
           <div class="pv-tg-right">
             <div class="pv-tg-title" style="color:${label2}">${title}</div>
-            <div class="pv-tg-date" style="color:${label3}">${date2x1}</div>
+            ${isFull
+    ? html`<div class="pv-tg-date" style="color:${label3}">${date2x1}${timeNode}</div>`
+    : html`<div class="pv-tg-date" style="color:${label3}">${date2x1}</div>${timeNode}`}
           </div>`}
       </div>`;
     }

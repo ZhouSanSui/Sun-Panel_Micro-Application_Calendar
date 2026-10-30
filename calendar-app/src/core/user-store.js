@@ -871,9 +871,17 @@ export function autoLayout(list, displayMode, size, gridOverride, forceSpan) {
     // 有覆盖但列数 ≥ 基础网格列数（= FULL 按钮 / 首选占格的目标宽度，即用户已表达
     // 「占满整行」意图）→ 同样拉伸；先用整表试放确认不挤掉其他单元，放不下则保持原占格。
     const baseGrid = gridForSize(size);
-    const fillFull = isFullCard(size)
-      && singleLineOn(displayMode, size, b)
-      && b && b.c === 'calendar' && b.s === 'month';
+    // v3.57：1×FULL 上「月日历 / 周日历 / 电量条」默认占满整行宽度（消除右侧空白，
+    // 呼应需求「月历/周历/电量条 默认水平置中 + FULL 填满」）。与既有 month·singleLine 同机制：
+    // 无覆盖 → 直接拉伸到运行时 grid.cols；有覆盖且列数 ≥ 基础网格列数（=FULL 按钮/首选宽度意图）
+    // → 同样拉伸；拉伸前先整表试放，放不下则回落首选占格（fitsWithStretch 守卫防重叠）。
+    // 月历保留 D13 守卫：显式关闭「单行显示」(singleLine===false) 时不拉伸，回退 2×2。
+    const fillMonth = b && b.c === 'calendar' && b.s === 'month' && singleLineOn(displayMode, size, b);
+    const fillWeekBat = b && (
+      (b.c === 'calendar' && b.s === 'week')
+      || (b.c === 'progress' && b.s === 'battery')
+    );
+    const fillFull = isFullCard(size) && (fillMonth || fillWeekBat);
     const forced = forceSpan && forceSpan.idx === i ? forceSpan.span : null;
     let span;
     if (forced) {

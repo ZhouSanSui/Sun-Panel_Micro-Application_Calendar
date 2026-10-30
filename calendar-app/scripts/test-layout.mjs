@@ -140,6 +140,26 @@ ok(mOv.length === 1 && mOv[0].span.cols === 4, '1xfull 月历显式 span 4×2 �
   // 非 1×FULL 尺寸不受影响（2×4 网格 8 列，月历单行选项在非 FULL 上不生效）
   const m24 = autoLayout([{ c: 'calendar', s: 'month', span: { cols: 8, rows: 2 } }], 'combo', '2x4');
   ok(m24.length === 1 && m24[0].span.cols === 8 && m24[0].span.rows === 2, '2x4 月历显式 span 应原样生效');
+  // v3.57：1×FULL 上周历 / 电量条 同样默认占满整行（消除右侧空白）
+  const wDef = autoLayout([{ c: 'calendar', s: 'week' }], 'combo', '1xfull');
+  ok(wDef.length === 1 && wDef[0].span.cols === 8, `1xfull 周历默认应占满整行 8 列（实际 ${JSON.stringify(wDef[0] && wDef[0].span)}）`);
+  const bDef = autoLayout([{ c: 'progress', s: 'battery' }], 'combo', '1xfull');
+  ok(bDef.length === 1 && bDef[0].span.cols === 8, `1xfull 电量条默认应占满整行 8 列（实际 ${JSON.stringify(bDef[0] && bDef[0].span)}）`);
+  // 运行时 10 列：周历 / 电量条 FULL 占格（存 8 列）应拉伸铺满
+  const wFull = autoLayout([{ c: 'calendar', s: 'week', span: { cols: 8, rows: 2 } }], 'combo', '1xfull', wide);
+  ok(wFull.length === 1 && wFull[0].span.cols === 10, `1xfull 周历 FULL 应在 10 列运行时拉伸为 10 列（实际 ${JSON.stringify(wFull[0] && wFull[0].span)}）`);
+  const bFull = autoLayout([{ c: 'progress', s: 'battery', span: { cols: 8, rows: 1 } }], 'combo', '1xfull', wide);
+  ok(bFull.length === 1 && bFull[0].span.cols === 10, `1xfull 电量条 FULL 应在 10 列运行时拉伸为 10 列（实际 ${JSON.stringify(bFull[0] && bFull[0].span)}）`);
+  // 显式窄占格不拉伸：用户意图就是窄条
+  const wNarrow = autoLayout([{ c: 'calendar', s: 'week', span: { cols: 4, rows: 1 } }], 'combo', '1xfull', wide);
+  ok(wNarrow.length === 1 && wNarrow[0].span.cols === 4, '1xfull 周历显式 4 列在 10 列运行时应保持 4 列');
+  const bNarrow = autoLayout([{ c: 'progress', s: 'battery', span: { cols: 4, rows: 1 } }], 'combo', '1xfull', wide);
+  ok(bNarrow.length === 1 && bNarrow[0].span.cols === 4, '1xfull 电量条显式 4 列在 10 列运行时应保持 4 列');
+  // 非 1×FULL 不受 FULL 拉伸影响
+  const w24 = autoLayout([{ c: 'calendar', s: 'week', span: { cols: 8, rows: 1 } }], 'combo', '2x4');
+  ok(w24.length === 1 && w24[0].span.cols === 8, '2x4 周历显式 span 应原样生效');
+  const b24 = autoLayout([{ c: 'progress', s: 'battery', span: { cols: 8, rows: 1 } }], 'combo', '2x4');
+  ok(b24.length === 1 && b24[0].span.cols === 8, '2x4 电量条显式 span 应原样生效');
 }
 
 // ---------- 4) 旧数据兼容 ----------
