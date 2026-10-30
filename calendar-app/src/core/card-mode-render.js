@@ -149,7 +149,9 @@ const CONTENT_FIT = {
     // v3.55：recent 与节日同构（同一 countdown），固有尺寸同步 festival 宽比（否则高瘦→tightH 省掉天后/副标题）
     recent: { w: 7.4, wEn: 8.5, h: 3.0 },
     // v1.40：recent 同属倒数型，flat/tall 同源（仅 recent 触发，multiple 不劫持）
-    __flat: { w: 6.97, wEn: 8.95, h: 2.79 },
+    // v3.82：h 2.79 → 2.92。2.79 是按「数字+天后」估的，但宽扁双栏里右列还有
+    // 「日程名 + 最近日程」两行，实测 1×2 卡最小占格（块 114×48）垂直溢出 2px 被判裁切。
+    __flat: { w: 6.97, wEn: 8.95, h: 2.92 },
     __tall: { w: 3.47, wEn: 4.98, h: 5.64 },
     // v3.56：日期改为 YY-MM-DD HH:MM（带时间约 6em/0.5em 字号），放宽固有宽避免裁切
     multiple: { w: 8.4, wEn: 9.2, h: 3.7 },
@@ -872,8 +874,12 @@ function renderInfoBlockInner(o) {
   const fitW = Number.isFinite(o.availW) ? o.availW : 99;
   const fitH = Number.isFinite(o.availH) ? o.availH : 99;
   const tightH = fitH < 5.6;
+  // v3.82：「今天」的中文比数字宽得多（2 字 × 1.875em）。原判据用 fitW（内容固有宽，恒为 7.4）
+  // 永远不满足 < 4.4，于是小卡上也用大字 → 26px 宽的块里两字正好撑爆（实测右裁 20.6px）。
+  // 改为按**块的实际可用宽**判断，小于 4.4em 才降成 .pv-big-sm。
+  const tinyToday = Number.isFinite(o.availW) && o.availW < 4.4;
   const countdown = (name, days, sub) => html`<div class="pv-center">
-    <div class="pv-big${days === 0 && fitW < 4.4 ? ' pv-big-sm' : ''}" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
+    <div class="pv-big${(days === 0 && (tinyToday || fitW < 4.4)) ? ' pv-big-sm' : ''}" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
     ${days === 0 || tightH ? '' : html`<div class="pv-sub" style="color:${label3}">${isZh ? '天后' : 'days left'}</div>`}
     <div class="pv-row2 pv-cd-name" style="color:${theme}">${name}</div>
     ${sub && !tightH ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
@@ -882,12 +888,12 @@ function renderInfoBlockInner(o) {
   /** 倒数单元·宽扁双栏（v1.40 需求 2）：左列数字 + 右列名称/说明，横向并排 */
   const countdownFlat = (name, days, sub) => html`<div class="pv-center pv-flat">
     <div class="pv-fnum">
-      <div class="pv-big" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
+      <div class="pv-big${days === 0 && tinyToday ? ' pv-big-sm' : ''}" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
       ${days === 0 ? '' : html`<div class="pv-sub" style="color:${label3}">${isZh ? '天后' : 'days left'}</div>`}
     </div>
     <div class="pv-ftext">
       <div class="pv-row2 pv-cd-name" style="color:${theme}">${name}</div>
-      ${sub ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
+      ${sub && !tightH ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
     </div>
   </div>`;
 
