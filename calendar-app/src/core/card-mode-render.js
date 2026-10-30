@@ -1651,13 +1651,20 @@ function renderInfoBlockInner(o) {
       // v3.21：2×2 / 2×4 / 4×4 每行同时显示「日期 + 时间」；v3.56：日期加两位年 → YY-MM-DD HH:MM
       // 2×1 完全不显示时间（仅日程名）
       const showMeta = o.size === '2x2' || o.size === '2x4' || o.size === '4x4';
-      // 时间轴：一次性日程（event / 关闭年循环的倒计时）保留过去与未来；循环项只保留未来发生（屏蔽已过）。
+      // 时间轴：一次性日程（event / 关闭年循环的倒计时）保留过去与未来；循环项只保留「下一个」未来发生
+      // （屏蔽已过的循环项，且不展开多年未来，保持列表长度与原「下一次发生」一致）。
       const tl = getScheduleTimeline(getUserStore()?.getSchedules() || [], now, 3, 5);
       const list = [];
+      const seenRecurring = new Set();
       for (const e of tl) {
         const it = e.item;
         const oneTime = it.type === 'event' || (it.type === 'countdown' && it.yearly === false);
-        if (oneTime || e.days >= 0) list.push(e);   // 一次性全留；循环仅未来
+        if (oneTime) {
+          list.push(e);                               // 一次性：含过去与未来
+        } else if (e.days >= 0) {
+          const key = `${it.title}|${it.date}`;        // 循环：仅保留下一个未来发生
+          if (!seenRecurring.has(key)) { seenRecurring.add(key); list.push(e); }
+        }
       }
       list.sort((a, b) => a.occurrence.dateStr.localeCompare(b.occurrence.dateStr)
         || (a.item.time || '').localeCompare(b.item.time || ''));
