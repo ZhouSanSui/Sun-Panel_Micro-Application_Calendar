@@ -415,6 +415,19 @@ const SCH_ROW_H_NARROW = 0.9375;
 const SCH_ROW_GAP = 0.3125;
 /** 行数公式的安全余量（em）：吸收字体度量/像素取整差异，宁可少放一行也不裁切 */
 const SCH_ROWS_RESERVE = 0.2;
+/**
+ * v3.70：日程名字号的**绝对下限**（px）。依据：多套中文设计系统口径一致地把
+ * 「最小可识别文字尺寸」定为 12px（金山 KDesign / 字节 Arco / CF Design / 数商云），
+ * 低于该值中文笔画会发糊；另有行业实践给出「12px 为下限，更小则中文笔画显示模糊」。
+ * 大屏国标另有一条更严算式（最小字高 ≈ 视距 / 200）：本应用属桌面近距（约 50cm）
+ * 需 ≥2.5mm 物理字高，12px ≈ 3.17mm 满足且有裕量；若改用壁挂远距（约 1m）则需 ~19px。
+ * 注意：这是本项目少见的**绝对 px** 取值（可读性下限本质是绝对量，不能只按 em 等比缩），
+ * 且与 CSS 里 .pv-sch-list .pv-sch-name 的 max(12px, 0.75em) 必须**双向同步**。
+ */
+const SCH_NAME_MIN_PX = 12;
+/** 日程名基础字号（em）与行高 —— 仅用于「按下限抬高后反推行高」，须与 CSS 一致 */
+const SCH_NAME_EM = 0.75;
+const SCH_NAME_LINE_H = 1.2;
 
 /**
  * 取内容固有尺寸（未声明回退到内容默认，再回退到通用值）。
@@ -1063,7 +1076,13 @@ function renderInfoBlockInner(o) {
       };
       // v3.69：天数钳到 3 位（>999 → 999+天），避免位数变化带动右侧列宽抖动；0 天沿用「今天」
       const daysOf = (d) => (d === 0 ? TODAY : (d > 999 ? `999+${DAYS}` : `${d}${DAYS}`));
-      const rowH = wide ? SCH_ROW_H_WIDE : SCH_ROW_H_NARROW;
+      // v3.70：日程名有 12px 绝对下限 → 块根字号 u 偏小时名字会被抬高，行高随之变大。
+      // 若仍按固定的 SCH_ROW_H_* 折算行数，会塞进过多行导致整块溢出裁切 —— 故用「抬高后的
+      // 实际行高」重算 maxRows，本质是以「减少显示条数」换取「名字可读」。
+      const uPx = Number.isFinite(o.blockU) ? o.blockU : 0;
+      const nameEm = uPx > 0 ? Math.max(SCH_NAME_EM, SCH_NAME_MIN_PX / uPx) : SCH_NAME_EM;
+      const nameRowH = nameEm * SCH_NAME_LINE_H;
+      const rowH = wide ? Math.max(SCH_ROW_H_WIDE, nameRowH) : Math.max(SCH_ROW_H_NARROW, nameRowH);
       // 行数按「实测行高 + 行距」折算；上限取「可显示条数」与「高度可容纳条数」的较小值，
       // 避免日程不足时强塞空行、又能在够高时多显示。（溢出保护逻辑不变）
       const maxRows = Math.max(1, Math.min(20,
@@ -2364,6 +2383,8 @@ export function renderBlocksHTML(o) {
         style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px;z-index:${bi + 1};opacity:0.9"
       >${renderInfoBlockInner({
     ...o, content: b.c, style: b.s, span: b.span, opts, availW, availH, tall, small, flat, singleDays,
+    // v3.70：块根字号 u（px）透传给内容层 —— 多日程要按它判「12px 下限是否生效」并重推行高
+    blockU: u,
     // v3.3：窄块（宽 < 高）即使没到 2 倍，日期串也会被挤成三行 —— 显式两行，避免与预览观感不一致
     narrow: blockW < blockH,
     // v1.44：窄块（<150px）日期串年份降为两位，给「数值+单位」留同排空间

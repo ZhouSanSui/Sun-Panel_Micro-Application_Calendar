@@ -28,7 +28,14 @@ export const CARD_MODE_CSS = `
    （.pv-col 是众多样式共用的类）。flex-shrink 必须显式写 0：极小卡片可低至 76px，行一旦被
    压缩到低于行盒高度，中文上下缘会被 overflow 直接切掉。 */
 .pv-sch-list { justify-content: flex-start; }
-.pv-sch-list > .pv-sch-row { flex: 1 0 auto; max-height: 3.4em; column-gap: 1em; }
+.pv-sch-list > .pv-sch-row { flex: 1 0 auto; column-gap: 1em;
+  /* v3.70：3.4em 封顶照旧，但不得低于「按下限抬高后的自然行高」，否则字被压出边框；
+     1.2 = 日程名行高，max(0.75em, 12px) = 带下限的日程名字号（须与 JS 的 SCH_NAME_* 同步） */
+  max-height: max(3.4em, calc(1.2 * max(0.75em, 12px))); }
+/* v3.70：日程名字号下限 = 12px（中文界面最小可识别字号；多套中文设计系统口径一致）。
+   占格调小时不再无限缩小字号，改为「少显示几行」来保可读性。
+   ★ 必须与 card-mode-render.js 的 SCH_NAME_MIN_PX / SCH_NAME_EM 双向同步 */
+.pv-sch-list .pv-sch-name { font-size: max(12px, 0.75em); }
 /* 窄布局（占格 <4）右侧只显示剩余天数：比日期串短，放大一档与日程名的视觉重量匹配 */
 .pv-sch-row .pv-sch-days { font-size: 0.66em; font-weight: 600; }
 .pv-sub { font-size: 0.66em; line-height: 1.3; }
