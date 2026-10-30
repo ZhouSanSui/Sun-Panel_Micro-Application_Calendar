@@ -587,7 +587,8 @@ export const CARD_MODE_CSS = `
 
 /* ⑥ verticalList 纵向日程表：列出全部日程，可上下拖动滚动；标题旁「回到顶部」按钮复位 */
 .pv-vl { width: 100%; height: 100%; align-items: stretch; justify-content: flex-start; gap: 0.14em; min-height: 0; }
-.pv-vl-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 0.4em; font-size: 0.66em; font-weight: 700; }
+.pv-vl-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 0.4em; font-size: 0.66em; font-weight: 700; white-space: nowrap; flex-wrap: nowrap; min-width: 0; }
+.pv-vl-head span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-vl-top { flex: 0 0 auto; appearance: none; border: 0.08em solid color-mix(in srgb, currentColor 22%, transparent); background: transparent; color: inherit; opacity: 0.7; font: inherit; font-size: 0.92em; font-weight: 700; line-height: 1; padding: 0.18em 0.5em; border-radius: 0.5em; cursor: pointer; }
 .pv-vl-top:hover { opacity: 1; }
 .pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; overflow-y: auto; overscroll-behavior: contain; touch-action: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -595,6 +596,7 @@ export const CARD_MODE_CSS = `
 .pv-vl-row { flex: 0 0 auto; min-height: 1.3em; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); }
 .pv-vl-row span { flex: 0 0 auto; font-size: 0.62em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.86em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-vl-row.past { opacity: 0.5; }
 .pv-vl-next { flex: 0 0 auto; font-size: 0.54em; font-weight: 700; white-space: nowrap; }
 
 /* ⑦ dayRing 日环进度（1×1）：单环 + 环内大百分比 + 底部时刻
@@ -732,7 +734,7 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-tg-date { display: flex; flex-direction: column; align-items: center; gap: 0.04em; font-size: 0.99em; }  /* 日期 6.7→10px，两排（年 / 月日） */
 /* verticalList：名称 8.6→13px；头 6.6→10px */
 .pv-single-2x1 .pv-vl-row b { font-size: 1.29em; }   /* 名称 11→13px（em=13/10.1） */
-.pv-single-2x1 .pv-vl-head { font-size: 0.99em; }
+.pv-single-2x1 .pv-vl-head { font-size: 0.85em; white-space: nowrap; flex-wrap: nowrap; }
 /* festivalDay：节日名 8→15px；天数 6.6→13px。
    2×1 仅 50px 宽，「名 + 天数」横排 76px 必溢出裁切 —— 改为竖排（名在上、天数在下），
    二者各自 45/31px 均 < 50px，目标字号完整保留。 */

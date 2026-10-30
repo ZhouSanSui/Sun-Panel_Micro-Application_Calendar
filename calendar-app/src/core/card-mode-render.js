@@ -16,12 +16,13 @@
 // （用户报「环形刻度钟/指针仪表没有指针」「四环进度没有四环」即此因）。
 // 注意：直接内联在外层模板里的 <circle>/<path>/<line> 不受影响（同模板内解析正确）。
 import { html, svg } from 'lit';
+import { ref } from 'lit/directives/ref.js';
 import {
   yearProgress, dayOfYear, diffDays, formatTime, getMonthGrid, formatDate, todayStr, addDays,
   daysInMonth, weekOfYear, ganzhiYear,
 } from './date-utils.js';
 import { solarToLunarParts, LUNAR_DAY_CN, LUNAR_MONTH_CN } from './picker.js';
-import { getNextOccurrence, getSchedulesOfDay } from './schedule.js';
+import { getNextOccurrence, getSchedulesOfDay, getScheduleTimeline } from './schedule.js';
 import { APPLE_COLORS } from './apple-ui.js';
 import { autoLayout, STYLE_OPT_FIELDS, styleFitsSize, SINGLE_CONTENTS, aliasContent } from './user-store.js';
 import { getNextHoliday, getNextSolarTerm, getNextFestival } from './highlights.js';
@@ -1643,22 +1644,30 @@ function renderInfoBlockInner(o) {
       </div>`;
     }
 
-    // ⑥ schedule.verticalList 纵向日程表：列出全部日程，可上下拖动滚动；标题旁「回到顶部」按钮复位
+    // ⑥ schedule.verticalList 纵向日程表：可上下拖动滚动浏览全部日程（含已过的一次性日程）；
+    //    标题「日程表」+「顶部」按钮复位；v3.58：屏蔽已过的循环项，初始滚动到首个未来项。
     if (style === 'verticalList') {
       const ac = accentOf(theme);
       // v3.21：2×2 / 2×4 / 4×4 每行同时显示「日期 + 时间」；v3.56：日期加两位年 → YY-MM-DD HH:MM
       // 2×1 完全不显示时间（仅日程名）
       const showMeta = o.size === '2x2' || o.size === '2x4' || o.size === '4x4';
-      const list = (getUserStore()?.getSchedules() || [])
-        .map((item) => ({ item, next: getNextOccurrence(item, now) }))
-        .filter((x) => x.next)
-        .sort((a, b) => diffDays(a.next.date, b.next.date));
+      // 时间轴：一次性日程（event / 关闭年循环的倒计时）保留过去与未来；循环项只保留未来发生（屏蔽已过）。
+      const tl = getScheduleTimeline(getUserStore()?.getSchedules() || [], now, 3, 5);
+      const list = [];
+      for (const e of tl) {
+        const it = e.item;
+        const oneTime = it.type === 'event' || (it.type === 'countdown' && it.yearly === false);
+        if (oneTime || e.days >= 0) list.push(e);   // 一次性全留；循环仅未来
+      }
+      list.sort((a, b) => a.occurrence.dateStr.localeCompare(b.occurrence.dateStr)
+        || (a.item.time || '').localeCompare(b.item.time || ''));
       if (!list.length) return empty(isZh ? '暂无日程' : 'No schedules');
+      let firstFutureIdx = list.findIndex((e) => e.days >= 0);
+      if (firstFutureIdx < 0) firstFutureIdx = 0;
       const p2 = (n) => String(n).padStart(2, '0');
-      const metaOf = (r) => {
-        const d = r.next.date;
-        const dt = `${String(d.getFullYear()).slice(-2)}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-        const t = r.item.time ? String(r.item.time).slice(0, 5) : '';
+      const metaOf = (date, time) => {
+        const dt = `${String(date.getFullYear()).slice(-2)}-${p2(date.getMonth() + 1)}-${p2(date.getDate())}`;
+        const t = time ? String(time).slice(0, 5) : '';
         return t ? `${dt} ${t}` : dt;
       };
       // 拖动滚动：记录起点，move 时按位移反向滚动（触摸式）
@@ -1673,24 +1682,40 @@ function renderInfoBlockInner(o) {
         sc.scrollTop = sc._vtop - (e.clientY - sc._vy);
       };
       const onVlUp = (e) => { e.currentTarget._vy = null; };
-      // 回到顶部：滚动容器回到最近日程
+      // 回到顶部：滚动容器回到列表顶（v3.58：阻止冒泡，避免触发卡片点击打开视图页）
       const onVlTop = (e) => {
+        e.stopPropagation();
         const sc = e.currentTarget.closest('.pv-vl') && e.currentTarget.closest('.pv-vl').querySelector('.pv-vl-list');
         if (sc) sc.scrollTop = 0;
+      };
+      // 初始滚动到首个未来/今日项：向上滑可见已过的一次性日程，向下滑可见更远的未来
+      const onVlListRef = (el) => {
+        if (!el || el._vlInit) return;
+        el._vlInit = true;
+        requestAnimationFrame(() => {
+          const first = el.querySelector('[data-future="1"]');
+          if (!first) return;
+          let top = 0;
+          let n = first.previousElementSibling;
+          while (n) { top += n.offsetHeight; n = n.previousElementSibling; }
+          el.scrollTop = top;
+        });
       };
       const topLabel = isZh ? '顶部' : 'Top';
       return html`<div class="pv-col pv-vl">
         <div class="pv-vl-head" style="color:${label3}">
-          <span>${isZh ? `今日 ${list.length} 项` : `${list.length} today`}</span>
+          <span>${isZh ? '日程表' : 'Schedules'}</span>
           <button class="pv-vl-top" @click=${onVlTop} title="${isZh ? '回到最近日程' : 'Back to top'}">${topLabel}</button>
         </div>
-        <div class="pv-vl-list" @pointerdown=${onVlDown} @pointermove=${onVlMove} @pointerup=${onVlUp} @pointercancel=${onVlUp}>
-          ${list.map((r, i) => {
-    const nm = r.item.title || r.item.name || '';
-    const left = showMeta ? metaOf(r) : '';
-    return html`<div class="pv-vl-row">
-              ${left ? html`<span style="color:${i === 0 ? ac : label3}">${left}</span>` : ''}
-              <b style="color:${i === 0 ? label : label2}">${nm}</b>
+        <div class="pv-vl-list" ${ref(onVlListRef)} @pointerdown=${onVlDown} @pointermove=${onVlMove} @pointerup=${onVlUp} @pointercancel=${onVlUp}>
+          ${list.map((e, i) => {
+    const future = e.days >= 0;
+    const nm = e.item.title || e.item.name || '';
+    const left = showMeta ? metaOf(e.occurrence.date, e.item.time) : '';
+    const isAccent = i === firstFutureIdx;
+    return html`<div class="pv-vl-row${future ? '' : ' past'}" data-future="${future ? 1 : 0}">
+              ${left ? html`<span style="color:${future ? (isAccent ? ac : label3) : label3}">${left}</span>` : ''}
+              <b style="color:${future ? (isAccent ? label : label2) : label2}">${nm}</b>
             </div>`;
   })}
         </div>
