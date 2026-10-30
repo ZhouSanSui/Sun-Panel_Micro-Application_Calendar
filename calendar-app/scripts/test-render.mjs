@@ -1308,6 +1308,9 @@ console.log('');
     '节假日(采用假期倒计时排版)应渲染 pv-hd-days 或「暂无假期」空态（node 无节假日服务时走空态）');
   const bt = flatten(renderInfoBlock({ ...base, content: 'progress', style: 'battery', singleRow: true, size: '2x2' })).join('');
   ok(bt.includes('pv-bt-body') && bt.includes('%'), '年电量应渲染电池主体与百分比');
+  // v3.56：单独模式电量条保留装饰（分段刻度 <u> 与条下方端点 pv-bt-nub）
+  ok(bt.includes('pv-bt-nub'), '单独模式电量条应保留下方端点 pv-bt-nub');
+  ok(bt.includes('<u'), '单独模式电量条应保留分段刻度 <u>');
   // v3.12：1×2 去掉 festival；1×1 整块清空（改由新款式承担）。
   // v3.13：holiday 恢复到 1×2 与 2×1（用户点名启用）；festival 仍不在 1×2 / 2×1。
   // v3.14：「重要日期」并入「日程」—— 旧 content key 'important' 在单独模式已不存在，
@@ -1381,6 +1384,9 @@ ok(!!calBattery, '日历下提供电量条样式（原进图四样式合并）')
 ok(calBattery && Array.isArray(calBattery.opts) && calBattery.opts.includes('unit'), '电量条应带粒度选项(unit=年/月/周/日)');
 const comboBattery = flatten(renderInfoBlock({ ...base, content: 'calendar', style: 'battery' })).join('');
 ok(comboBattery.includes('pv-bt'), '日历:电量条 应渲染 .pv-bt');
+// v3.56：拼接模式电量条为极简版，不应有下方端点 pv-bt-nub 与分段刻度 <u>
+ok(!comboBattery.includes('pv-bt-nub'), '拼接模式电量条不应有下方端点 pv-bt-nub');
+ok(!comboBattery.includes('<u'), '拼接模式电量条不应有分段刻度 <u>');
 
 // ---------------------------------------------------------------------------
 // v3.3：年月日「两行」与 1×FULL 字号随内容区宽度

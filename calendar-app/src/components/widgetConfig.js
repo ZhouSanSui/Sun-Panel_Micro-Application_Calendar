@@ -503,6 +503,12 @@ export class WidgetConfig extends SunPanelPageElement {
 
   /** 打开/关闭某个单元的占格编辑器 */
   _toggleSpanEdit(idx) {
+    // v3.56：点击拼接预览中的样式块时，把「显示内容」下拉框与下方「显示样式」一并同步到该块。
+    const blk = this.cardBlocks[idx];
+    if (blk && this.displayMode === 'combo') {
+      this.pendingContent = blk.c;
+      this.pendingStyle = blk.s;
+    }
     if (this._spanEdit && this._spanEdit.idx === idx) {
       this._spanEdit = null;
     } else {

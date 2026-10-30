@@ -1889,12 +1889,17 @@ function renderInfoBlockInner(o) {
       const uBt = unitOf('year');
       const capBt = UNIT_CAP[uBt];
       const pct = Math.max(0, Math.min(100, unitElapsed(uBt) * 100));
-      // v3.55：移除条中竖线（分段刻度 <u>）与条下方的点（pv-bt-nub），只留纯进度条
+      // 单独模式（progress:battery）保留分段刻度 <u> 与条下方端点 pv-bt-nub；
+      // 拼接模式（calendar:battery）走极简版，去掉两者，只留纯进度条（v3.55 起）。
+      const combo = content === 'calendar';
+      const segs = combo ? 0 : 10;
       return html`<div class="pv-col pv-bt">
         <div class="pv-bt-head"><span style="color:${label3}">${isZh ? capBt.zh : capBt.en}</span><b style="color:${acb}">${Math.round(pct)}%</b></div>
         <div class="pv-bt-body" style="border-color:${acb}">
           <i style="width:${Math.max(2, Math.round(pct))}%;background:${acb}"></i>
+          ${combo ? '' : Array.from({ length: segs - 1 }, (_, i) => html`<u style="left:${((i + 1) * 100) / segs}%"></u>`)}
         </div>
+        ${combo ? '' : html`<div class="pv-bt-nub" style="background:${acb}"></div>`}
       </div>`;
     }
     if (style === 'heatYear') {
