@@ -41,6 +41,13 @@ export const CARD_MODE_CSS = `
 .pv-sch-row .pv-sch-days { font-size: max(10px, 0.66em); font-weight: 600; }
 /* 宽布局右侧「日期 + 时间」。v3.70：同样加 10px 下限，★ 须与 JS 的 SCH_META_MIN_PX 同步 */
 .pv-sch-list .pv-sch-meta { font-size: max(10px, 0.5em); }
+/* v3.72：2×1 窄高卡（可用宽仅约 96px）整体下调 2 —— 名 12→10、元信息 10→8。
+   否则「名 + 元信息 + 1 字间距」挤不下，名字会被省略到只剩 1~2 字。
+   ★ 必须放在上面通用规则**之后**（同特异性时后者生效），且须与 JS 的
+   SCH_NAME_MIN_PX_2X1 / SCH_META_MIN_PX_2X1 双向同步 */
+.pv-sch-list-2x1 .pv-sch-name { font-size: max(10px, 0.75em); }
+.pv-sch-list-2x1 .pv-sch-meta { font-size: max(8px, 0.5em); }
+.pv-sch-list-2x1 .pv-sch-days { font-size: max(8px, 0.66em); }
 .pv-sub { font-size: 0.66em; line-height: 1.3; }
 .pv-tight .pv-sub { display: none; }
 .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }

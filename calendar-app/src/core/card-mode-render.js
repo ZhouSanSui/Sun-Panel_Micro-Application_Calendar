@@ -437,6 +437,15 @@ const SCH_META_MIN_PX = 10;
 /** 元信息基础字号（em）：宽档=日期时间 0.5em；窄档=剩余天数 0.66em（v3.69：比日期串短，故放大一档） */
 const SCH_META_EM_WIDE = 0.5;
 const SCH_DAYS_EM_NARROW = 0.66;
+/**
+ * v3.72：2×1 卡片（窄高，宿主 120×252、扣 chrome 后可用宽仅约 96px）**单独下调 2**
+ * —— 日程名 12→10、元信息 10→8。
+ * 原因：该尺寸下「日程名 + 元信息 + 1 字间距」横向挤不下，按通用下限会把日程名省略到
+ * 只剩 1~2 字（等于没有信息），故整体降一档换取名字能露出更多。
+ * 与 CSS 的 .pv-sch-list-2x1 系列规则必须**双向同步**。
+ */
+const SCH_NAME_MIN_PX_2X1 = 10;
+const SCH_META_MIN_PX_2X1 = 8;
 
 /**
  * 取内容固有尺寸（未声明回退到内容默认，再回退到通用值）。
@@ -1089,10 +1098,14 @@ function renderInfoBlockInner(o) {
       // 若仍按固定的 SCH_ROW_H_* 折算行数，会塞进过多行导致整块溢出裁切 —— 故用「抬高后的
       // 实际行高」重算 maxRows，本质是以「减少显示条数」换取「名字可读」。
       const uPx = Number.isFinite(o.blockU) ? o.blockU : 0;
-      const nameEm = uPx > 0 ? Math.max(SCH_NAME_EM, SCH_NAME_MIN_PX / uPx) : SCH_NAME_EM;
-      // v3.70：右侧元信息同样有 10px 下限（比日程名低 2px 以拉开层级），行高也要随之抬高
+      // v3.72：2×1 窄高卡单独降一档（名 12→10、元信息 10→8），避免横向挤不下把名字省成 1~2 字
+      const is2x1 = o.size === '2x1';
+      const nameMinPx = is2x1 ? SCH_NAME_MIN_PX_2X1 : SCH_NAME_MIN_PX;
+      const metaMinPx = is2x1 ? SCH_META_MIN_PX_2X1 : SCH_META_MIN_PX;
+      const nameEm = uPx > 0 ? Math.max(SCH_NAME_EM, nameMinPx / uPx) : SCH_NAME_EM;
+      // v3.70：右侧元信息同样有下限（比日程名低 2px 以拉开层级），行高也要随之抬高
       const metaBaseEm = wide ? SCH_META_EM_WIDE : SCH_DAYS_EM_NARROW;
-      const metaEm = uPx > 0 ? Math.max(metaBaseEm, SCH_META_MIN_PX / uPx) : metaBaseEm;
+      const metaEm = uPx > 0 ? Math.max(metaBaseEm, metaMinPx / uPx) : metaBaseEm;
       const nameRowH = nameEm * SCH_NAME_LINE_H;
       const metaRowH = metaEm * SCH_NAME_LINE_H;
       const rowH = wide
@@ -1109,7 +1122,7 @@ function renderInfoBlockInner(o) {
       // 日程名过长交给 CSS text-overflow 省略（.pv-sch-name 已带 min-width:0），
       // 不再在 JS 里按 availW/0.72 估算切片——那套估算对中文很不准且会与 CSS 双重截断。
       // 一条日程严格一行：name 伸缩 + meta 定宽不挤压，两者之间 column-gap 约 1 字符。
-      return html`<div class="pv-col pv-sch-list${wide ? ' wide' : ''}">
+      return html`<div class="pv-col pv-sch-list${wide ? ' wide' : ''}${is2x1 ? ' pv-sch-list-2x1' : ''}">
         ${top.map(({ item, next }) => html`<div class="pv-sch-row">
           <span class="pv-sch-name" style="color:${label}">${item.title || ''}</span>
           <span class="pv-sch-meta${wide ? '' : ' pv-sch-days'}" style="color:${wide ? label3 : theme}">${wide ? metaOf(item, next) : daysOf(diffDays(next.date, now))}</span>
