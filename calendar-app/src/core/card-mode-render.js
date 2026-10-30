@@ -1698,6 +1698,18 @@ function renderInfoBlockInner(o) {
         if (sc._vy == null) return;
         sc.scrollTop = sc._vtop - (e.clientY - sc._vy);
       };
+      // 按「一个日程」为单位翻页：dir=+1 下一日程 / -1 上一日程。高度取该规格实际渲染行高（rowTop 累加真实 offsetHeight），随各尺寸字号自适应
+      const pageOne = (sc, dir) => {
+        const rows = [...sc.querySelectorAll('.pv-vl-row')];
+        if (!rows.length) return;
+        let idx = 0;
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i].offsetTop <= sc.scrollTop + 1) idx = i; else break;
+        }
+        idx = Math.max(0, Math.min(rows.length - 1, idx + dir));
+        sc.style.scrollBehavior = 'smooth';
+        sc.scrollTop = rowTop(sc, rows[idx]);
+      };
       // 松手：视为一次「滑动」则按一个日程为单位翻页（上滑→下一日程，下滑→上一日程）；轻点不动
       const onVlUp = (e) => {
         const sc = e.currentTarget;
@@ -1707,14 +1719,12 @@ function renderInfoBlockInner(o) {
         if (!rows.length) return;
         const rowH = rows[0].offsetHeight || 1;
         if (Math.abs(dy) < Math.max(6, rowH * 0.18)) return;   // 轻点：不改滚动
-        const dir = dy < 0 ? 1 : -1;                            // 上滑 dy<0 → 向下翻（下一日程）
-        let idx = 0;
-        for (let i = 0; i < rows.length; i++) {
-          if (rows[i].offsetTop <= sc.scrollTop + 1) idx = i; else break;
-        }
-        idx = Math.max(0, Math.min(rows.length - 1, idx + dir));
-        sc.style.scrollBehavior = 'smooth';
-        sc.scrollTop = rowTop(sc, rows[idx]);
+        pageOne(sc, dy < 0 ? 1 : -1);                          // 上滑 dy<0 → 向下翻（下一日程）
+      };
+      // 鼠标滚轮：每滚一格（一个 notch）精确移动「一个日程显示框高度」，并阻止原生滚动叠加
+      const onVlWheel = (e) => {
+        e.preventDefault();
+        pageOne(e.currentTarget, e.deltaY > 0 ? 1 : -1);       // 下滚 deltaY>0 → 下一日程
       };
       // 回到顶部：滚动到最近/即将到来的日程（首个未来项），并阻止冒泡避免打开视图页（v3.58）
       const onVlTop = (e) => {
@@ -1742,7 +1752,7 @@ function renderInfoBlockInner(o) {
           <span>${isZh ? '日程表' : 'Schedules'}</span>
           <button class="pv-vl-top" @click=${onVlTop} title="${isZh ? '回到最近日程（即将到来）' : 'Back to latest schedule'}">${topLabel}</button>
         </div>
-        <div class="pv-vl-list" ${ref(onVlListRef)} @pointerdown=${onVlDown} @pointermove=${onVlMove} @pointerup=${onVlUp} @pointercancel=${onVlUp}>
+        <div class="pv-vl-list" ${ref(onVlListRef)} @wheel=${onVlWheel} @pointerdown=${onVlDown} @pointermove=${onVlMove} @pointerup=${onVlUp} @pointercancel=${onVlUp}>
           ${list.map((e, i) => {
     const future = e.days >= 0;
     const nm = e.item.title || e.item.name || '';
