@@ -69,6 +69,9 @@ export class WidgetConfig extends SunPanelPageElement {
     this._drag = null;     // v3.50 预览内指针拖拽状态（见 _onHitDown/_beginDrag）
     this._pvGrid = null;   // 预览最近一次渲染用的网格（拖拽/落位换算用）
     this._pvOverflow = 0;  // 当前尺寸放不下、预览中不可见的块数（提示用）
+    // v3.75：被挤掉单元的**样式显示名**列表（与 _pvOverflow 同源，供提示逐一点名，
+    // 避免用户只看到「少了一块」却不知道是哪一块）
+    this._pvOverflowNames = [];
     this._origKey = '';    // 进入时的初始状态指纹（变更检测）
     this._spanEdit = null; // 占格编辑器：{ idx } | null（尺寸编辑的数据直接落在 cardBlocks[idx].span）
   }
@@ -205,6 +208,17 @@ export class WidgetConfig extends SunPanelPageElement {
 
   _blockNames() {
     return this.cardBlocks.map((b) => this._unitName(b)).join(' / ');
+  }
+
+  /**
+   * v3.75：溢出单元的点名文案 —— 用户不该只看到「少了一块」却不知道是哪一块。
+   * 最多列 3 个，其余用「等 / and more」收尾，避免提示条被长列表撑爆。
+   */
+  _overflowNamesText(isEn) {
+    const names = this._pvOverflowNames || [];
+    if (!names.length) return '';
+    const head = names.slice(0, 3).join(isEn ? ', ' : '、');
+    return names.length > 3 ? head + (isEn ? ' and more' : ' 等') : head;
   }
 
   // ---------- 显示模式交互 ----------
@@ -1098,7 +1112,24 @@ export class WidgetConfig extends SunPanelPageElement {
     this._pvGrid = grid;
     const isCombo = this.displayMode === 'combo';
     const laid = isCombo ? layoutBlocks(blocks, 'combo', this._size, grid, this._cardCenter) : null;
-    this._pvOverflow = isCombo ? Math.max(0, blocks.length - laid.length) : 0;
+    // v3.75：溢出提示从「只报数量」升级为「点名」——用 (c,s) 计数抵消 laid 里已落位的单元，
+    // 剩下的就是被挤掉的那些（同内容同样式多条也能正确区分条数）。
+    // 布局逻辑本身不动（FULL 填满优先是产品选择），这里只把结果说清楚。
+    this._pvOverflowNames = [];
+    if (isCombo) {
+      const rest = new Map();
+      for (const b of (laid || [])) {
+        const k = `${b.c}|${b.s}`;
+        rest.set(k, (rest.get(k) || 0) + 1);
+      }
+      for (const b of blocks) {
+        const k = `${b.c}|${b.s}`;
+        const n = rest.get(k) || 0;
+        if (n > 0) rest.set(k, n - 1);
+        else this._pvOverflowNames.push(this._styleName(b));
+      }
+    }
+    this._pvOverflow = isCombo ? this._pvOverflowNames.length : 0;
     const inner = isCombo
       ? renderBlocksHTML({
         ...common,
@@ -1202,8 +1233,8 @@ export class WidgetConfig extends SunPanelPageElement {
         ${this.cardBlocks.length ? '' : html`<div class="chips-empty">${this._t('t', '卡片当前不显示任何内容', 'The card shows nothing right now')}</div>`}
         ${this._pvOverflow ? html`<div class="chips-empty">${this._t(
     't',
-    `${this._pvOverflow} 个样式在当前尺寸放不下（未显示）：缩小占格或移除其他样式`,
-    `${this._pvOverflow} style(s) don't fit this size (hidden): shrink or remove others`,
+    `${this._pvOverflow} 个样式在当前尺寸放不下（未显示）：${this._overflowNamesText(false)}，缩小占格或移除其他样式`,
+    `${this._pvOverflow} style(s) don't fit this size (hidden): ${this._overflowNamesText(true)}, shrink or remove others`,
   )}</div>` : ''}
       </div>
     `;

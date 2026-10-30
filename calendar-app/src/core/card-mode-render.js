@@ -359,7 +359,8 @@ export const TALL_RATIO = 2;
 export const FLAT_RATIO = 2;
 /**
  * 日历日期标题的最小占格列数（v1.31 需求 4）。
- * 用「占格列数」而非像素宽度：1×FULL 的 cellW 在 84~106px 间浮动（±25%），
+ * 用「占格列数」而非像素宽度：1×FULL 的 cellW 随面板宽度浮动
+ * （v3.75 固定 8 列后为 112.5~231.8px，旧口径 84~106px），
  * 用像素阈值会出现「同一设置两种表现」；且 1×FULL 只有 2 行高，格数规则天然规避误加标题。
  */
 export const CAL_TITLE_MIN_COLS = 4;

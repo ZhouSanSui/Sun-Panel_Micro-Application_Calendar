@@ -343,7 +343,7 @@ export function gridForSize(size) {
 
 /**
  * v1.45：运行时的实际网格（与 widget 渲染完全同源）。
- * - 1×FULL：列数按宽度动态取 4~10（基准列宽 90px）
+ * - 1×FULL：固定 8 列，列宽 =(w-24)/8 随宽度浮动（v3.75 前为「基准列宽 90px、clamp(4,10)」）
  * - 其他尺寸：单元格实测 <24px 时对应维度降密度（保底 2）
  * 传 0/undefined 时回退声明网格。
  */
@@ -351,7 +351,10 @@ export function comboGridFor(size, w, h) {
   const g = gridForSize(size);
   if (size === '1xfull') {
     if (!w) return g;
-    return { cols: Math.max(4, Math.min(10, Math.round((w - 24) / 90))), rows: g.rows };
+    // v3.75：固定 8 列 —— 真实宽度 924~1878（docs/panel-sizes.md），
+    // 列宽随之 112.5~231.8px（旧口径是恒定 ≈90px），同一占格「变宽 ×1.25」。
+    // 只此一处定义列数：widget 运行时 / 配置页预览 / 审计脚本必须共用本函数。
+    return { cols: 8, rows: g.rows };
   }
   if (!w || !h) return g;
   const out = { cols: g.cols, rows: g.rows };
@@ -837,7 +840,7 @@ export function findSlot(occ, grid, span) {
  * 拉伸预检（v1.34 需求 1）：第 idx 个单元按 stretched 占格整表试放一轮，
  * 全部单元都放得下才返回 true。用于「月历单行占满整行」的拉伸决策——
  * 放不下（同行/同列还有其他单元）时调用方应保持原占格，避免挤掉邻居。
- * 注意：stretched 可能超过 SPAN_MAX（运行时网格最多 10 列），不是合法用户数据，
+ * 注意：stretched 可能超过 SPAN_MAX（运行时网格 1×FULL 为 8 列），不是合法用户数据，
  * 故经 autoLayout 的内部参数强制注入，不走 normalizeSpan；sim 标记确保试放轮次内
  * 不再触发新的拉伸试放（杜绝多月历单元场景下的递归）。
  */
@@ -867,7 +870,7 @@ export function autoLayout(list, displayMode, size, gridOverride, forceSpan) {
     const { span: pref, min: prefMin, minArea: prefArea } = prefSpan(displayMode, size, b);
     const override = normalizeSpan(b.span);
     // v1.34 需求 1：1×FULL 卡片月历「单行显示」占满整行宽度（消除两侧留白）。
-    // 无覆盖 → 直接按运行时 grid.cols（4~10 随面板宽度变化）拉伸，而非固定格数。
+    // 无覆盖 → 直接按运行时 grid.cols（1×FULL 恒为 8 列）拉伸，而非固定格数。
     // 有覆盖但列数 ≥ 基础网格列数（= FULL 按钮 / 首选占格的目标宽度，即用户已表达
     // 「占满整行」意图）→ 同样拉伸；先用整表试放确认不挤掉其他单元，放不下则保持原占格。
     const baseGrid = gridForSize(size);

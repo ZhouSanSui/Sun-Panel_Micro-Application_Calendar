@@ -41,7 +41,7 @@ export class Widget extends SunPanelWidgetElement {
   onInitialized() {
     this._syncCardRadius();
     this._applyConfig();
-    // 网格布局：监听宿主尺寸（1×FULL 动态行数 / 运行时降密度 / 字号基准）
+    // 网格布局：监听宿主尺寸（运行时降密度 / 字号基准）
     if (typeof ResizeObserver !== 'undefined') {
       this._ro = new ResizeObserver(() => this._measure());
       this._ro.observe(this);
@@ -72,17 +72,17 @@ export class Widget extends SunPanelWidgetElement {
     }
   }
 
-  /** 量宿主尺寸，推导 1×FULL 列数（基准列宽约 90px） */
+  /**
+   * 量宿主尺寸，回写预览几何。
+   * v3.75：1×FULL 列数改由 comboGridFor 统一给出（固定 8 列），本方法不再自己推导
+   * （旧口径在此处按「基准列宽 90px」算 _fullCols，是同公式的第二份副本且无读取方）。
+   */
   _measure() {
     const w = this.clientWidth || 0;
     const h = this.clientHeight || 0;
     if (!w || !h) return;
     this._hostW = w;
     this._hostH = h;
-    if (this._cardSize === '1xfull') {
-      const availW = Math.max(0, w - 24); // .widget padding 12×2
-      this._fullCols = Math.max(4, Math.min(10, Math.round(availW / 90)));
-    }
     // v1.45：把实测尺寸回写设置，供配置页预览复现同一宽高比与网格（避免预览与实际不一致）
     const prev = getUserStore()?.getSettings()?.previewSize;
     if (!prev || prev.size !== this._cardSize
@@ -256,7 +256,7 @@ export class Widget extends SunPanelWidgetElement {
 
   /**
    * 拼接模式网格（列×行）：
-   * - 1×FULL 列数按宿主实际宽度动态计算（基准列宽约 90px，宽扁条）
+   * - 1×FULL 固定 8 列，列宽 =(w-24)/8 随宿主宽度浮动（v3.75；旧口径为按宽度动态取 4~10）
    * - 其他尺寸按声明网格，若实测单元格 <24px 则对应维度降密度（保底 2）
    */
   get _comboGrid() {

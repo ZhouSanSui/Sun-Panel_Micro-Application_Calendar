@@ -20,9 +20,13 @@
 - SunPanel `gridSize` 是「行×列」：`1x2` 宽扁、`2x1` 窄高、`1xfull` 一行高横向占满。
 - 卡片内部网格 `CARD_GRID`：SunPanel 一格 = 内部 2×2 细网格（1x1=2×2、2x2=4×4、2x4=8×4、4x4=8×8）。
 - 运行时列数由 `comboGridFor(size, w, h)` 决定：
-  - 1×FULL：`clamp(4, 10, round((w-24)/90))`
+  - 1×FULL：**固定 8 列**，列宽 `=(w-24)/8` 随面板宽度浮动
+    （v3.75 起；旧口径为 `clamp(4, 10, round((w-24)/90))` 即「列宽恒定 90px、列数变」）。
+    真实宽度 924~1878 → 列宽 112.5~231.8px。
   - 其它：单元格 <24px 时按维度降密度（保底 2）
 - 预览/审计/运行时**必须共用** `comboGridFor`，否则三处排版不一致。
+  ⚠️ 该公式历史上被抄过 4 份（`widget.js` 的 `_fullCols` 死代码、`make-defaults-preview.mjs`、
+  `test-render.mjs` 的 `simulate()`），v3.75 已全部收敛到 `comboGridFor`，**不要再抄公式**。
 
 ## 三、布局与占格
 

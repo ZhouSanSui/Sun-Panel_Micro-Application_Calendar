@@ -5,7 +5,7 @@
 import { writeFileSync } from 'node:fs';
 import { CARD_MODE_CSS } from '../src/core/card-mode-styles.js';
 import { renderBlocksHTML } from '../src/core/card-mode-render.js';
-import { layoutBlocks, gridForSize, sanitizeBlocks } from '../src/core/user-store.js';
+import { layoutBlocks, comboGridFor, sanitizeBlocks } from '../src/core/user-store.js';
 import { ensureAppState, getUserStore } from '../src/core/app-state.js';
 
 // 注入一批临近日程（供 schedule 用例渲染真实数据；now=2026-10-18）
@@ -68,10 +68,8 @@ const DEFAULTS = SIZES.map((size) => [
 ]);
 
 const cards = DEFAULTS.map(([size, w, h, list, cardCenter, note]) => {
-  const g = gridForSize(size);
-  let cols = g.cols;
-  if (size === '1xfull') cols = Math.max(4, Math.min(10, Math.round((w - 24) / 90)));
-  const grid = { cols, rows: g.rows };
+  // v3.75：直接用 comboGridFor（与运行时同源），不再抄一份 1×FULL 列数公式
+  const grid = comboGridFor(size, w, h);
   const cellW = (w - 24) / grid.cols;
   const cellH = (h - 24) / grid.rows;
   const blocks = list.map(([c, s, extra]) => ({ c, s, ...(extra || {}) }));

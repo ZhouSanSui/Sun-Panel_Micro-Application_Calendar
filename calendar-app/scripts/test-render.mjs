@@ -2,7 +2,7 @@
  * v1.28 渲染自检：
  *  1) renderBlocksHTML 输出的百分比坐标合法、块数量与布局一致
  *  2) 真实宿主像素下（按 SunPanel 单格约 120px 估算），每块根字号落在可读区间
- *  3) 1×FULL 动态列数：不同宽度下网格/字号自适应
+ *  3) 1×FULL 固定 8 列：不同宽度下列数恒定，列宽随宽度浮动、字号仍落在可读区间
  *  4) 单独模式仍走 renderInfoBlock（不产生 .pv-block）
  */
 import { readFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ import {
   SINGLE_REF_PX,
 } from '../src/core/card-mode-render.js';
 import {
-  gridForSize, layoutBlocks, spanBounds, effectiveSpan, styleSpanDef,
+  gridForSize, comboGridFor, layoutBlocks, spanBounds, effectiveSpan, styleSpanDef,
   singleLineOn, prefSpan, COMBO_CONTENTS,
   unitOpts, normalizeOpts, sanitizeBlocks, noUnitsOn, NO_UNITS_DATE_STYLES,
   SINGLE_CONTENTS, STYLE_OPT_FIELDS, stylesForSize, styleSizesOf, styleFitsSize, styleDef,
@@ -61,12 +61,8 @@ const base = {
 
 /** 复刻 widget.js 的网格/字号推导，返回每块根字号 */
 function simulate(size, hostW, hostH, blocks) {
-  const g = gridForSize(size);
-  let cols = g.cols;
-  const rows = g.rows;
-  if (size === '1xfull') {
-    cols = Math.max(4, Math.min(10, Math.round(Math.max(0, hostW - 24) / 90)));
-  }
+  // v3.75：直接复用 comboGridFor（与运行时同源），不再抄一份 1×FULL 列数公式
+  const { cols, rows } = comboGridFor(size, hostW, hostH);
   const availW = hostW - 24;
   const availH = hostH - 24;
   const cellW = Math.max(1, availW / cols);
@@ -115,10 +111,10 @@ for (const [size, list] of Object.entries(PRESETS)) {
     sim.fonts.map((f) => `${f.key}=${f.u.toFixed(1)}`).join(' '));
 }
 
-// 1×FULL 动态列数
+// 1×FULL 固定 8 列（v3.75）
 for (const w of [520, 760, 1080, 1440]) {
   const sim = simulate('1xfull', w, 120, [{ c: 'time', s: 'hms' }, { c: 'time', s: 'dateFullWeekday' }, { c: 'schedule', s: 'holidayGap' }]);
-  ok(sim.grid.cols >= 4 && sim.grid.cols <= 10, `1xfull@${w}: 列数 ${sim.grid.cols} 应在 4~10`);
+  ok(sim.grid.cols === 8, `1xfull@${w}: 列数应恒为 8（实际 ${sim.grid.cols}）`);
   ok(sim.laid.length >= 2, `1xfull@${w}: 应至少放下 2 块`);
   console.log(`1xfull @${w}px → 网格 ${sim.grid.cols}×${sim.grid.rows}，放下 ${sim.laid.length} 块`);
 }

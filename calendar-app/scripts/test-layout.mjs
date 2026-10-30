@@ -162,6 +162,32 @@ ok(mOv.length === 1 && mOv[0].span.cols === 4, '1xfull 月历显式 span 4×2 �
   ok(b24.length === 1 && b24[0].span.cols === 8, '2x4 电量条显式 span 应原样生效');
 }
 
+// v3.75：1×FULL 固定 8 列后的**已知行为**（产品决策「FULL 填满优先」，不是缺陷）
+// 根因：月历 + singleLine 的 pref 来自 prefSpan = gridForSize('1xfull').cols = 8；
+// 当运行时 grid.cols 也是 8 时，拉伸目标与回退值相等 → fitsWithStretch 守卫空转 → 月历独占整行。
+// 周历/电量条的 pref 是样式声明占格（week 2×2 / battery 2×1），回退值 ≠ 拉伸值，守卫有效 → 邻居能保住。
+{
+  const eight = { cols: 8, rows: 2 };
+  const mBoth8 = autoLayout([
+    { c: 'calendar', s: 'month' },
+    { c: 'time', s: 'hms', span: { cols: 2, rows: 1 } },
+  ], 'combo', '1xfull', eight);
+  ok(mBoth8.length === 1 && mBoth8[0].span.cols === 8,
+    `1×FULL 8 列：月历独占整行，同卡时间单元被挤掉（产品决策：FULL 填满优先，实际 ${mBoth8.length} 块）`);
+  const wBoth8 = autoLayout([
+    { c: 'calendar', s: 'week' },
+    { c: 'time', s: 'hms', span: { cols: 2, rows: 1 } },
+  ], 'combo', '1xfull', eight);
+  ok(wBoth8.length === 2,
+    `1×FULL 8 列：周历 + 时间应都放下（回退值 ≠ 拉伸值，守卫有效；实际 ${wBoth8.length} 块）`);
+  const bBoth8 = autoLayout([
+    { c: 'progress', s: 'battery' },
+    { c: 'time', s: 'hms', span: { cols: 2, rows: 1 } },
+  ], 'combo', '1xfull', eight);
+  ok(bBoth8.length === 2,
+    `1×FULL 8 列：电量条 + 时间应都放下（回退值 ≠ 拉伸值，守卫有效；实际 ${bBoth8.length} 块）`);
+}
+
 // ---------- 4) 旧数据兼容 ----------
 for (const size of sizes) {
   const legacy = [{ c: 'time', s: 'hms' }, { c: 'calendar', s: 'month' }, { c: 'schedule', s: 'recent' }];
@@ -345,10 +371,13 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
 
 // v1.45：运行时网格 comboGridFor（预览/审计/运行时共用，保证「预览 = 实际」）
 {
-  ok(comboGridFor('1xfull', 1080, 120).cols === 10, '1xfull 1080px → 10 列');
+  // v3.75：1×FULL 固定 8 列（与宽度无关；列宽 =(w-24)/8 随宽度浮动）
+  ok(comboGridFor('1xfull', 1080, 120).cols === 8, '1xfull 1080px → 8 列');
   ok(comboGridFor('1xfull', 700, 120).cols === 8, '1xfull 700px → 8 列');
-  ok(comboGridFor('1xfull', 520, 120).cols === 6, '1xfull 520px → 6 列');
-  ok(comboGridFor('1xfull', 300, 120).cols === 4, '1xfull 300px → 保底 4 列');
+  ok(comboGridFor('1xfull', 520, 120).cols === 8, '1xfull 520px → 8 列');
+  ok(comboGridFor('1xfull', 924, 120).cols === 8, '1xfull 924px（实测最窄）→ 8 列');
+  ok(comboGridFor('1xfull', 1878, 120).cols === 8, '1xfull 1878px（实测最宽）→ 8 列');
+  ok(comboGridFor('1xfull', 300, 120).cols === 8, '1xfull 300px → 仍为 8 列（不再有保底降密度）');
   // 4×4 卡实测 110×200：cellW=(110-24)/4=21.5 <24 → 列降密度到 2；cellH=44 ≥24 → 行保持 4
   const g2 = comboGridFor('4x4', 110, 200);
   ok(g2.cols === 2 && g2.rows === 4, `窄卡单元格 <24px 时仅该维度降密度（实际 ${g2.cols}×${g2.rows}）`);
