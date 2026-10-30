@@ -63,8 +63,9 @@ const CONTENT_FIT = {
     // 月历 + 日期标题（cols ≥ 4）：表头由「年月」升级为「年月日」（居中，不带星期）
     monthTitle: { w: 6.8, h: 7.0 },
     // 单行月历（今日居中，左右各 9 天 = 19 天）：横向约为周历的 2.5 倍
-    // 实测（scripts/measure.html）：strip19 固有宽 19.826em 高 2.025em
-    monthSingle: { w: 19.83, h: 2.1 },
+    // v3.76：w 19.83 → 23.4（19 天 × 1.2em/格 + 0.6em 首尾余量）、h 2.1 → 2.3
+    // 与 SINGLE_CELL_EM / SINGLE_H_EM 必须一致，否则字号与排版错配（见 singleLineDays）
+    monthSingle: { w: 23.4, h: 2.3 },
     week: { w: 7.8, h: 2.1 },
     // 周历 + 日期标题（cols ≥ 4）：上方新增一行居中表头
     // 实测：整块 7.226em × 3.237em
@@ -393,10 +394,22 @@ export const SINGLE_REF_PX = {
  * 且只看「水平占格是否为 1」，垂直方向不做限制。
  */
 const SMALL_CARD_SIZES = new Set(['1x1', '2x1']);
-/** 月历单行：单个日期格的固有宽度（em，由实测 monthSingle 19.83 / 19 天反推） */
-const SINGLE_CELL_EM = 1.044;
-/** 月历单行：整体高度（em，与 monthSingle.h 一致） */
-const SINGLE_H_EM = 2.1;
+/**
+ * 月历单行：单个日期格的固有宽度（em）。
+ * v3.76：拆成「日期数字宽 0.9em + 最小水平间距 0.3em」—— 原来 1.044em 里的间距只有
+ * 0.125em（≈2.6px，窄卡上日期数字会视觉粘连），现在间距下限翻倍到 0.3em。
+ * ★ 必须与 CSS 的 .pv-wk-single { column-gap } 双向同步：改这里就要改那里。
+ */
+const SINGLE_DIGIT_EM = 0.9;
+/** 月历单行：相邻日期格的最小水平间距（em）—— CSS .pv-wk-single 的 column-gap 必须同值 */
+const SINGLE_GAP_EM = 0.3;
+const SINGLE_CELL_EM = SINGLE_DIGIT_EM + SINGLE_GAP_EM;
+/**
+ * 月历单行：整体高度（em，与 CONTENT_FIT.monthSingle.h 一致）。
+ * v3.76：2.1 → 2.3。实测内容实高 = 2.25em（数字 0.75em 行 + 星期 0.5em 行 + 单元格
+ * 上下 padding 0.375em + 行高），旧值 2.1em 差 0.15em → 星期下缘被裁 4.7px（真实测量）。
+ */
+const SINGLE_H_EM = 2.3;
 /** 月历单行：首尾留白余量（em），避免边缘被裁 */
 const SINGLE_PAD_EM = 0.6;
 /** 多日程显示「年月日 / 时分秒」两行小字所需的最小水平占格 */
@@ -919,7 +932,7 @@ function renderInfoBlockInner(o) {
       const days = Array.from({ length: side * 2 + 1 }, (_, i) => addDays(now, i - side));
       const wkScheds = getUserStore()?.getSchedules() || [];
       return html`<div class="pv-col">
-        <div class="pv-wk" style="grid-template-columns:repeat(${days.length}, minmax(0, 1fr))">
+        <div class="pv-wk pv-wk-single" style="grid-template-columns:repeat(${days.length}, minmax(0, 1fr))">
           ${days.map((d) => {
     const ds = formatDate(d);
     const isT = ds === todayStrV;

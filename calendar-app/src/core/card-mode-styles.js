@@ -59,6 +59,10 @@ export const CARD_MODE_CSS = `
 .pv-ap { font-size: 0.6875em; font-weight: 600; }
 /* v3.57：周历网格改用 minmax(0,1fr)，窄块（拼接多列）下不会再因内容最小宽溢出而裁切右侧星期 */
 .pv-wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.125em; }
+/* v3.76：月历单行的日期格「最小水平间距」——窄卡上原 0.125em（≈2.6px）会让日期数字视觉粘连。
+   只作用于单行月历（.pv-wk-single），周日历仍用上面的 0.125em。
+   ★ 与 card-mode-render.js 的 SINGLE_CELL_EM（1.2 = 数字 0.9 + 间距 0.3）双向同步 */
+.pv-wk-single { column-gap: 0.3em; }
 .pv-wk-cell { display: flex; flex-direction: column; align-items: center; border-radius: 0.375em; padding: 0.1875em 0; min-width: 0; }
 .pv-wk-d { font-size: 0.75em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pv-wk-w { font-size: 0.5em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
