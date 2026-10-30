@@ -401,18 +401,18 @@ const SINGLE_PAD_EM = 0.6;
 /** 多日程显示「年月日 / 时分秒」两行小字所需的最小水平占格 */
 const SCH_MULTI_WIDE_COLS = 4;
 /**
- * 多日程行高/行距模型（v1.34 需求 3，单位 em，与 .pv-sch-* / .pv-col 的 CSS 同源，
+ * 多日程行高/行距模型（v1.34 需求 3，单位 em，与 .pv-sch-* / .pv-sch-list 的 CSS 同源，
  * 改 CSS 的 line-height 或 gap 必须同步这里，否则末行会被裁）：
  * - 行高由显式 line-height 决定（不依赖字体度量，跨机器稳定）：
  *   宽布局行 = max(名 0.75em×1.2,  meta 两行 2×0.5em×1.2) = 1.2em；
- *   窄布局行 = 0.75em×1.25（.pv-sch-line）= 0.9375em。
- * - 行距基准 = .pv-col 的 gap；剩余空间再匀进行距（增量上限 SCH_GAP_MAX_EXTRA），
- *   大盘子下疏密得当、小盘子下也不少放。
+ *   窄布局行 = 名 0.75em×1.2（.pv-sch-name）≈ 0.9em，仍按 0.9375em 保守估算。
+ * - 行距 = .pv-col 的 gap（0.3125em）。v3.69：剩余空间**不再**匀进行距（拉大 gap 会让
+ *   行失去成组感、且封顶后底部必然留洞），改由 CSS 让行自身「增长 + 封顶」（.pv-sch-list）。
+ *   这三个常量现在只服务于「最多能放几行」的溢出保护（maxRows）。
  */
 const SCH_ROW_H_WIDE = 1.2;
 const SCH_ROW_H_NARROW = 0.9375;
 const SCH_ROW_GAP = 0.3125;
-const SCH_GAP_MAX_EXTRA = 0.6875;
 /** 行数公式的安全余量（em）：吸收字体度量/像素取整差异，宁可少放一行也不裁切 */
 const SCH_ROWS_RESERVE = 0.2;
 
@@ -594,7 +594,12 @@ function renderInfoBlockInner(o) {
       const all = (getUserStore()?.getSchedules() || [])
         .map((x) => ({ x, n: getNextOccurrence(x, now) }))
         .filter((e) => e.n)
-        .sort((a, b) => diffDays(a.n.date, b.n.date));
+        // v3.69：补两级次级排序（日期串 → 时间升序），使「同一天多条日程」时稳定取到
+        // **当天最早**那条；只按日差排序时并列项依赖原数组顺序，会取到当天靠后那条。
+        // 与 verticalList 分支的 occurrence.dateStr + item.time 两级比较同源。
+        .sort((a, b) => diffDays(a.n.date, b.n.date)
+          || (a.n.dateStr || '').localeCompare(b.n.dateStr || '')
+          || (a.x.time || '').localeCompare(b.x.time || ''));
       if (!all.length) return null;
       return { title: all[0].x.title || all[0].x.name || '', date: all[0].n.dateStr, time: all[0].x.time, note: all[0].x.note || '' };
     }
@@ -1044,63 +1049,39 @@ function renderInfoBlockInner(o) {
 
   // ---------- 拼接：日程（仅拼接模式；单独模式的日程样式在下方「单独：日程」分支）----------
   if (!o.singleRow && content === 'schedule') {
-      if (style === 'multiple') {
-        // 按块内可用空间自适应：横向够宽时补具体日期，纵向够高时多显示几条
-        const availW = Number.isFinite(o.availW) ? o.availW : 8;
-        const availH = Number.isFinite(o.availH) ? o.availH : 6;
-        const wide = !!(o.opts && o.opts.wide);
-        // v3.56：日期格式与纵向日程表一致 → YY-MM-DD HH:MM（无时间只显示日期），不再带星期
-        const p2 = (n) => String(n).padStart(2, '0');
-        const metaOf = (item, next) => {
-          const d = next.date;
-          const dt = `${String(d.getFullYear()).slice(-2)}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-          const t = item.time ? String(item.time).slice(0, 5) : '';
-          return t ? `${dt} ${t}` : dt;
-        };
-        // meta 估算宽度（em）：数字/标点约 0.42em/字，含时间比无时间宽
-        const metaEm = (item) => (item.time ? (isZh ? 5.8 : 6.2) : (isZh ? 4.4 : 4.8));
-        const rowH = wide ? SCH_ROW_H_WIDE : SCH_ROW_H_NARROW;
-        // 行数按「实测行高 + 行距」折算；上限取「可显示条数」与「高度可容纳条数」的较小值，
-        // 避免日程不足时强塞空行、又能在够高时多显示。
-        const maxRows = Math.max(1, Math.min(20,
-          Math.floor((availH - SCH_ROWS_RESERVE + SCH_ROW_GAP) / (rowH + SCH_ROW_GAP))));
-        const top = upcoming.slice(0, maxRows);
-        if (!top.length) return empty(isZh ? '暂无日程' : 'No schedules');
-        const rows = top.length;
-        // 剩余空间匀进行距（单侧增量有上限），填满高度、避免底部留洞
-        const contentH = rows * rowH + (rows - 1) * SCH_ROW_GAP;
-        const extra = rows > 1
-          ? Math.min(SCH_GAP_MAX_EXTRA, Math.max(0, availH - SCH_ROWS_RESERVE - contentH) / (rows - 1))
-          : 0;
-        const gapEm = (SCH_ROW_GAP + extra).toFixed(3);
-        if (wide) {
-          return html`<div class="pv-col" style="gap:${gapEm}em">
-            ${top.map(({ item, next }) => {
-      // 标题可容纳字符数：可用宽 - 右侧 meta 预留（em），再按名称字号（≈0.72em）折算
-      const keep = Math.max(3, Math.min(30, Math.floor((availW - metaEm(item)) / 0.72)));
-      const title = item.title.length > keep ? `${item.title.slice(0, keep)}…` : item.title;
-      return html`<div class="pv-sch-row">
-              <span class="pv-sch-name" style="color:${label}">${title}</span>
-              <span class="pv-sch-meta" style="color:${label3}">${metaOf(item, next)}</span>
-            </div>`;
-  })}
-          </div>`;
-        }
-        return html`<div class="pv-col" style="gap:${gapEm}em">
-          ${top.map(({ item, next }) => {
-      const d = diffDays(next.date, now);
-      const meta = metaOf(item, next);
-      // 标题可容纳字符数：可用宽 - 日期占位 - 倒计时占位（≈2.4em），按名称字号折算
-      const units = availW / 0.72;
-      const keep = Math.max(3, Math.min(26, Math.floor(units - metaEm(item) / 0.72 - 2.4)));
-      const left = keep;
-      const title = item.title.length > left ? `${item.title.slice(0, left)}…` : item.title;
-      return html`<div class="pv-row2 pv-sch-line" style="color:${label}">
-              ${meta ? html`<span style="color:${label3}">${meta}</span> ` : ''}${title} <b style="color:${theme}">${d === 0 ? TODAY : `${d}${DAYS}`}</b>
-            </div>`;
-  })}
-        </div>`;
-      }
+    if (style === 'multiple') {
+      // 按块内可用空间自适应：纵向够高时多显示几条（横向留白交给 CSS 省略）
+      const availH = Number.isFinite(o.availH) ? o.availH : 6;
+      const wide = !!(o.opts && o.opts.wide);
+      // v3.56：日期格式与纵向日程表一致 → YY-MM-DD HH:MM（无时间只显示日期），不再带星期
+      const p2 = (n) => String(n).padStart(2, '0');
+      const metaOf = (item, next) => {
+        const d = next.date;
+        const dt = `${String(d.getFullYear()).slice(-2)}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+        const t = item.time ? String(item.time).slice(0, 5) : '';
+        return t ? `${dt} ${t}` : dt;
+      };
+      // v3.69：天数钳到 3 位（>999 → 999+天），避免位数变化带动右侧列宽抖动；0 天沿用「今天」
+      const daysOf = (d) => (d === 0 ? TODAY : (d > 999 ? `999+${DAYS}` : `${d}${DAYS}`));
+      const rowH = wide ? SCH_ROW_H_WIDE : SCH_ROW_H_NARROW;
+      // 行数按「实测行高 + 行距」折算；上限取「可显示条数」与「高度可容纳条数」的较小值，
+      // 避免日程不足时强塞空行、又能在够高时多显示。（溢出保护逻辑不变）
+      const maxRows = Math.max(1, Math.min(20,
+        Math.floor((availH - SCH_ROWS_RESERVE + SCH_ROW_GAP) / (rowH + SCH_ROW_GAP))));
+      const top = upcoming.slice(0, maxRows);
+      if (!top.length) return empty(isZh ? '暂无日程' : 'No schedules');
+      // v3.69：垂直留白改为 CSS 主导分配（.pv-sch-list）—— 容器撑满可用高度，行按可用高度
+      // 「增长 + 封顶」，不再把剩余空间折算进行距（拉大 gap 会让行失去成组感、且封顶后底部留洞）。
+      // 日程名过长交给 CSS text-overflow 省略（.pv-sch-name 已带 min-width:0），
+      // 不再在 JS 里按 availW/0.72 估算切片——那套估算对中文很不准且会与 CSS 双重截断。
+      // 一条日程严格一行：name 伸缩 + meta 定宽不挤压，两者之间 column-gap 约 1 字符。
+      return html`<div class="pv-col pv-sch-list${wide ? ' wide' : ''}">
+        ${top.map(({ item, next }) => html`<div class="pv-sch-row">
+          <span class="pv-sch-name" style="color:${label}">${item.title || ''}</span>
+          <span class="pv-sch-meta${wide ? '' : ' pv-sch-days'}" style="color:${wide ? label3 : theme}">${wide ? metaOf(item, next) : daysOf(diffDays(next.date, now))}</span>
+        </div>`)}
+      </div>`;
+    }
     // recent：最近日程
     const first = upcoming[0];
     if (!first) return empty(isZh ? '暂无日程' : 'No schedules');

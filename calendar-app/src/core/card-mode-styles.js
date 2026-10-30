@@ -22,6 +22,15 @@ export const CARD_MODE_CSS = `
 .pv-sch-line { line-height: 1.25; }
 .pv-sch-date { opacity: 0.95; }
 .pv-sch-time { opacity: 0.8; }
+/* v3.69：拼接「多个日程」（multiple）列表的垂直空间分配 —— 容器撑满可用高度（.pv-col 已被
+   .pv-block stretch + flex:1 撑满），行按可用高度「增长 + 封顶」而非拉大行距（拉大 gap 会让
+   行失去成组感、且封顶后底部必然留洞）。只挂在 .pv-sch-list 作用域里，绝不写到 .pv-col 上
+   （.pv-col 是众多样式共用的类）。flex-shrink 必须显式写 0：极小卡片可低至 76px，行一旦被
+   压缩到低于行盒高度，中文上下缘会被 overflow 直接切掉。 */
+.pv-sch-list { justify-content: flex-start; }
+.pv-sch-list > .pv-sch-row { flex: 1 0 auto; max-height: 3.4em; column-gap: 1em; }
+/* 窄布局（占格 <4）右侧只显示剩余天数：比日期串短，放大一档与日程名的视觉重量匹配 */
+.pv-sch-row .pv-sch-days { font-size: 0.66em; font-weight: 600; }
 .pv-sub { font-size: 0.66em; line-height: 1.3; }
 .pv-tight .pv-sub { display: none; }
 .pv-bar { height: 0.25em; border-radius: 0.125em; overflow: hidden; }

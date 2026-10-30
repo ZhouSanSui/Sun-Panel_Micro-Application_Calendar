@@ -367,17 +367,19 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     color: 'red',
     yearly: false,
   }));
-  const multi = (availW, availH) => flatten(mk({
-    content: 'schedule', style: 'multiple', availW, availH, now: new Date(),
+  const multi = (availW, availH, extra) => flatten(mk({
+    content: 'schedule', style: 'multiple', availW, availH, now: new Date(), ...(extra || {}),
   })).join('');
   const narrow = multi(8, 6);
   const tall = multi(8, 20);
-  const wide = multi(16, 6);
-  const cnt = (s) => (s.match(/pv-row2/g) || []).length;
+  // v3.69：宽/窄由 opts.wide（拼接模式按 span.cols>=4 自动合成）决定，不再靠 availW 猜；
+  // 窄布局（占格 <4）右侧只显示剩余天数，不再显示日期
+  const wide = multi(16, 6, { opts: { wide: true } });
+  const cnt = (s) => (s.match(/pv-sch-row/g) || []).length;
   ok(cnt(tall) > cnt(narrow), `纵向空间大时应显示更多日程（${cnt(narrow)} → ${cnt(tall)}）`);
   ok(cnt(narrow) >= 3, `默认空间至少显示 3 条（实际 ${cnt(narrow)}）`);
   ok(cnt(tall) <= 8, '条目数应受上限约束');
-  ok(!narrow.includes('月') || !/\d+月\d+日/.test(narrow), '横向空间不足时不显示具体日期');
+  ok(!/\d{2}-\d{2}-\d{2}/.test(narrow), '横向空间不足时只显示剩余天数、不显示日期（v3.69）');
   ok(/\d{2}-\d{2}-\d{2}/.test(wide), '横向空间足够时应显示具体日期（YY-MM-DD）');
 }
 
@@ -444,7 +446,11 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     const narrow = fl(mkBlock({
       content: 'schedule', style: 'multiple', span: { cols: 2, rows: 2 },
     }));
-    ok(!narrow.includes('pv-sch-row'), 'cols<4 的多日程保持原单行样式');
+    // v3.69：窄布局（cols<4）改用与宽布局同构的「日程名伸缩 + 右侧元信息定宽」两元素结构，
+    // 右侧只显示剩余天数，不再显示日期（原行内文本流「日期+名+N天」三件套无 CSS 省略能力）
+    ok(narrow.includes('pv-sch-row') && narrow.includes('pv-sch-days'),
+      'cols<4 的多日程改用「日程名 + 右侧剩余天数」两元素结构（v3.69）');
+    ok(!/\d{2}-\d{2}-\d{2}/.test(narrow), 'cols<4 的多日程右侧不再显示日期，只显示剩余天数');
     // v1.34 需求 3：renderBlocksHTML 按 span.cols>=SCH_MULTI_WIDE_COLS(4) 自动合成 opts.wide
     // （旧代码读块级 o.wide 恒假 → 宽布局从不显示；探针 _probe.mjs schRun4x4 已实测验证）
     {
@@ -462,13 +468,17 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
       ok(str.includes('pv-sch-meta'), 'renderBlocksHTML：宽布局应含右侧两行小字');
       const laidNarrow = layoutBlocks([{ c: 'schedule', s: 'multiple', span: { cols: 2, rows: 2 } }], 'combo', '2x4', grid);
       const strN = flatten(renderBlocksHTML({ ...base, blocks: laidNarrow, grid, cellW: 60, cellH: 60 })).join('');
-      ok(!strN.includes('pv-sch-row'), 'renderBlocksHTML：span 2×2 多日程不应走宽布局');
+      ok(strN.includes('pv-sch-row') && strN.includes('pv-sch-days')
+        && !/\d{2}-\d{2}-\d{2}/.test(strN),
+      'renderBlocksHTML：span 2×2 多日程走窄布局（只有剩余天数，无日期）');
       const names = (s) => [...s.matchAll(/pv-sch-name[^>]*>([^<]*)</g)].map((m) => m[1]);
       // 240×120 小块：u≈21.1（w 主导），availW≈11em → keep=8，5 字符标题完整
       ok(names(str).includes('表妹-高娜'), '宽布局 keep：240px 小块 5 字符标题不应被切');
-      // keep 下限保护：极端窄（availW=4em）至少保底 3 字符
+      // v3.69：移除 JS 手工切片截断（availW/0.72 估算对中文很不准 + 与 CSS 双重截断），
+      // 改为依赖 CSS text-overflow → DOM 里必须是完整标题、不含人工省略号
       const tiny = fl(renderInfoBlock({ ...base, content: 'schedule', style: 'multiple', span: { cols: 4, rows: 2 }, opts: { wide: true }, availW: 4, availH: 6, now: new Date(2026, 9, 18) }));
-      ok(names(tiny).every((n) => n.length <= 4), `宽布局 keep：availW=4 时应截到 3 字符+省略号（实际 ${JSON.stringify(names(tiny))}）`);
+      ok(names(tiny).length > 0 && names(tiny).every((n) => !n.includes('…')),
+        `极窄档不应再有 JS 切片截断（实际 ${JSON.stringify(names(tiny))}）`);
       // 真实 580px 4×4 卡（span 8×8，u=40，availW≈13.5em → keep=11）：5 字符标题完整
       const str580 = flatten(renderBlocksHTML({
         ...base,
@@ -1154,6 +1164,32 @@ console.log('');
   const titled = flatten(renderInfoBlock({ ...base, content: 'schedule', style: 'targetDay', singleRow: true, size: '2x2', opts: { text: '项目上线', date: '2026-11-11' } })).join('');
   ok(titled.includes('项目上线'), '样式设置 text 应作为标题渲染');
   ok(titled.includes('2026-11-11'), '样式设置 date 应渲染目标日期');
+
+  // v3.69 回归守卫：targetDay「关联日程时间」的条件渲染 —— timeNode 由 schedPick.time 决定，
+  // 有 time 才输出 .pv-tg-time（日期下方 / 1×FULL 日期后方），无 time 只渲染日期串
+  {
+    const scheds = getUserStore().data.schedules;
+    const saved = scheds.slice();
+    const tgOf = (time) => {
+      scheds.length = 0;
+      scheds.push({
+        id: 'tg_time', type: 'event', title: '关联日程', date: '2026-12-31', lunar: false,
+        time, note: '', color: 'red', yearly: false,
+      });
+      return flatten(renderInfoBlock({
+        ...base, content: 'schedule', style: 'targetDay', singleRow: true, size: '2x2',
+        opts: { sched: 'tg_time' },
+      })).join('');
+    };
+    const withTime = tgOf('14:30');
+    const noTime = tgOf('');
+    scheds.length = 0;
+    scheds.push(...saved);
+    ok(withTime.includes('pv-tg-time') && withTime.includes('14:30'),
+      `targetDay 关联日程带 time 时应输出时间节点（含 14:30=${withTime.includes('14:30')}）`);
+    ok(!noTime.includes('pv-tg-time') && noTime.includes('2026-12-31'),
+      'targetDay 关联日程无 time 时不输出时间节点，只渲染日期串');
+  }
 
   // 尺寸门控：不同样式只对部分卡片尺寸开放
   const bold2x2 = stylesForSize('single', 'timeDate', '2x2').map((s) => s.key);
