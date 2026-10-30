@@ -106,6 +106,17 @@ export const CARD_MODE_CSS = `
         overflow: hidden;
       }
 @media (prefers-reduced-motion: no-preference) { .pv-block { transition: left 0.16s ease, top 0.16s ease; } }
+/* v3.77：1×FULL 内容盒（锚点定位）
+   宽度由内容固有宽决定（JS 内联 width，px），left 由 JS 算成
+   「calc(50% − 盒宽/2 + 偏移%)」—— 偏移 0 时两个中心点重合，偏移非 0 时水平错开。
+   height:100% + 内部 flex 居中保证「垂直中心与占格中心重合」（需求硬约束）。
+   ★ 只有 1×FULL 上、且不在 FULL_STRETCH_STYLES 里的样式才会包这一层。 */
+.pv-fitbox { position: absolute; top: 0; height: 100%; min-width: 0; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; }
+/* v3.77：撑满占格的样式（月历/周历/电量条/多日程）需要偏移时的整体平移层。
+   transform 的 % 相对自身宽度 = 占格宽，故与 fitbox 的百分比语义一致。 */
+.pv-blockshift { width: 100%; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; }
 /* v2.7：单独模式整卡根容器 = 与 .pv-block 同构（绝对定位块由内联样式给出尺寸，这里只补盒模型与居中） */
 .pv-single { box-sizing: border-box; padding: 0.1875em; display: flex; flex-direction: column; align-items: safe center; justify-content: safe center; width: 100%; height: 100%; overflow: hidden; }
 /* v3.10：col 被 stretch 撑满整高后，内部默认 flex-start 会让内容贴顶 —— 2×1 这类高瘦卡

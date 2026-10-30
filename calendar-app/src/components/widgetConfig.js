@@ -639,7 +639,14 @@ export class WidgetConfig extends SunPanelPageElement {
     const e = this._spanEdit;
     if (!e || !this.cardBlocks[e.idx]) return;
     const next = this.cardBlocks.map((x, i) => (i === e.idx
-      ? { c: x.c, s: x.s, ...(x.n !== undefined ? { n: x.n } : {}), ...(x.pos ? { pos: x.pos } : {}) }
+      ? {
+        c: x.c,
+        s: x.s,
+        ...(x.n !== undefined ? { n: x.n } : {}),
+        ...(x.pos ? { pos: x.pos } : {}),
+        // v3.77：重置占格不该顺手抹掉用户调好的水平偏移（本方法会重建对象，漏一个就丢）
+        ...(Number.isFinite(x.offX) && x.offX !== 0 ? { offX: x.offX } : {}),
+      }
       : x));
     if (!this._isFreeMode() && !blocksFit(next, this.displayMode, this._size)) {
       this._showHint(this._t('t', '空间不足，无法恢复默认占格', 'Not enough room to restore the default size'));
@@ -806,6 +813,20 @@ export class WidgetConfig extends SunPanelPageElement {
     const info = this._spanTargetInfo();
     if (!info) return;
     this._resizeSpanTo(info.grid.cols, blockSpanDef(this.displayMode, info.b).span.rows);
+  }
+
+  /**
+   * v3.77：水平自由偏移微调（**占格宽百分比**，±50 夹取）。
+   * 只影响 1×FULL 的渲染位置，不动占格/网格坐标 —— 偏移不能塞进 pos.col，
+   * 否则会被 sanitizeBlocks 当格坐标收窄、并污染 freeLayout 的重叠判定。
+   */
+  _nudgeOffset(d) {
+    const info = this._spanTargetInfo();
+    if (!info) return;
+    const cur = Number.isFinite(info.b.offX) ? info.b.offX : 0;
+    const next = Math.max(-50, Math.min(50, Math.round((cur + d) * 10) / 10));
+    this._setBlockField(info.idx, { offX: next });
+    this.requestUpdate();
   }
 
   /**
@@ -1313,6 +1334,9 @@ export class WidgetConfig extends SunPanelPageElement {
       sizeLabel: info.size,
       onPick: (r, c) => this._pickSpanCell(r, c),
       onResize: (dCols, dRows) => this._resizeSpan(dCols, dRows),
+      // v3.77：水平自由偏移（占格宽百分比，仅 1×FULL 生效）
+      offsetX: Number.isFinite(info.b.offX) ? info.b.offX : 0,
+      onNudgeOffset: (d) => this._nudgeOffset(d),
       onReset: () => this._resetSpan(),
       onClose: () => this._closeSpanEdit(),
       // v1.31 需求 1：卡片级接管的轴 → 单元级开关软禁用（可点，点了给原因 + 解锁）

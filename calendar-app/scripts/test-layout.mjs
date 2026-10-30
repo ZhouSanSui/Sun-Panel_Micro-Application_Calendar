@@ -8,7 +8,7 @@
  */
 import {
   CARD_GRID, gridForSize, comboGridFor, styleSpanDef, buildOccupancy, canPlace, findSlot,
-  autoLayout, blocksFit, layoutBlocks, sanitizeBlocks,
+  autoLayout, blocksFit, layoutBlocks, sanitizeBlocks, normalizeOffset,
   normalizeSpan, blockSpanDef, effectiveSpan, spanBounds, flatStyleSeq, shiftFlatStyle,
   unitId, unitAlign, unitOpts, isFullCard, UserStore,
   COMBO_CONTENTS, displayContents,
@@ -701,6 +701,32 @@ ok(JSON.stringify(normalizeSpan({ cols: 2.4, rows: 3.6 })) === '{"cols":2,"rows"
     { c: 'time', s: 'dateFull', span: { cols: 1, rows: 1 }, pos: { col: 2, row: 0 } },
   ];
   ok(!soloUnitIndexes(sharedRow).has(0), '同行有其他单元 → 不算孤立');
+}
+
+// ---------- v3.77：水平自由偏移 offX ----------
+{
+  // 归一化：±50 夹取、保留 1 位小数、非法值 null
+  ok(normalizeOffset(0) === 0, 'normalizeOffset(0) → 0');
+  ok(normalizeOffset(12.34) === 12.3, 'normalizeOffset 保留 1 位小数');
+  ok(normalizeOffset(999) === 50, 'normalizeOffset 上限夹取 50');
+  ok(normalizeOffset(-999) === -50, 'normalizeOffset 下限夹取 -50');
+  ok(normalizeOffset('abc') === null, 'normalizeOffset 非法值 → null');
+  // sanitizeBlocks：保留非 0；0 不落库
+  const s1 = sanitizeBlocks([{ c: 'time', s: 'hms', offX: 15 }], 'combo', '1xfull');
+  ok(s1[0].offX === 15, 'sanitizeBlocks 应保留 offX');
+  const s2 = sanitizeBlocks([{ c: 'time', s: 'hms', offX: 0 }], 'combo', '1xfull');
+  ok(s2[0].offX === undefined, 'offX=0 不应落库（省体积）');
+  const s3 = sanitizeBlocks([{ c: 'time', s: 'hms', offX: 999 }], 'combo', '1xfull');
+  ok(s3[0].offX === 50, 'sanitizeBlocks 应对越界 offX 夹取');
+  // 布局两条路径都要透传 —— 漏一条用户设的偏移就会静默消失
+  const g8f = { cols: 8, rows: 2 };
+  const a1 = autoLayout([{ c: 'time', s: 'hms', offX: -20 }], 'combo', '1xfull', g8f);
+  ok(a1[0].offX === -20, 'autoLayout 应透传 offX');
+  const f1 = layoutBlocks([{ c: 'time', s: 'hms', offX: -20, pos: { col: 0, row: 0 } }], 'combo', '1xfull', g8f);
+  ok(f1[0].offX === -20, 'freeLayout（块带 pos 时）也应透传 offX');
+  // 指纹必须包含偏移，否则「只调偏移」会被当成「点了没反应」
+  const f2 = layoutBlocks([{ c: 'time', s: 'hms', offX: -10, pos: { col: 0, row: 0 } }], 'combo', '1xfull', g8f);
+  ok(layoutSignature(f1) !== layoutSignature(f2), 'layoutSignature 应体现 offX 变化');
 }
 
 // ---------- 汇总 ----------

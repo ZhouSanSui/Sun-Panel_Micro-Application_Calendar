@@ -1364,10 +1364,28 @@ export class MainPage extends SunPanelPageElement {
   }
 
   /** 恢复该样式的默认占格 */
+  /**
+   * v3.77：主页面占格编辑器里的水平偏移微调（占格宽百分比，±50 夹取）。
+   * 只改渲染位置，不动 pos/span —— 偏移若塞进 pos.col 会被当格坐标收窄。
+   */
+  _cardNudgeOffset(d) {
+    const info = this._cardSpanInfo();
+    if (!info || !this._cardSpanEdit) return;
+    const cur = Number.isFinite(info.b.offX) ? info.b.offX : 0;
+    const next = Math.max(-50, Math.min(50, Math.round((cur + d) * 10) / 10));
+    this._setSetting({
+      cardBlocks: info.blocks.map((x, i) => (i === this._cardSpanEdit.idx ? { ...x, offX: next } : x)),
+    });
+    this.requestUpdate();
+  }
+
   _cardResetSpan() {
     const info = this._cardSpanInfo();
     if (!info) return;
-    const next = info.blocks.map((x, i) => (i === this._cardSpanEdit.idx ? { c: x.c, s: x.s } : x));
+    const next = info.blocks.map((x, i) => (i === this._cardSpanEdit.idx
+      // v3.77：保留水平偏移，重置占格不应抹掉它（本方法重建对象）
+      ? { c: x.c, s: x.s, ...(Number.isFinite(x.offX) && x.offX !== 0 ? { offX: x.offX } : {}) }
+      : x));
     if (!blocksFit(next, info.mode, info.size)) {
       this._showCardCfgHint(this._isZh() ? '空间不足，无法恢复默认占格' : 'Not enough room to restore the default size');
       return;
@@ -1421,6 +1439,9 @@ export class MainPage extends SunPanelPageElement {
       sizeLabel: info.size,
       onPick: (r, c) => this._cardPickSpanCell(r, c),
       onResize: (dCols, dRows) => this._cardResizeSpan(dCols, dRows),
+      // v3.77：水平自由偏移（占格宽百分比，仅 1×FULL 生效）
+      offsetX: Number.isFinite(info.b.offX) ? info.b.offX : 0,
+      onNudgeOffset: (d) => this._cardNudgeOffset(d),
       onReset: () => this._cardResetSpan(),
       onClose: () => { this._cardSpanEdit = null; this.requestUpdate(); },
       // v1.43：不再有「接管/锁定」——单元级控件始终可点，点击即移交该轴控制权

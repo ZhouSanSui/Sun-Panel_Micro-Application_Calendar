@@ -336,6 +336,13 @@ const CONTENT_FIT = {
 const FIT_MIN_U = 9;
 /** .pv-block 单侧内边距（em） */
 const FIT_PAD = 0.1875;
+/**
+ * v3.77：水平自由偏移的调参范围与步长（**百分比，相对占格宽**）。
+ * 与 user-store.js 的 normalizeOffset 夹取范围（±50）必须一致，否则 UI 能按到但存不进去。
+ */
+const OFFSET_MIN = -50;
+const OFFSET_MAX = 50;
+const OFFSET_STEP = 5;
 /** 宿主 `.widget` 的左右/上下内边距合计（widget.js:662 `padding: 12px` → 12×2 = 24px）。
  *  可用空间计算必须扣掉它，否则几何比真实内容盒宽高各恒定多 24px → 固定 em 尺寸必溢出。 */
 const HOST_PAD_X2 = 24;
@@ -2366,6 +2373,22 @@ export function renderInfoBlock(o) {
 }
 
 /**
+ * v3.77：1×FULL 上**仍撑满占格**的样式（不启用 fitbox 内容盒）。
+ * 判据是「内容量随宽度变化」——这些样式的内容结构本身就是横向铺开的：
+ *  - calendar:month  格阵列数 / 单行天数按可用宽自适应，必须吃满
+ *  - calendar:week   7 格等分
+ *  - calendar:battery 横向进度条，天然撑满
+ *  - schedule:multiple 条数按高度容纳，名字需要尽可能多的横向空间
+ * 其余样式（time 全部、节日族、recent）内容结构固定，改由「自身固有宽 + 锚点居中」摆放。
+ */
+const FULL_STRETCH_STYLES = new Set([
+  'calendar:month',
+  'calendar:week',
+  'calendar:battery',
+  'schedule:multiple',
+]);
+
+/**
  * 拼接模式：按网格布局渲染多单元（绝对定位 + span 占位 + em 等比字号）。
  * @param {Object} o
  *   blocks: [{c,s,span,pos},...]（sanitizeBlocks 的输出；缺 span/pos 时现场推导）
@@ -2413,9 +2436,21 @@ export function renderBlocksHTML(o) {
       fit = { w: singleDays * SINGLE_CELL_EM + SINGLE_PAD_EM, h: fit.h, wrap: false };
     }
     // 块根字号：按该内容的固有尺寸反推，取宽/高两个约束的较小值（等比缩放）
-    const u = fitFontU(blockW, blockH, fit);
+    // v3.77：1×FULL 上固定结构样式改走 fitbox（内容盒按自身宽度 + 锚点居中）。
+    // 此时「宽度」是变量，若 u 仍吃 blockW，会与「内容宽 = u × fit.w」形成循环依赖
+    // （blockW → u → 内容宽 → blockW），故先只按**高度**求解；
+    // 若算出的内容宽反而超过占格宽（窄占格），再退回双约束，保证不横向溢出。
+    const fullKey = `${b.c}:${b.s}`;
+    const fitBox = o.size === '1xfull' && !FULL_STRETCH_STYLES.has(fullKey);
+    let u = fitFontU(blockW, blockH, fit);
+    let boxW = 0;
+    if (fitBox) {
+      const uByH = Math.max(7, Math.min(40, blockH / (fit.h + 2 * FIT_PAD)));
+      const wByH = (fit.w + 2 * FIT_PAD) * uByH;
+      if (wByH <= blockW) { u = uByH; boxW = wByH; }
+    }
     // 块内可用空间（em）：供内容按空间自适应（如多个日程按高度增减条数）
-    const availW = blockW / u - 2 * FIT_PAD;
+    const availW = (boxW > 0 ? boxW : blockW) / u - 2 * FIT_PAD;
     const availH = blockH / u - 2 * FIT_PAD;
     // v1.43：块根字号过小时（<10px，典型为 48px 小块）附加 pv-tight，
     // 隐藏说明级小字（.pv-sub），避免出现 5px 左右不可读的副标题
@@ -2423,18 +2458,34 @@ export function renderBlocksHTML(o) {
     const feFam = ['festival', 'solarTerm', 'holidayGap', 'recent'].includes(b.s);
     const tight = u < 10 && !(feFam && b.span.rows >= 2);
     const cls = `${b.c === 'blank' ? 'pv-block pv-blank' : 'pv-block'}${tight ? ' pv-tight' : ''}`;
+    const inner = renderInfoBlockInner({
+      ...o, content: b.c, style: b.s, span: b.span, opts, availW, availH, tall, small, flat, singleDays,
+      // v3.70：块根字号 u（px）透传给内容层 —— 多日程要按它判「12px 下限是否生效」并重推行高
+      blockU: u,
+      // v3.3：窄块（宽 < 高）即使没到 2 倍，日期串也会被挤成三行 —— 显式两行，避免与预览观感不一致
+      narrow: blockW < blockH,
+      // v1.44：窄块（<150px）日期串年份降为两位，给「数值+单位」留同排空间
+      shortYear: blockW < 150,
+    });
+    // v3.77：内容盒按自身固有宽摆放，锚点 = 占格水平中心 + 用户设的偏移（offX，占格宽百分比）。
+    // 垂直方向由 .pv-fitbox 的 height:100% + 内部 flex 居中保证与占格中心重合。
+    // 差异小于 0.5px 时不包一层，避免无意义的 DOM。
+    const offX = o.size === '1xfull' && Number.isFinite(b.offX) ? b.offX : 0;
+    const offTerm = offX ? ` + ${offX}%` : '';
+    let body;
+    if (boxW > 0 && boxW < blockW - 0.5) {
+      // left 的 % 相对 .pv-block（= 占格宽），offX% 因此天然是「占格宽的百分比」
+      body = html`<div class="pv-fitbox" style="left:calc(50% - ${(boxW / 2).toFixed(2)}px${offTerm});width:${boxW.toFixed(2)}px">${inner}</div>`;
+    } else if (offX) {
+      // 撑满占格的样式（月历/周历/电量条/多日程）只能整体平移，超出部分由 .pv-block 的 overflow 裁掉
+      body = html`<div class="pv-blockshift" style="transform:translateX(${offX}%)">${inner}</div>`;
+    } else {
+      body = inner;
+    }
     return html`<div
         class="${cls}"
         style="left:${pct(b.pos.col, grid.cols)};top:${pct(b.pos.row, grid.rows)};width:${pct(b.span.cols, grid.cols)};height:${pct(b.span.rows, grid.rows)};font-size:${u.toFixed(1)}px;z-index:${bi + 1};opacity:0.9"
-      >${renderInfoBlockInner({
-    ...o, content: b.c, style: b.s, span: b.span, opts, availW, availH, tall, small, flat, singleDays,
-    // v3.70：块根字号 u（px）透传给内容层 —— 多日程要按它判「12px 下限是否生效」并重推行高
-    blockU: u,
-    // v3.3：窄块（宽 < 高）即使没到 2 倍，日期串也会被挤成三行 —— 显式两行，避免与预览观感不一致
-    narrow: blockW < blockH,
-    // v1.44：窄块（<150px）日期串年份降为两位，给「数值+单位」留同排空间
-    shortYear: blockW < 150,
-  })}</div>`;
+      >${body}</div>`;
   })}
   </div>`;
 }
@@ -2463,6 +2514,8 @@ export function renderSpanEditor(o) {
     occupied, isFull, singleLine, noUnits, showSchedule, onToggleShowSchedule, showHoliday, onToggleShowHoliday,
     alignLocked,
     onPick, onResize, onClose,
+    // v3.77：水平自由偏移的数值微调（仅 1×FULL 显示这一行；未传回调时不渲染）
+    offsetX = 0, onNudgeOffset,
   } = o;
   const tr = (key, vars) => (typeof o.t === 'function' ? o.t(key, vars) : null);
   const onFull = o.onFull || (() => {});
@@ -2550,6 +2603,13 @@ export function renderSpanEditor(o) {
     span.cols <= min.cols || (minArea > 0 && (span.cols - 1) * span.rows < minArea),
     span.cols >= max.cols,
   )}
+          ${isFull && onNudgeOffset ? html`
+            <div class="se-row">
+              <span class="se-lab">${isZh ? '偏移' : 'Offset'}</span>
+              <button class="se-btn" ?disabled=${offsetX <= OFFSET_MIN} aria-label="minus" @click=${() => onNudgeOffset(-OFFSET_STEP)}>−</button>
+              <span class="se-val">${offsetX > 0 ? '+' : ''}${offsetX}%</span>
+              <button class="se-btn" ?disabled=${offsetX >= OFFSET_MAX} aria-label="plus" @click=${() => onNudgeOffset(OFFSET_STEP)}>+</button>
+            </div>` : ''}
           <div class="se-size">${span.rows}×${span.cols}<span class="se-size-h">${isZh ? ' 垂直×水平' : ' V×H'}</span></div>
         </div>
       </div>

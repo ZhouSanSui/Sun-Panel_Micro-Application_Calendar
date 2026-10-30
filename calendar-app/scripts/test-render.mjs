@@ -1683,6 +1683,26 @@ ok(full1080h120 >= 16 && full1080h120 <= 20, `1×FULL 在 1080px 应≈18px，�
   }
 }
 
+// ---------- v3.77：1×FULL fitbox（内容盒按自身宽度 + 锚点偏移） ----------
+{
+  const grid = comboGridFor('1xfull', 1242, 76);
+  const cellW = (1242 - 24) / grid.cols;
+  const cellH = (76 - 24) / grid.rows;
+  const render = (c, s, extra) => flatten(renderBlocksHTML({
+    ...base,
+    blocks: layoutBlocks([{ c, s, ...(extra || {}) }], 'combo', '1xfull', grid),
+    grid, cellW, cellH, size: '1xfull',
+  })).join('');
+  ok(render('time', 'hms').includes('pv-fitbox'), '1×FULL 固定结构样式应包 .pv-fitbox');
+  // 内容量随宽度变化的四类必须保持撑满，否则会被压成一条窄缝、名称全被省略
+  for (const [c, s] of [['calendar', 'month'], ['calendar', 'week'], ['calendar', 'battery'], ['schedule', 'multiple']]) {
+    ok(!render(c, s).includes('pv-fitbox'), `${c}:${s} 应保持撑满占格（不包 fitbox）`);
+  }
+  ok(render('time', 'hms', { offX: 25 }).includes('+ 25%'), 'offX 应体现在 fitbox 的 left 上');
+  ok(!render('time', 'hms').includes(' + 0%'), 'offX=0 时应省略偏移项（不留冗余 calc）');
+  ok(render('calendar', 'month', { offX: 10 }).includes('pv-blockshift'), '撑满样式带偏移时应包 .pv-blockshift');
+}
+
 if (fails.length) {
   console.log(`✗ 失败 ${fails.length} 项 / 通过 ${pass} 项`);
   for (const f of fails.slice(0, 30)) console.log('  - ' + f);

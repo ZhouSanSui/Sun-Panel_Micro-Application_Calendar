@@ -433,6 +433,21 @@ export function normalizePos(v) {
   return { col, row };
 }
 
+/**
+ * v3.77：单元级「水平自由偏移」归一化 —— 单位是**占格宽度的百分比**。
+ * 需求原话：「样式水平方向中心点」与「占格位置水平方向中心点」垂直必须重合、水平可以不重合，
+ * 这个差值就是本字段。用百分比而非 px，是因为 1×FULL 的宽度是变量（924~1878），
+ * 百分比能随卡片宽度等比缩放，不同屏幕上观感一致。
+ * 只在 1×FULL 生效（其它尺寸宽度固定，偏移没有意义）。
+ * 夹取 ±50%：再大内容就整体跑出占格了。0 不落库（省体积，且便于判断「用户是否设过」）。
+ * ⚠️ 不要塞进 pos.col —— pos 是整数格坐标，会被 sanitizeBlocks 收窄、并污染 freeLayout 重叠判定。
+ */
+export function normalizeOffset(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(Math.min(50, Math.max(-50, n)) * 10) / 10;
+}
+
 /** 单元实际占格：优先单元级覆盖（用户提供），否则用样式声明 */
 export function blockSpanDef(displayMode, b) {
   const d = styleSpanDef(displayMode, b.c, b.s);
@@ -775,9 +790,13 @@ export function applyCardCenter(layout, grid, on) {
   return layout.map((b) => ({ ...b, pos: { col: b.pos.col + dx, row: b.pos.row + dy } }));
 }
 
-/** 布局指纹：用于「点了没反应」检测（v1.31 · D6） */
+/**
+ * 布局指纹：用于「点了没反应」检测（v1.31 · D6）。
+ * v3.77：把水平自由偏移 offX 也纳入指纹 —— 否则只调偏移时指纹不变，
+ * 「对齐/置中没有变化」的提示会误报为「没反应」。
+ */
 export function layoutSignature(laid) {
-  return (laid || []).map((b) => `${b.pos.col},${b.pos.row},${b.span.cols},${b.span.rows}`).join('|');
+  return (laid || []).map((b) => `${b.pos.col},${b.pos.row},${b.span.cols},${b.span.rows},${Number.isFinite(b.offX) ? b.offX : 0}`).join('|');
 }
 
 /** 扁平样式序列（跨显示内容连续切换用）：[{ c, s }, ...] */
@@ -929,6 +948,8 @@ export function autoLayout(list, displayMode, size, gridOverride, forceSpan) {
     if (b.n !== undefined) extra.n = b.n;
     if (b.align) extra.align = b.align;
     if (b.opts) extra.opts = b.opts;
+    // v3.77：水平自由偏移必须透传 —— 漏掉这一步，布局后会静默丢失用户设的偏移
+    if (Number.isFinite(b.offX) && b.offX !== 0) extra.offX = b.offX;
     out.push(extra);
     const id = unitId(b);
     for (let r = slot.row; r < slot.row + used.rows; r++) {
@@ -1039,6 +1060,9 @@ export function sanitizeBlocks(list, displayMode, size) {
       if (al) item.align = al;
       const op = normalizeOpts(raw && raw.opts);
       if (op) item.opts = op;
+      // v3.77：水平自由偏移（占格宽百分比，仅 1×FULL 生效，0 不落库）
+      const off = normalizeOffset(raw && raw.offX);
+      if (off !== null && off !== 0) item.offX = off;
       // v3.50：自由定位坐标（可小数）随配置往返 —— 拖拽落点必须能存下来，
       // 否则保存/读回后全部回到自动落位。越界值按网格收窄到 [0, 格数-1]，保证块可点回。
       const ps = normalizePos(raw && raw.pos);
@@ -1115,6 +1139,8 @@ function freeLayout(list, displayMode, size, grid) {
     if (b.n !== undefined) extra.n = b.n;
     if (b.align) extra.align = b.align;
     if (b.opts) extra.opts = b.opts;
+    // v3.77：水平自由偏移透传（与 autoLayout 同）
+    if (Number.isFinite(b.offX) && b.offX !== 0) extra.offX = b.offX;
     out.push(extra);
     placed.push({ x: pos.col, y: pos.row, cols: clamped.cols, rows: clamped.rows });
   }
