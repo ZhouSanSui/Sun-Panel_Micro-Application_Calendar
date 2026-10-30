@@ -1677,16 +1677,33 @@ function renderInfoBlockInner(o) {
         const t = time ? String(time).slice(0, 5) : '';
         return t ? `${dt} ${t}` : dt;
       };
-      // 行顶偏移：累加目标行之前所有兄弟行的高度（不依赖 offsetParent，鲁棒）
-      const rowTop = (list, row) => {
-        let top = 0; let n = row.previousElementSibling;
-        while (n) { top += n.offsetHeight; n = n.previousElementSibling; }
-        return top;
-      };
       // 首个「未来/今日」行（即最近/即将到来的日程；无未来时取最后一行=最新）
       const firstFutureRow = (list) =>
         list.querySelector('[data-future="1"]') || [...list.querySelectorAll('.pv-vl-row')].pop() || null;
-      // 拖动滚动：记录起点，move 时按位移反向滚动（触摸式）
+      // 当前视口顶部对齐的那条行 index：基于 getBoundingClientRect（视口坐标，不依赖 offsetParent）
+      const currentTopIdx = (sc) => {
+        const rows = [...sc.querySelectorAll('.pv-vl-row')];
+        if (!rows.length) return 0;
+        const top0 = sc.getBoundingClientRect().top;
+        let idx = 0;
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i].getBoundingClientRect().top - top0 > 1) break;
+          idx = i;
+        }
+        return idx;
+      };
+      // 按「一个日程」为单位翻页：dir=+1 下一日程（向更未来）/ -1 上一日程（向已过的方向）。
+      // 目标 scrollTop = 当前 + 该行相对容器顶的视口偏移（自然含行高与 gap，方向与 offsetParent 均无关）
+      const pageOne = (sc, dir) => {
+        const rows = [...sc.querySelectorAll('.pv-vl-row')];
+        if (!rows.length) return;
+        const idx = Math.max(0, Math.min(rows.length - 1, currentTopIdx(sc) + dir));
+        const top0 = sc.getBoundingClientRect().top;
+        const target = sc.scrollTop + (rows[idx].getBoundingClientRect().top - top0);
+        sc.style.scrollBehavior = 'smooth';
+        sc.scrollTop = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight, target));
+      };
+      // 拖动滚动：记录起点，move 时按位移反向滚动（触摸式），方向天然对称
       const onVlDown = (e) => {
         const sc = e.currentTarget;
         sc._vy = e.clientY; sc._vtop = sc.scrollTop;
@@ -1697,18 +1714,6 @@ function renderInfoBlockInner(o) {
         const sc = e.currentTarget;
         if (sc._vy == null) return;
         sc.scrollTop = sc._vtop - (e.clientY - sc._vy);
-      };
-      // 按「一个日程」为单位翻页：dir=+1 下一日程 / -1 上一日程。高度取该规格实际渲染行高（rowTop 累加真实 offsetHeight），随各尺寸字号自适应
-      const pageOne = (sc, dir) => {
-        const rows = [...sc.querySelectorAll('.pv-vl-row')];
-        if (!rows.length) return;
-        let idx = 0;
-        for (let i = 0; i < rows.length; i++) {
-          if (rows[i].offsetTop <= sc.scrollTop + 1) idx = i; else break;
-        }
-        idx = Math.max(0, Math.min(rows.length - 1, idx + dir));
-        sc.style.scrollBehavior = 'smooth';
-        sc.scrollTop = rowTop(sc, rows[idx]);
       };
       // 松手：视为一次「滑动」则按一个日程为单位翻页（上滑→下一日程，下滑→上一日程）；轻点不动
       const onVlUp = (e) => {
@@ -1733,8 +1738,9 @@ function renderInfoBlockInner(o) {
         if (!sc) return;
         const first = firstFutureRow(sc);
         if (!first) return;
+        const target = sc.scrollTop + (first.getBoundingClientRect().top - sc.getBoundingClientRect().top);
         sc.style.scrollBehavior = 'smooth';
-        sc.scrollTop = rowTop(sc, first);
+        sc.scrollTop = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight, target));
       };
       // 初始滚动到首个未来/今日项：向上滑可见已过的一次性日程，向下滑可见更远的未来
       const onVlListRef = (el) => {
@@ -1743,7 +1749,8 @@ function renderInfoBlockInner(o) {
         requestAnimationFrame(() => {
           const first = firstFutureRow(el);
           if (!first) return;
-          el.scrollTop = rowTop(el, first);
+          const target = el.scrollTop + (first.getBoundingClientRect().top - el.getBoundingClientRect().top);
+          el.scrollTop = Math.max(0, Math.min(el.scrollHeight - el.clientHeight, target));
         });
       };
       const topLabel = isZh ? '顶部' : 'Top';

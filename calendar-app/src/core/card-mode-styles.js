@@ -591,9 +591,9 @@ export const CARD_MODE_CSS = `
 .pv-vl-head span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-vl-top { flex: 0 0 auto; appearance: none; border: 0.08em solid color-mix(in srgb, currentColor 22%, transparent); background: transparent; color: inherit; opacity: 0.7; font: inherit; font-size: 0.92em; font-weight: 700; line-height: 1; padding: 0.18em 0.5em; border-radius: 0.5em; cursor: pointer; }
 .pv-vl-top:hover { opacity: 1; }
-.pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; overflow-y: auto; overscroll-behavior: contain; touch-action: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.pv-vl-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0.1em; overflow-y: auto; overscroll-behavior: contain; touch-action: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: y proximity; }
 .pv-vl-list::-webkit-scrollbar { display: none; }
-.pv-vl-row { flex: 0 0 auto; min-height: 1.3em; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); }
+.pv-vl-row { flex: 0 0 auto; min-height: 1.3em; display: flex; align-items: center; gap: 0.4em; border-bottom: 0.06em solid color-mix(in srgb, currentColor 12%, transparent); scroll-snap-align: start; }
 .pv-vl-row span { flex: 0 0 auto; font-size: 0.62em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pv-vl-row b { flex: 1 1 auto; min-width: 0; font-size: 0.86em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-vl-row.past { opacity: 0.5; }
