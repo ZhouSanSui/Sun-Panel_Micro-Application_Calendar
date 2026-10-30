@@ -1677,10 +1677,20 @@ function renderInfoBlockInner(o) {
         const t = time ? String(time).slice(0, 5) : '';
         return t ? `${dt} ${t}` : dt;
       };
+      // 行顶偏移：累加目标行之前所有兄弟行的高度（不依赖 offsetParent，鲁棒）
+      const rowTop = (list, row) => {
+        let top = 0; let n = row.previousElementSibling;
+        while (n) { top += n.offsetHeight; n = n.previousElementSibling; }
+        return top;
+      };
+      // 首个「未来/今日」行（即最近/即将到来的日程；无未来时取最后一行=最新）
+      const firstFutureRow = (list) =>
+        list.querySelector('[data-future="1"]') || [...list.querySelectorAll('.pv-vl-row')].pop() || null;
       // 拖动滚动：记录起点，move 时按位移反向滚动（触摸式）
       const onVlDown = (e) => {
         const sc = e.currentTarget;
         sc._vy = e.clientY; sc._vtop = sc.scrollTop;
+        sc.style.scrollBehavior = 'auto';
         try { sc.setPointerCapture(e.pointerId); } catch { /* ignore */ }
       };
       const onVlMove = (e) => {
@@ -1688,31 +1698,49 @@ function renderInfoBlockInner(o) {
         if (sc._vy == null) return;
         sc.scrollTop = sc._vtop - (e.clientY - sc._vy);
       };
-      const onVlUp = (e) => { e.currentTarget._vy = null; };
-      // 回到顶部：滚动容器回到列表顶（v3.58：阻止冒泡，避免触发卡片点击打开视图页）
+      // 松手：视为一次「滑动」则按一个日程为单位翻页（上滑→下一日程，下滑→上一日程）；轻点不动
+      const onVlUp = (e) => {
+        const sc = e.currentTarget;
+        const dy = sc._vy != null ? (e.clientY - sc._vy) : 0;
+        sc._vy = null;
+        const rows = [...sc.querySelectorAll('.pv-vl-row')];
+        if (!rows.length) return;
+        const rowH = rows[0].offsetHeight || 1;
+        if (Math.abs(dy) < Math.max(6, rowH * 0.18)) return;   // 轻点：不改滚动
+        const dir = dy < 0 ? 1 : -1;                            // 上滑 dy<0 → 向下翻（下一日程）
+        let idx = 0;
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i].offsetTop <= sc.scrollTop + 1) idx = i; else break;
+        }
+        idx = Math.max(0, Math.min(rows.length - 1, idx + dir));
+        sc.style.scrollBehavior = 'smooth';
+        sc.scrollTop = rowTop(sc, rows[idx]);
+      };
+      // 回到顶部：滚动到最近/即将到来的日程（首个未来项），并阻止冒泡避免打开视图页（v3.58）
       const onVlTop = (e) => {
         e.stopPropagation();
         const sc = e.currentTarget.closest('.pv-vl') && e.currentTarget.closest('.pv-vl').querySelector('.pv-vl-list');
-        if (sc) sc.scrollTop = 0;
+        if (!sc) return;
+        const first = firstFutureRow(sc);
+        if (!first) return;
+        sc.style.scrollBehavior = 'smooth';
+        sc.scrollTop = rowTop(sc, first);
       };
       // 初始滚动到首个未来/今日项：向上滑可见已过的一次性日程，向下滑可见更远的未来
       const onVlListRef = (el) => {
         if (!el || el._vlInit) return;
         el._vlInit = true;
         requestAnimationFrame(() => {
-          const first = el.querySelector('[data-future="1"]');
+          const first = firstFutureRow(el);
           if (!first) return;
-          let top = 0;
-          let n = first.previousElementSibling;
-          while (n) { top += n.offsetHeight; n = n.previousElementSibling; }
-          el.scrollTop = top;
+          el.scrollTop = rowTop(el, first);
         });
       };
       const topLabel = isZh ? '顶部' : 'Top';
       return html`<div class="pv-col pv-vl">
         <div class="pv-vl-head" style="color:${label3}">
           <span>${isZh ? '日程表' : 'Schedules'}</span>
-          <button class="pv-vl-top" @click=${onVlTop} title="${isZh ? '回到最近日程' : 'Back to top'}">${topLabel}</button>
+          <button class="pv-vl-top" @click=${onVlTop} title="${isZh ? '回到最近日程（即将到来）' : 'Back to latest schedule'}">${topLabel}</button>
         </div>
         <div class="pv-vl-list" ${ref(onVlListRef)} @pointerdown=${onVlDown} @pointermove=${onVlMove} @pointerup=${onVlUp} @pointercancel=${onVlUp}>
           ${list.map((e, i) => {
