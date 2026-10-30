@@ -230,7 +230,7 @@ export const CARD_MODE_CSS = `
 .pv-tg-pre, .pv-tg-unit { font-size: 0.5em; }
 .pv-tg-days { font-size: 2.5em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-tg-date { font-size: 0.66em; letter-spacing: 0.03em; white-space: nowrap; }
-.pv-tg-time { font-size: 0.5em; opacity: 0.82; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pv-tg-time { font-size: 0.66em; opacity: 0.82; font-variant-numeric: tabular-nums; white-space: nowrap; }  /* v3.62：时分基础字号 = 日期（0.66em），原 0.5em 偏小 */
 /* multiBars：多条进度 */
 .pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
 /* v3.10 1×FULL：原来 4 条挤成一行，标签(1.7em)+百分比(3.1em) 两个定宽块吃掉大半，
@@ -674,6 +674,7 @@ export const CARD_MODE_CSS = `
 .pv-single-1x2 .pv-tg-pre,
 .pv-single-1x2 .pv-tg-unit { font-size: 0.79em; }                      /* targetDay 单位 13→15 */
 .pv-single-1x2 .pv-tg-date { font-size: 0.79em; }                       /* targetDay 日期 13→15 */
+.pv-single-1x2 .pv-tg-time { font-size: 0.79em; }                       /* v3.62 targetDay 时分 = 日期 */
 .pv-single-1x2 .pv-cp { gap: 0.3em; overflow: visible; }               /* 标题↔时间间距 +5px（0.05→0.3em）；去掉自身裁剪 + 取消上移避免顶边裁切 */
 .pv-single-1x2 .pv-cp-cell { line-height: 1; }                          /* 收紧单元格行高，消除行盒余白避免内容过高 */
 .pv-single-1x2 .pv-cp-pill { line-height: 1; padding: 0.08em 0.6em; }   /* 胶囊行高收紧 + 收窄内边距腾出 +5px 间距空间 */
@@ -732,6 +733,7 @@ export const CARD_MODE_CSS = `
 .pv-single-2x1 .pv-tg-days { font-size: 2.861em; }   /* v3.35：中间数字 23.9→28.9px（+5px，em=28.9/10.1） */
 .pv-single-2x1 .pv-tg-title { font-size: 1.287em; text-align: center; }  /* 日程名 6→13px（em=13/10.1）+ 水平置中（长名换行后每行居中） */
 .pv-single-2x1 .pv-tg-date { display: flex; flex-direction: column; align-items: center; gap: 0.04em; font-size: 0.99em; }  /* 日期 6.7→10px，两排（年 / 月日） */
+.pv-single-2x1 .pv-tg-time { font-size: 0.99em; }                       /* v3.62 targetDay 时分 = 日期 */
 /* verticalList：名称 8.6→13px；头 6.6→10px */
 .pv-single-2x1 .pv-vl-row b { font-size: 1.29em; }   /* 名称 11→13px（em=13/10.1） */
 .pv-single-2x1 .pv-vl-head { font-size: 0.85em; white-space: nowrap; flex-wrap: nowrap; }
@@ -864,6 +866,7 @@ export const CARD_MODE_CSS = `
 .pv-single-1xfull .pv-tg-pre,
 .pv-single-1xfull .pv-tg-unit { font-size: 1.323em; }
 .pv-single-1xfull .pv-tg-date { font-size: 1.323em; text-align: right; }
+.pv-single-1xfull .pv-tg-time { font-size: 1.323em; }                   /* v3.62 targetDay 时分 = 日期 */
 /* 节日卡：标签 30、日期 15、倒计天 20 */
 .pv-single-1xfull .pv-fe-name { font-size: 2.646em; text-align: right; }
 .pv-single-1xfull .pv-fe-date { font-size: 1.323em; text-align: right; }
