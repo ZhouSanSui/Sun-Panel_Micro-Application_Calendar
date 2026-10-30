@@ -961,15 +961,15 @@ function renderInfoBlockInner(o) {
       : now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     // v3.78：非单行（格阵）模式补星期表头 —— 原来只有「年月」标题就直接进日格，
     // 看不出每列是星期几。表头沿用完整月历的 .pv-mm-wd（7 列 grid，0.38em 小字）。
-    // ⚠️ 空间门控：块宽不足 8.4em（7 列每列不到 1.2em）时不显示 —— 否则表头既糊成一团，
-    // 又挤占日格高度（audit-matrix 在 1×1/1×2/2×1 上实测日格从 5.x 掉到 4.9px）。
-    const showWd = !Number.isFinite(o.availW) || o.availW >= 8.4;
+    // v3.79：**去掉空间门控，始终显示**。上一版按 availW >= 8.4em 隐藏，
+    // 结果用户把占格调小（3×3）后表头突然消失，行为不可预期 —— 用户反馈「有些奇怪」。
+    // 宁可小卡上表头小一点，也要保证「有没有表头」这件事稳定。
     const wdShortZh = ['日', '一', '二', '三', '四', '五', '六'];
     const wdShortEn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const wdOrder = Array.from({ length: 7 }, (_, i) => (isZh ? wdShortZh : wdShortEn)[(ws + i) % 7]);
     return html`<div class="pv-col">
       <div class="pv-cal-head pv-row2" style="color:${label2}">${head}</div>
-      ${showWd ? html`<div class="pv-mm-wd">${wdOrder.map((w) => html`<i style="color:${label3}">${w}</i>`)}</div>` : ''}
+      ${o.showCalWd === false ? '' : html`<div class="pv-mm-wd">${wdOrder.map((w) => html`<i style="color:${label3}">${w}</i>`)}</div>`}
       <div class="pv-mini-grid">
         ${cells.map((cell) => {
     const ds = formatDate(cell.date);
@@ -1051,10 +1051,12 @@ function renderInfoBlockInner(o) {
           ? vstack(isZh ? [`${mo}月`, `${d}日`, wdZh] : [moEn, `${d}`, wdEnShort], false)
           : mid(isZh
             // v3.78：优先保住星期 —— 三段能放下（含两行预算）就全显示；确实放不下才退到「月/日」
-            // （原来是无条件从末段裁，窄块里永远看不到星期）
-            ? joinSegs((segsFit([`${mo}月`, `${d}日`, wdZh])
-              ? [`${mo}月`, `${d}日`, wdZh]
-              : [`${mo}月`, `${d}日`]).map(seg))
+            // v3.79：需要换行时星期省掉「周」字，让每行宽度更规整
+            ? joinSegs((() => {
+              const wdSeg = (o.multiRows || 0) > 1 ? WEEK_FULL_ZH[now.getDay()] : wdZh;
+              const all3 = [`${mo}月`, `${d}日`, wdSeg];
+              return segsFit(all3) ? all3 : [`${mo}月`, `${d}日`];
+            })().map(seg))
             : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'long' }));
       }
       case 'dateFullWeekday': {
@@ -1069,9 +1071,13 @@ function renderInfoBlockInner(o) {
         if (!isZh) return mid(now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
         // v3.78：放不下时**优先丢掉「年」**而不是从末段裁（原来末段就是星期，等于永远看不到星期）。
         // 三段仍放不下才退到「月/日」。段内单位仍是不可断整体（.pv-seg），换行只发生在段之间。
-        const yv = isShortYear ? yS : y;
-        const all4 = [`${yv}年`, `${mo}月`, `${d}日`, wdZh];
-        const noYear3 = [`${mo}月`, `${d}日`, wdZh];
+        // v3.79：需要换行（multiRows>1）时改用紧凑文案 —— 年份取后两位、星期省掉「周」字，
+        // 让每行宽度更规整（用户要求「为满足换行规整」）。
+        const multi = (o.multiRows || 0) > 1;
+        const yv = (isShortYear || multi) ? yS : y;
+        const wdSeg = multi ? WEEK_FULL_ZH[now.getDay()] : wdZh;
+        const all4 = [`${yv}年`, `${mo}月`, `${d}日`, wdSeg];
+        const noYear3 = [`${mo}月`, `${d}日`, wdSeg];
         const md2 = [`${mo}月`, `${d}日`];
         const use = segsFit(all4) ? all4 : (segsFit(noYear3) ? noYear3 : md2);
         return mid(joinSegs(use.map(seg)));
@@ -2413,6 +2419,43 @@ const FULL_STRETCH_STYLES = new Set([
 ]);
 
 /**
+ * v3.79：多段日期样式的段数（段 = 「数值+单位」不可断整体）。
+ * 用于「枚举行数求最大字号」——段间可以换行，单位绝不拆开。
+ */
+const TIME_SEG_COUNT = {
+  dateFull: 3,        // 2026年 / 10月 / 31日
+  dateYearMonth: 2,   // 2026年 / 10月
+  dateMonthDay: 2,    // 10月 / 31日
+  dateWeekday: 3,     // 10月 / 31日 / 周六
+  dateFullWeekday: 4, // 2026年 / 10月 / 31日 / 周六
+};
+
+/**
+ * v3.79：多段日期样式的「多行最优字号」。
+ * 背景：v3.77 的 fitbox 只按宽度定字号，竖长块（如 1×FULL 上 3×2 占格）的**高度余量完全浪费**
+ * —— 用户反馈「可显示空间还很多，但字体却还是很小」。
+ * 做法：枚举行数 1..段数，每行尽量均分，取使字号最大的方案。
+ * 段间换行由 `.pv-seg{nowrap}` + `<wbr>` 保证，不会出现「2026」与「年」分行。
+ * @returns {{u:number, rows:number}}
+ */
+function bestMultiLineU(blockW, blockH, fitW, segCount, fitH) {
+  let bestU = 0;
+  let bestRows = 1;
+  for (let rows = 1; rows <= segCount; rows += 1) {
+    // 每行平均放几段（向上取整）；最宽行按「每行段数 × 平均段宽」估算，再留 12% 余量
+    // （段宽并不均等，如「2026年」明显宽于「10月」）
+    const perRow = Math.ceil(segCount / rows);
+    const wRaw = (fitW / segCount) * perRow * 1.12;
+    const u = Math.min(
+      blockW / (wRaw + 2 * FIT_PAD),
+      blockH / (fitH * rows + 2 * FIT_PAD),
+    );
+    if (u > bestU) { bestU = u; bestRows = rows; }
+  }
+  return { u: Math.max(7, Math.min(40, bestU)), rows: bestRows };
+}
+
+/**
  * 拼接模式：按网格布局渲染多单元（绝对定位 + span 占位 + em 等比字号）。
  * @param {Object} o
  *   blocks: [{c,s,span,pos},...]（sanitizeBlocks 的输出；缺 span/pos 时现场推导）
@@ -2465,8 +2508,19 @@ export function renderBlocksHTML(o) {
     // （blockW → u → 内容宽 → blockW），故先只按**高度**求解；
     // 若算出的内容宽反而超过占格宽（窄占格），再退回双约束，保证不横向溢出。
     const fullKey = `${b.c}:${b.s}`;
-    const fitBox = o.size === '1xfull' && !FULL_STRETCH_STYLES.has(fullKey);
-    let u = fitFontU(blockW, blockH, fit);
+    // v3.79：多段日期样式（年月日星期等）**撑满占格**并按多行求最大字号 ——
+    // 它们不套 fitbox（fitbox 只按宽度定字号，会白白浪费竖长块的高度余量）。
+    const segCount = (b.c === 'time' && TIME_SEG_COUNT[b.s]) || 0;
+    const fitBox = o.size === '1xfull' && !FULL_STRETCH_STYLES.has(fullKey) && !segCount;
+    let u;
+    let multiRows = 0;
+    if (segCount) {
+      const best = bestMultiLineU(blockW, blockH, fit.w, segCount, fit.h);
+      u = best.u;
+      multiRows = best.rows;
+    } else {
+      u = fitFontU(blockW, blockH, fit);
+    }
     let boxW = 0;
     if (fitBox) {
       const uByH = Math.max(7, Math.min(40, blockH / (fit.h + 2 * FIT_PAD)));
@@ -2486,6 +2540,13 @@ export function renderBlocksHTML(o) {
       ...o, content: b.c, style: b.s, span: b.span, opts, availW, availH, tall, small, flat, singleDays,
       // v3.70：块根字号 u（px）透传给内容层 —— 多日程要按它判「12px 下限是否生效」并重推行高
       blockU: u,
+      // v3.79：多段日期样式的最优行数（>1 → 用紧凑文案：年份取两位、星期省掉「周」字）
+      multiRows,
+      // v3.79：月历格阵星期表头的显示门控。
+      // 只在**极小卡**（1×1/1×2/2×1，块宽 <120px）隐藏：这些卡 96px 高要塞 8 行
+      // （7 行日期 + 表头），每行 12px、字号必然 < 5.5px 触发 audit SUB，物理上无解。
+      // 单独模式不传此参数 → 默认显示。
+      showCalWd: blockW >= 120,
       // v3.3：窄块（宽 < 高）即使没到 2 倍，日期串也会被挤成三行 —— 显式两行，避免与预览观感不一致
       narrow: blockW < blockH,
       // v1.44：窄块（<150px）日期串年份降为两位，给「数值+单位」留同排空间

@@ -508,7 +508,11 @@ export const CARD_MODE_CSS = `
 /* miniMonth：表头 + 星期行 + 7 列固定网格；行高用 1fr 均分剩余高度，1×1 上刚好铺满 */
 .pv-mm { width: 100%; height: 100%; gap: 0.16em; justify-content: center; }
 .pv-mm-head { flex: 0 0 auto; font-size: 0.46em; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
-.pv-mm-wd { flex: 0 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.06em; font-size: 0.38em; font-weight: 700; text-align: center; line-height: 1.2; }
+/* v3.79：font-size 0.38 → 0.40em（**不是调小，是调大**）。
+   0.38em 在 u=13 的块上算出 4.94px，正好卡在 audit「次文字 5px」阈值下方 → 新增 6 处 SUB；
+   压到 0.30em 反而让 SUB 从 3 个尺寸扩散到 6 个（表头自己成了最小文字）。
+   抬到 0.40em（≈5.2px）越过阈值，同时 line-height 1.2 → 1.1 把多占的高度还回去。 */
+.pv-mm-wd { flex: 0 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.06em; font-size: 0.4em; font-weight: 700; text-align: center; line-height: 1.1; }
 .pv-mm-wd i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-mm-grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 0.06em; }
 .pv-mm-c { display: flex; align-items: center; justify-content: center; font-size: 0.44em; font-weight: 600; line-height: 1; border-radius: 0.26em; font-variant-numeric: tabular-nums; }
