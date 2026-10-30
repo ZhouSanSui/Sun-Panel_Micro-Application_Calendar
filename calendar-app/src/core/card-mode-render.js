@@ -917,7 +917,7 @@ function renderInfoBlockInner(o) {
       ? `周${WEEK_FULL_ZH[d.getDay()]}`
       : d.toLocaleDateString('en-US', { weekday: 'short' });
     const fg = isT ? '#fff' : label3;
-    return html`<div class="pv-wkv-cell ${isT ? 'today' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};` : `color:${fg}`}"><span class="pv-wkv-d" style="color:${isT ? '#fff' : (showHoliday && mk.isRest ? theme : label2)}">${d.getDate()}</span><span class="pv-wkv-w" style="color:${fg}">${wd}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
+    return html`<div class="pv-wkv-cell ${isT ? 'today' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};` : `color:${fg}`}"><span class="pv-wkv-d" style="color:${isT ? '#fff' : (showHoliday && mk.isRest ? theme : label2)}">${d.getDate()}</span><span class="pv-wkv-w" style="color:${fg}">${wd}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.slice(0, (o.span && o.span.cols < 4) ? 1 : 99).map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
           </div>
         </div>`;
@@ -928,7 +928,7 @@ function renderInfoBlockInner(o) {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
     const mk = dayMarks(ds, d, wkScheds);
-    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${showHoliday && mk.isRest ? theme : label3}`}"><span class="pv-wk-d">${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
+    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${showHoliday && mk.isRest ? theme : label3}`}"><span class="pv-wk-d">${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.slice(0, (o.span && o.span.cols < 4) ? 1 : 99).map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
         </div>
       </div>`;
@@ -948,7 +948,7 @@ function renderInfoBlockInner(o) {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
     const mk = dayMarks(ds, d, wkScheds);
-    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d"${showHoliday && mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
+    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d"${showHoliday && mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.slice(0, (o.span && o.span.cols < 4) ? 1 : 99).map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</div>`;
   })}
         </div>
       </div>`;
@@ -975,7 +975,7 @@ function renderInfoBlockInner(o) {
     const ds = formatDate(cell.date);
     const isT = ds === todayStrV;
     const mk = dayMarks(ds, cell.date, moScheds);
-    return html`<span class="pv-c ${cell.inMonth ? '' : 'out'} ${isT ? 'today' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${showHoliday && mk.isRest ? theme : label3}`}">${cell.date.getDate()}${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
+    return html`<span class="pv-c ${cell.inMonth ? '' : 'out'} ${isT ? 'today' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${showHoliday && mk.isRest ? theme : label3}`}">${cell.date.getDate()}${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.slice(0, (o.span && o.span.cols < 4) ? 1 : 99).map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
   })}
       </div>
     </div>`;
@@ -1053,7 +1053,8 @@ function renderInfoBlockInner(o) {
             // v3.78：优先保住星期 —— 三段能放下（含两行预算）就全显示；确实放不下才退到「月/日」
             // v3.79：需要换行时星期省掉「周」字，让每行宽度更规整
             ? joinSegs((() => {
-              const wdSeg = (o.multiRows || 0) > 1 ? WEEK_FULL_ZH[now.getDay()] : wdZh;
+              // v3.80：优先保留「周」字，排不下才省成单字
+              const wdSeg = segsFit([`${mo}月`, `${d}日`, wdZh]) ? wdZh : WEEK_FULL_ZH[now.getDay()];
               const all3 = [`${mo}月`, `${d}日`, wdSeg];
               return segsFit(all3) ? all3 : [`${mo}月`, `${d}日`];
             })().map(seg))
@@ -1075,7 +1076,9 @@ function renderInfoBlockInner(o) {
         // 让每行宽度更规整（用户要求「为满足换行规整」）。
         const multi = (o.multiRows || 0) > 1;
         const yv = (isShortYear || multi) ? yS : y;
-        const wdSeg = multi ? WEEK_FULL_ZH[now.getDay()] : wdZh;
+        // v3.80：**优先保留「周」字**（用户要求），只有带「周」时确实排不下才省成单字（六）。
+        // 注意不能只看 multi —— 行数已经排好，宽度够就该用完整写法。
+        const wdSeg = segsFit([`${yv}年`, `${mo}月`, `${d}日`, wdZh]) ? wdZh : WEEK_FULL_ZH[now.getDay()];
         const all4 = [`${yv}年`, `${mo}月`, `${d}日`, wdSeg];
         const noYear3 = [`${mo}月`, `${d}日`, wdSeg];
         const md2 = [`${mo}月`, `${d}日`];
@@ -1412,7 +1415,7 @@ function renderInfoBlockInner(o) {
       && cell.date.getDate() === now.getDate();
     const mk = dayMarks(formatDate(cell.date), cell.date, mmScheds);
     const cls = `pv-mm-c${cell.inMonth ? '' : ' out'}${isT ? ' now' : ''}${showHoliday && mk.isRest && !isT ? ' rest' : ''}`;
-    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${showHoliday && mk.isRest ? ac : label3}`}">${cell.date.getDate()}${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
+    return html`<span class="${cls}" style="${isT ? `background:${ac};color:#fff` : `color:${showHoliday && mk.isRest ? ac : label3}`}">${cell.date.getDate()}${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.slice(0, (o.span && o.span.cols < 4) ? 1 : 99).map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span>`;
   })}</div>
       </div>`;
     }

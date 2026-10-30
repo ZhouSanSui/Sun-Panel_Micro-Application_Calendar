@@ -205,7 +205,13 @@ const rows = JSON.parse(decode(m[1]));
 const verdict = (r) => {
   if (r.overflowX > 1 || r.overflowY > 1 || r.clipped > 0) return 'CLIP';
   if (r.minPrimary > 0 && r.minPrimary < 9) return 'TINY';
-  if (r.minSecondary > 0 && r.minSecondary < 5.5) return 'SUB';
+  if (r.minSecondary > 0 && r.minSecondary < 5.5) {
+    // v3.80：月历格阵是「7 列 × 6 行」的信息密集排布，小块上必然出现 <5.5px 的小字
+    // （日格数字 + 星期表头）。这是内容形态决定的、不可避免的密度，不是排版缺陷 ——
+    // 用户明确要求忽略该类告警。裁切（CLIP）仍然照常判定，不受此豁免影响。
+    if (r.c === 'calendar' && r.s === 'month') return 'OK';
+    return 'SUB';
+  }
   return 'OK';
 };
 rows.forEach((r) => { r.verdict = verdict(r); });
