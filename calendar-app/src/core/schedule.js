@@ -273,7 +273,7 @@ export function normalizeSchedule(raw, lang = 'zh') {
   const lunar = type !== 'event' ? !!raw.lunar : false;
   return {
     type,
-    title: raw.title.trim().slice(0, 60) || (lang === 'en' ? 'Untitled' : '未命名'),
+    title: raw.title.trim().slice(0, 300) || (lang === 'en' ? 'Untitled' : '未命名'),
     date: raw.date,
     lunar,
     yearly: type === 'countdown' ? (raw.yearly === false ? false : true) : true,
@@ -428,7 +428,7 @@ export function normalizeImportedSchedule(raw, lang = 'zh') {
 
   const item = {
     type,
-    title: title.slice(0, 60) || (zh ? '未命名' : 'Untitled'),
+    title: title.slice(0, 300) || (zh ? '未命名' : 'Untitled'),
     date: finalDate,
     lunar,
     yearly: type === 'countdown' ? (raw.yearly === false ? false : true) : true,

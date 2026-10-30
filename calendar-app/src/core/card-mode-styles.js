@@ -225,12 +225,22 @@ export const CARD_MODE_CSS = `
 /* v3.12：DOM 拆成 left（天数组）/ right（标题 + 目标日），基础版竖排、1×FULL 横排 */
 .pv-tg { width: 100%; height: 100%; align-items: center; justify-content: center; gap: 0.22em; }
 .pv-tg-left { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.pv-tg-right { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em; }
-.pv-tg-title { font-size: 0.6em; font-weight: 700; letter-spacing: 0.02em; }
+.pv-tg-right { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em; width: 100%; }
+.pv-tg-title { font-size: 0.6em; font-weight: 700; letter-spacing: 0.02em; width: 100%; min-width: 0; overflow: hidden; text-align: center; }
 .pv-tg-pre, .pv-tg-unit { font-size: 0.5em; }
 .pv-tg-days { font-size: 2.5em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-tg-date { font-size: 0.66em; letter-spacing: 0.03em; white-space: nowrap; }
 .pv-tg-time { font-size: 0.66em; opacity: 0.82; font-variant-numeric: tabular-nums; white-space: nowrap; }  /* v3.62：时分基础字号 = 日期（0.66em），原 0.5em 偏小 */
+/* v3.63 targetDay 日程名行数限制：超出范围的内容不再显示
+   1×2 / 2×1 / 2×4 / 1×FULL：单行；2×2：2 行；4×4：4 行。
+   依赖上方 .pv-tg-right{width:100%} 与 .pv-tg-title{width:100%;min-width:0;overflow:hidden} 提供确定性宽度，
+   否则 flex 子项按内容收缩，text-overflow / line-clamp 不触发。 */
+.pv-single-1x2 .pv-tg-title,
+.pv-single-2x1 .pv-tg-title,
+.pv-single-2x4 .pv-tg-title,
+.pv-single-1xfull .pv-tg-title { white-space: nowrap; text-overflow: ellipsis; }
+.pv-single-2x2 .pv-tg-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.pv-single-4x4 .pv-tg-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 /* multiBars：多条进度 */
 .pv-mb { width: 100%; height: 100%; justify-content: center; gap: 0.3em; overflow: hidden; }
 /* v3.10 1×FULL：原来 4 条挤成一行，标签(1.7em)+百分比(3.1em) 两个定宽块吃掉大半，

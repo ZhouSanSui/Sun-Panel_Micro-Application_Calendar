@@ -1000,7 +1000,8 @@ export class MainPage extends SunPanelPageElement {
 
           <div class="field">
             <label>${this.t('MAIN_FIELD_TITLE')}</label>
-            <input type="text" .value=${draft.title || ''} maxlength="60" placeholder="${this.t('MAIN_FIELD_TITLE_PLACEHOLDER')}" @input=${(e) => this._setDraft({ title: e.target.value })} />
+            <input type="text" .value=${draft.title || ''} maxlength="300" placeholder="${this.t('MAIN_FIELD_TITLE_PLACEHOLDER')}" @input=${(e) => this._setDraft({ title: e.target.value })} />
+            <div class="note-counter${(draft.title || '').length >= 300 ? ' at-limit' : ''}">${(draft.title || '').length}/300</div>
           </div>
 
           ${this._renderDatePicker()}
@@ -3405,6 +3406,7 @@ ${CARD_MODE_CSS}
         }
         .field textarea:focus { outline: none; border-color: ${theme}; }
         .note-counter { text-align: right; font-size: 11px; color: var(--apple-label-3); margin-top: 4px; }
+        .note-counter.at-limit { color: var(--apple-red); }
         .color-row { display: flex; gap: 10px; }
         .color-dot {
           width: 28px;
