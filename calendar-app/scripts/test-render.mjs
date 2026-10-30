@@ -658,17 +658,24 @@ for (const [size, [hw, hh]] of Object.entries(HOST)) {
     }
   }
 
-  // v2.9：横排日期段放不下时丢弃末段（星期），避免换行成 3 行撑爆块高
+  // v2.9：横排日期段放不下时降级，避免换行成 3 行撑爆块高
+  // v3.78：降级策略改为「优先保住星期」（用户要求默认模式也显示星期，原来从末段裁正好裁掉它）
   {
     const mk = (extra) => flatten(renderInfoBlock({ ...base, ...extra })).join('');
     const roomy = mk({ content: 'time', style: 'dateWeekday', availW: 8, availH: 8 });
     ok(roomy.includes('pv-seg') && /周[一二三四五六日天]/.test(roomy), '空间充足时保留星期段');
     const tight = mk({ content: 'time', style: 'dateWeekday', availW: 3.9, availH: 3.3 });
-    ok(!/周[一二三四五六日天]/.test(tight), '窄块（1x2 最小占格量级）应丢弃星期段');
-    ok((tight.match(/pv-seg/g) || []).length === 2, '丢弃后应剩 2 个段（月/日）');
-    const tightFull = mk({ content: 'time', style: 'dateFullWeekday', availW: 4.0, availH: 3.3 });
-    ok(!/周[一二三四五六日天]/.test(tightFull), 'dateFullWeekday 窄块同样丢弃星期段');
-    ok((tightFull.match(/pv-seg/g) || []).length >= 3, 'dateFullWeekday 至少保留年/月/日三段');
+    ok(!/周[一二三四五六日天]/.test(tight), '物理放不下（月+日已成行、星期必占第 3 行）时才退到月/日');
+    // v3.78 核心：1×FULL 这类宽块必须显示星期（fitbox 下 availW = 固有宽 10.4em）
+    const wideWd = mk({ content: 'time', style: 'dateWeekday', availW: 10.4, availH: 3.3 });
+    ok(/周[一二三四五六日天]/.test(wideWd), 'v3.78：宽块（1×FULL）应显示星期');
+    ok((wideWd.match(/pv-seg/g) || []).length === 3, 'v3.78：宽块月/日/星期三段全保留');
+    const wideFull = mk({ content: 'time', style: 'dateFullWeekday', availW: 14.8, availH: 3.3 });
+    ok(/周[一二三四五六日天]/.test(wideFull), 'v3.78：dateFullWeekday 宽块应显示星期');
+    ok((wideFull.match(/pv-seg/g) || []).length === 4, 'v3.78：dateFullWeekday 宽块四段全保留');
+    // 略窄：四段不行但三段行 → 丢「年」保星期（而不是丢星期）
+    const midFull = mk({ content: 'time', style: 'dateFullWeekday', availW: 10.4, availH: 3.3 });
+    ok(/周[一二三四五六日天]/.test(midFull), 'v3.78：四段放不下时应优先丢「年」、保住星期');
   }
 
   // v3.9：缩放预览必须与真实卡片同源（avail 计入 singleScale；无实测尺寸用设计基准尺寸）

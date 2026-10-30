@@ -16,6 +16,12 @@ export const CARD_MODE_CSS = `
 .text-light .pv-dot { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.38); }
 .pv-led { text-shadow: 0 0 12px currentColor, 0 0 3px currentColor; }
 .pv-row2 { font-size: 0.82em; font-weight: 600; }
+/* v3.78：倒计时类（最近日程 / 重要日期）的日程名**只占一行**，超出省略。
+   不能直接给 .pv-row2 加，因为它同时被 .pv-cal-head（月历表头）复用。
+   align-self:stretch 让宽度撑满 .pv-center，ellipsis 才会生效；
+   text-align:center 保持原来「名字居中」的观感。 */
+.pv-cd-name { align-self: stretch; max-width: 100%; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-sch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; width: 100%; }
 .pv-sch-name { font-size: 0.75em; font-weight: 600; line-height: 1.2; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-sch-meta { display: flex; flex-direction: row; align-items: center; flex: 0 0 auto; font-size: 0.5em; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }

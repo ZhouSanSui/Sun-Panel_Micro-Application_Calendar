@@ -768,7 +768,11 @@ function renderInfoBlockInner(o) {
       lines += 1;
       cur = w;
     }
-    return lines * 1.3 + 2 * FIT_PAD <= o.availH;
+    // v3.78 修复：o.availH 由调用方**已经扣过 2×FIT_PAD**
+    // （renderBlocksHTML 的 availH = blockH/u − 2×FIT_PAD；单独模式的 availGeo 同）。
+    // 这里再加一次等于扣两遍 → 连「单行」都判为放不下 →
+    // 四段永远被裁到两段（年月日星期的「年」和「星期」双失），实测 1×FULL 满宽 1218px 也中招。
+    return lines * 1.3 <= o.availH + 0.02;
   };
   /** 从末段起丢弃，直到放得下或到达最小段数（月日 / 年月日） */
   const trimSegs = (parts, min) => {
@@ -871,7 +875,7 @@ function renderInfoBlockInner(o) {
   const countdown = (name, days, sub) => html`<div class="pv-center">
     <div class="pv-big${days === 0 && fitW < 4.4 ? ' pv-big-sm' : ''}" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
     ${days === 0 || tightH ? '' : html`<div class="pv-sub" style="color:${label3}">${isZh ? '天后' : 'days left'}</div>`}
-    <div class="pv-row2" style="color:${theme}">${name}</div>
+    <div class="pv-row2 pv-cd-name" style="color:${theme}">${name}</div>
     ${sub && !tightH ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
   </div>`;
 
@@ -882,7 +886,7 @@ function renderInfoBlockInner(o) {
       ${days === 0 ? '' : html`<div class="pv-sub" style="color:${label3}">${isZh ? '天后' : 'days left'}</div>`}
     </div>
     <div class="pv-ftext">
-      <div class="pv-row2" style="color:${theme}">${name}</div>
+      <div class="pv-row2 pv-cd-name" style="color:${theme}">${name}</div>
       ${sub ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
     </div>
   </div>`;
@@ -955,8 +959,17 @@ function renderInfoBlockInner(o) {
     const head = isZh
       ? `${now.getFullYear()}年${now.getMonth() + 1}月`
       : now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    // v3.78：非单行（格阵）模式补星期表头 —— 原来只有「年月」标题就直接进日格，
+    // 看不出每列是星期几。表头沿用完整月历的 .pv-mm-wd（7 列 grid，0.38em 小字）。
+    // ⚠️ 空间门控：块宽不足 8.4em（7 列每列不到 1.2em）时不显示 —— 否则表头既糊成一团，
+    // 又挤占日格高度（audit-matrix 在 1×1/1×2/2×1 上实测日格从 5.x 掉到 4.9px）。
+    const showWd = !Number.isFinite(o.availW) || o.availW >= 8.4;
+    const wdShortZh = ['日', '一', '二', '三', '四', '五', '六'];
+    const wdShortEn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const wdOrder = Array.from({ length: 7 }, (_, i) => (isZh ? wdShortZh : wdShortEn)[(ws + i) % 7]);
     return html`<div class="pv-col">
       <div class="pv-cal-head pv-row2" style="color:${label2}">${head}</div>
+      ${showWd ? html`<div class="pv-mm-wd">${wdOrder.map((w) => html`<i style="color:${label3}">${w}</i>`)}</div>` : ''}
       <div class="pv-mini-grid">
         ${cells.map((cell) => {
     const ds = formatDate(cell.date);
@@ -1037,7 +1050,11 @@ function renderInfoBlockInner(o) {
         return tall
           ? vstack(isZh ? [`${mo}月`, `${d}日`, wdZh] : [moEn, `${d}`, wdEnShort], false)
           : mid(isZh
-            ? joinSegs(trimSegs([`${mo}月`, `${d}日`, wdZh], 2).map(seg))
+            // v3.78：优先保住星期 —— 三段能放下（含两行预算）就全显示；确实放不下才退到「月/日」
+            // （原来是无条件从末段裁，窄块里永远看不到星期）
+            ? joinSegs((segsFit([`${mo}月`, `${d}日`, wdZh])
+              ? [`${mo}月`, `${d}日`, wdZh]
+              : [`${mo}月`, `${d}日`]).map(seg))
             : now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'long' }));
       }
       case 'dateFullWeekday': {
@@ -1046,11 +1063,18 @@ function renderInfoBlockInner(o) {
           const aria = isZh ? `${y}年${mo}月${d}日 ${wdZh}` : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
           return tall ? nuV([yS, mo, d, wk], aria, true) : nuH(html`${y}${dot}${mo}${dot}${d} ${wk}`, aria);
         }
-        return tall
-          ? vstack(isZh ? [`${yS}年`, `${mo}月`, `${d}日`, wdZh] : [`${yS}`, moEn, `${d}`, wdEnShort], false)
-          : mid(isZh
-            ? joinSegs(trimSegs([`${isShortYear ? yS : y}年`, `${mo}月`, `${d}日`, wdZh], 3).map(seg))
-            : now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
+        if (tall) {
+          return vstack(isZh ? [`${yS}年`, `${mo}月`, `${d}日`, wdZh] : [`${yS}`, moEn, `${d}`, wdEnShort], false);
+        }
+        if (!isZh) return mid(now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
+        // v3.78：放不下时**优先丢掉「年」**而不是从末段裁（原来末段就是星期，等于永远看不到星期）。
+        // 三段仍放不下才退到「月/日」。段内单位仍是不可断整体（.pv-seg），换行只发生在段之间。
+        const yv = isShortYear ? yS : y;
+        const all4 = [`${yv}年`, `${mo}月`, `${d}日`, wdZh];
+        const noYear3 = [`${mo}月`, `${d}日`, wdZh];
+        const md2 = [`${mo}月`, `${d}日`];
+        const use = segsFit(all4) ? all4 : (segsFit(noYear3) ? noYear3 : md2);
+        return mid(joinSegs(use.map(seg)));
       }
       case 'hm':
         return tall ? vstack([hPart, mm], true, apText) : big(fmtHM(now, hour12, false));
