@@ -901,10 +901,12 @@ export const CARD_MODE_CSS = `
    （试过移到右下角：容器被撑到 14px 宽、仍与星期字重叠 5.4px，19px 窄格放不下。）
    改 static 后在列尾自然排一行；这行的高度已计入 SINGLE_H_EM / week.h（2.38 → 2.6）。
    日期条每格只有 19~30px 宽，渲染层只输出 1 个点。 */
-.pv-wk-cell .pv-dots { position: static; inset: auto; margin-top: 0.02em; height: 0.26em; }
-/* v3.88：日期条里的点放大到 4.5px —— 3.5px 在 20px 宽的日期格里几乎看不见
-   （用户实报「还是没有显示出来」）。格阵列（.pv-c）格子大，仍用原 3.5px。 */
-.pv-wk-cell .pv-dot { width: 4.5px; height: 4.5px; }
+/* v3.90：点改为与「星期」字**同一行**（.pv-wk-wrow 内联 flex）——完全不占额外高度，
+   字号不必再为点让位（v3.87/88 为给点腾一行，字号从 18.9 一路降到 17.1，代价太大）。
+   用户关键线索：「不开单行正常、开单行就没了」→ 数据没问题，是单行分支的排布把点挤没了。 */
+.pv-wk-wrow { display: inline-flex; align-items: center; gap: 0.14em; max-width: 100%; }
+.pv-wk-cell .pv-dots { position: static; inset: auto; margin-top: 0; height: auto; gap: 1px; }
+.pv-wk-cell .pv-dot { width: 4px; height: 4px; margin: 0; }
 .pv-dot { width: 3.5px; height: 3.5px; border-radius: 50%; flex: 0 0 auto; }
 
 /* ===== v3.41：1×FULL 单独模式字号 / 布局微调（用户指定 px） =====
