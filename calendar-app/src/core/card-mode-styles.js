@@ -906,7 +906,7 @@ export const CARD_MODE_CSS = `
    35 天单行时每格只有 ~30px，空间一紧浏览器就会把 4px 的点压成 0 宽
    —— DOM 里还在、视觉上消失（7 格周日历格子宽，所以一直正常）。
    ⇒ 点 flex:0 0 auto（绝不收缩）、星期字可收缩省略、容器不再限宽。 */
-.pv-wk-wrow { display: inline-flex; align-items: center; gap: 0.14em; }
+.pv-wk-wrow { display: inline-flex; align-items: center; gap: 0.14em; margin-top: 0.1em; }
 .pv-wk-wrow .pv-wk-w { flex: 0 1 auto; min-width: 0; }
 .pv-wk-cell .pv-dots { position: static; inset: auto; margin-top: 0; height: auto; gap: 1px; }
 .pv-wk-cell .pv-dot { width: 4px; height: 4px; margin: 0; }
@@ -915,8 +915,8 @@ export const CARD_MODE_CSS = `
    （7 格周日历正常、25 格单行异常）。伪元素只需要 class + CSS 变量，链路最短。
    颜色由内联 --dot-c 传入（当天为白色，其余取第一条日程的颜色）。 */
 .pv-wk-cell.has-dot::after {
-  content: ''; position: absolute; left: calc(50% + 0.5em); top: 50%;
-  transform: translateY(-50%);
+  content: ''; position: absolute; left: 50%; top: 57%;
+  transform: translate(-50%, -50%);
   width: 4px; height: 4px; border-radius: 50%;
   background: var(--dot-c, currentColor); pointer-events: none;
 }
