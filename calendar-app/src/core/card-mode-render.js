@@ -983,7 +983,12 @@ function renderInfoBlockInner(o) {
     const ds = formatDate(d);
     const isT = ds === todayStrV;
     const mk = dayMarks(ds, d, wkScheds);
-    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}"><span class="pv-wk-d"${showHoliday && mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-wrow"><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span>${showSchedule && mk.dots.length ? html`<i class="pv-dots">${mk.dots.slice(0, 1).map((c) => html`<i class="pv-dot" style="background:${isT ? '#fff' : c}"></i>`)}</i>` : ''}</span></div>`;
+    // v3.93：日程点改用 **CSS 伪元素**（cell::after）绘制，不再插入 <i> 子节点。
+    // 原因：渲染期日志已证明 todayDots=1 / markedDays 含当天，但真实页面 DOM 里查不到
+    // .pv-dot（7 格周日历正常、25 格单行异常）。伪元素只依赖 class 与 CSS 变量，
+    // 完全绕开子节点渲染这条链路，是本问题唯一能保证可见的实现。
+    const dotColor = (showSchedule && mk.dots.length) ? (isT ? '#fff' : mk.dots[0]) : '';
+    return html`<div class="pv-wk-cell ${isT ? 'today' : ''}${dotColor ? ' has-dot' : ''}" style="${isT ? `background:${theme};color:#fff` : `color:${label3}`}${dotColor ? `;--dot-c:${dotColor}` : ''}"><span class="pv-wk-d"${showHoliday && mk.isRest && !isT ? ` style="color:${theme}"` : ''}>${d.getDate()}</span><span class="pv-wk-wrow"><span class="pv-wk-w">${isZh ? WEEK_FULL_ZH[d.getDay()] : WEEK_MIN_EN[d.getDay()]}</span></span></div>`;
   })}
         </div>
       </div>`;
