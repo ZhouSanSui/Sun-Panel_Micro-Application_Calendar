@@ -954,6 +954,29 @@ function renderInfoBlockInner(o) {
       const side = (total - 1) / 2;
       const days = Array.from({ length: side * 2 + 1 }, (_, i) => addDays(now, i - side));
       const wkScheds = getUserStore()?.getSchedules() || [];
+      // v3.92 临时诊断（定位「单行月历不显示日程点」用，问题确认后删除）：
+      // 直接在渲染期输出真实入参，避免再靠外部脚本抓 DOM（多次抓到别的卡/别的实例）。
+      try {
+        if (typeof console !== 'undefined' && console.log) {
+          const marks = days
+            .filter((d) => dayMarks(formatDate(d), d, wkScheds).dots.length > 0)
+            .map((d) => formatDate(d));
+          console.log('[diag:month-single]', JSON.stringify({
+            size: o.size,
+            nowStr: formatDate(now),
+            todayStrV,
+            daysLen: days.length,
+            first: formatDate(days[0]),
+            last: formatDate(days[days.length - 1]),
+            showSchedule,
+            showHoliday,
+            schedsTotal: wkScheds.length,
+            schedDates: wkScheds.slice(0, 9).map((s) => s.date),
+            todayDots: dayMarks(todayStrV, now, wkScheds).dots.length,
+            markedDays: marks.slice(0, 9),
+          }));
+        }
+      } catch (e) { /* 诊断不得影响渲染 */ }
       return html`<div class="pv-col">
         <div class="pv-wk pv-wk-single" style="grid-template-columns:repeat(${days.length}, minmax(0, 1fr))">
           ${days.map((d) => {
