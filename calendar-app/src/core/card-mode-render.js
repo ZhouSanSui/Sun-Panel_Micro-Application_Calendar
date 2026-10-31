@@ -2519,7 +2519,23 @@ export function renderBlocksHTML(o) {
     // 窄高卡本来就该竖着堆信息，这里无视 flat 判定。
     const forceStackRecent = o.size === '2x1' && b.c === 'schedule' && b.s === 'recent';
     const flat = !forceStackRecent && (isFlatBlock(blockW, blockH) || flatCountdown);
-    const opts = (b.opts || tall || small || wide || flat) ? { ...(b.opts || {}), tall, small, wide, flat } : null;
+    // v3.89：opts 归一化 —— 四个开关字段在这里就补上默认值，口径与配置页面板（unitOpts）严格一致。
+    // 原来直接透传 b.opts，未设的 showSchedule/showHoliday 到渲染内核才判默认，
+    // 一旦存量配置存的是字符串 '0' 之类，就会出现「面板显示开、渲染判定关」（用户实报无点/无色）。
+    const rawOpts = b.opts || {};
+    const isMonthUnit = b.c === 'calendar' && b.s === 'month';
+    const onOffOpt = (v, dft) => (v === undefined ? dft : (v !== false && v !== '0' && v !== 0));
+    const opts = {
+      ...rawOpts,
+      // 月历单行：1×FULL 上默认开（与 unitOpts 的尺寸感知默认一致）
+      singleLine: rawOpts.singleLine === undefined
+        ? !!(isMonthUnit && o.size === '1xfull')
+        : !!rawOpts.singleLine,
+      noUnits: rawOpts.noUnits === undefined ? false : !!rawOpts.noUnits,
+      showSchedule: onOffOpt(rawOpts.showSchedule, true),
+      showHoliday: onOffOpt(rawOpts.showHoliday, true),
+      tall, small, wide, flat,
+    };
     // 月历「单行显示」：天数按可用宽度动态计算，尽量填满、减少两侧留白（今日居中 → 奇数天）
     let fit = fitFor(b.c, b.s, o.hour12, o.isZh !== false, opts);
     let singleDays = 0;

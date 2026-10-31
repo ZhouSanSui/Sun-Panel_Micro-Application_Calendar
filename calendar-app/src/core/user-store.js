@@ -587,8 +587,13 @@ export function unitOpts(displayMode, size, b) {
   const noUnits = (o && o.noUnits !== undefined) ? !!o.noUnits : false;
   // v3.40：日程 / 节假日 两个独立开关（默认开；未设 = 开）。必须随 opts 透传，
   // 否则拼接模式「调整占格」里的开关读回永远是 undefined → ?? true 恒为开 → 关不掉（v3.39 踩坑）。
-  const showSchedule = (o && o.showSchedule !== undefined) ? !!o.showSchedule : true;
-  const showHoliday = (o && o.showHoliday !== undefined) ? !!o.showHoliday : true;
+  // v3.89：真假口径与渲染层（card-mode-render.js 的 showSchedule/showHoliday）**必须严格一致** ——
+  // 原来这里用 !!v，而渲染用 `v !== false && v !== '0' && v !== 0`：
+  // 存量配置里若存的是字符串 '0'，面板会显示「开」（!!'0' === true）而渲染判定「关」，
+  // 表现为「开关明明是开的，卡片上却没有日程点/节假日颜色」（用户实报）。
+  const onOff = (v, dft) => (v === undefined ? dft : (v !== false && v !== '0' && v !== 0));
+  const showSchedule = onOff(o && o.showSchedule, true);
+  const showHoliday = onOff(o && o.showHoliday, true);
   return { singleLine, noUnits, showSchedule, showHoliday };
 }
 
