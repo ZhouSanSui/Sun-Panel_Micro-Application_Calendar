@@ -2506,7 +2506,11 @@ export function renderBlocksHTML(o) {
     // 仅靠 isFlatBlock 会漏判回默认竖排；补「rows===1 且块宽>块高」的占格意图判定
     const flatCountdown = (b.c === 'important' || (b.c === 'schedule' && b.s === 'recent'))
       && b.span.rows === 1 && blockW > blockH;
-    const flat = isFlatBlock(blockW, blockH) || flatCountdown;
+    // v3.84：2×1 窄高卡上的「最近日程」改回**上下结构**（天数在上、日程名在下）。
+    // 原来走双栏横排：块只有 52px 宽，左右一分列，日程名被压成三四个像素宽的一条缝。
+    // 窄高卡本来就该竖着堆信息，这里无视 flat 判定。
+    const forceStackRecent = o.size === '2x1' && b.c === 'schedule' && b.s === 'recent';
+    const flat = !forceStackRecent && (isFlatBlock(blockW, blockH) || flatCountdown);
     const opts = (b.opts || tall || small || wide || flat) ? { ...(b.opts || {}), tall, small, wide, flat } : null;
     // 月历「单行显示」：天数按可用宽度动态计算，尽量填满、减少两侧留白（今日居中 → 奇数天）
     let fit = fitFor(b.c, b.s, o.hour12, o.isZh !== false, opts);
