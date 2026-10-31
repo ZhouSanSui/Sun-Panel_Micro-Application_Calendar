@@ -910,12 +910,13 @@ export const CARD_MODE_CSS = `
 .pv-wk-wrow .pv-wk-w { flex: 0 1 auto; min-width: 0; }
 .pv-wk-cell .pv-dots { position: static; inset: auto; margin-top: 0; height: auto; gap: 1px; }
 .pv-wk-cell .pv-dot { width: 4px; height: 4px; margin: 0; }
-/* v3.93：单行月历的「有日程」点 —— 用 cell 的 ::after 绝对定位在右下角绘制。
+/* v3.93/v3.95：单行月历的「有日程」点 —— 用 cell 的 ::after 绘制，位置在**日期与星期之间**（格中心）。
    不再依赖 <i class="pv-dot"> 子节点：渲染期日志证明点上已生成，但真实 DOM 里查不到
    （7 格周日历正常、25 格单行异常）。伪元素只需要 class + CSS 变量，链路最短。
    颜色由内联 --dot-c 传入（当天为白色，其余取第一条日程的颜色）。 */
 .pv-wk-cell.has-dot::after {
-  content: ''; position: absolute; right: 0.2em; bottom: 0.14em;
+  content: ''; position: absolute; left: calc(50% + 0.5em); top: 50%;
+  transform: translateY(-50%);
   width: 4px; height: 4px; border-radius: 50%;
   background: var(--dot-c, currentColor); pointer-events: none;
 }
