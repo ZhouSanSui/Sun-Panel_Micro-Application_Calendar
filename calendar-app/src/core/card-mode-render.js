@@ -65,10 +65,10 @@ const CONTENT_FIT = {
     // 单行月历（今日居中，左右各 9 天 = 19 天）：横向约为周历的 2.5 倍
     // v3.76：w 19.83 → 23.4（19 天 × 1.2em/格 + 0.6em 首尾余量）、h 2.1 → 2.3
     // 与 SINGLE_CELL_EM / SINGLE_H_EM 必须一致，否则字号与排版错配（见 singleLineDays）
-    monthSingle: { w: 23.4, h: 2.6 },
+    monthSingle: { w: 23.4, h: 2.66 },
     // v3.86：h 2.1 → 2.38 —— 与 monthSingle 同源缺陷（内容实高 2.25em），
     // 原来只修了月历单行，周日历的今日框仍被块下缘裁 3.1px（实测）。
-    week: { w: 7.8, h: 2.6 },
+    week: { w: 7.8, h: 2.66 },
     // 周历 + 日期标题（cols ≥ 4）：上方新增一行居中表头
     // 实测：整块 7.226em × 3.237em
     weekTitle: { w: 7.8, h: 3.24 },
@@ -420,7 +420,7 @@ const SINGLE_CELL_EM = SINGLE_DIGIT_EM + SINGLE_GAP_EM;
  * v3.76：2.1 → 2.3。实测内容实高 = 2.25em（数字 0.75em 行 + 星期 0.5em 行 + 单元格
  * 上下 padding 0.375em + 行高），旧值 2.1em 差 0.15em → 星期下缘被裁 4.7px（真实测量）。
  */
-const SINGLE_H_EM = 2.6;
+const SINGLE_H_EM = 2.66;
 /** 月历单行：首尾留白余量（em），避免边缘被裁 */
 const SINGLE_PAD_EM = 0.6;
 /** 多日程显示「年月日 / 时分秒」两行小字所需的最小水平占格 */

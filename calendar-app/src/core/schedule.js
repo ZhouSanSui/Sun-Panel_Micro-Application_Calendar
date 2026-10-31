@@ -157,6 +157,8 @@ export function getSchedulesOfDay(schedules, dateStr) {
   const result = [];
   const date = parseDate(dateStr);
   for (const item of schedules) {
+    // 注意：event 类型的 yearly 恒为 true（见 normalizeSchedule），但 getNextOccurrence 对 event
+    // 仍按「一次性」处理（只判断 date >= 查询日），所以这里保持精确匹配即可，两者等价。
     if (item.type === 'event') {
       if (item.date === dateStr) {
         result.push({ item, occurrence: { dateStr, date, years: 0 } });
