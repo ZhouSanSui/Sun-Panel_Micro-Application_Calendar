@@ -776,12 +776,8 @@ function renderInfoBlockInner(o) {
     // 四段永远被裁到两段（年月日星期的「年」和「星期」双失），实测 1×FULL 满宽 1218px 也中招。
     return lines * 1.3 <= o.availH + 0.02;
   };
-  /** 从末段起丢弃，直到放得下或到达最小段数（月日 / 年月日） */
-  const trimSegs = (parts, min) => {
-    const list = parts.slice();
-    while (list.length > min && !segsFit(list)) list.pop();
-    return list;
-  };
+  // v3.83：trimSegs 已删除 —— 两个日期样式改为直接用 segsFit 决定保留哪几段
+  // （dateWeekday 保「月/日/星期」，dateFullWeekday 优先丢「年」），不再需要「从末段逐个 pop」的通用降级。
 
   /**
    * v3.8：竖排行「文字固有宽度」模型（line-em = 宽度 / 该行自身字号）。
@@ -871,15 +867,23 @@ function renderInfoBlockInner(o) {
    *   · fitH < 5.6：去掉末尾说明行（图3 被裁的正是这一行），必要时连「天后」一并省掉。
    * mock 数据为空时此路径不触发，故 audit-matrix 基线不受影响。
    */
-  const fitW = Number.isFinite(o.availW) ? o.availW : 99;
   const fitH = Number.isFinite(o.availH) ? o.availH : 99;
   const tightH = fitH < 5.6;
   // v3.82：「今天」的中文比数字宽得多（2 字 × 1.875em）。原判据用 fitW（内容固有宽，恒为 7.4）
   // 永远不满足 < 4.4，于是小卡上也用大字 → 26px 宽的块里两字正好撑爆（实测右裁 20.6px）。
-  // 改为按**块的实际可用宽**判断，小于 4.4em 才降成 .pv-big-sm。
-  const tinyToday = Number.isFinite(o.availW) && o.availW < 4.4;
+  // v3.83：不再做「大字/小字」两档切换（总有档位卡在中间），改为**按可用空间连续缩小**：
+  // 「今天」宽 = 2em、高 ≈ 1.1em，取宽/高两约束的较小值，再留 8% 余量，上限仍是 1.875em。
+  // flat=true 表示横排双栏，左列只有约一半宽，故宽度约束再减半。
+  const todayEm = (flat) => {
+    const aw = Number.isFinite(o.availW) ? o.availW : 8;
+    const ah = Number.isFinite(o.availH) ? o.availH : 8;
+    const colW = flat ? aw / 2 : aw;
+    // 非双栏时纵向还要和「日程名」等分行，按 3 行摊；双栏时纵向只有「今天」一行
+    const colH = flat ? ah : ah / 3;
+    return Math.max(0.5, Math.min(1.875, (colW / 2) * 0.82, (colH / 1.25) * 0.85));
+  };
   const countdown = (name, days, sub) => html`<div class="pv-center">
-    <div class="pv-big${(days === 0 && (tinyToday || fitW < 4.4)) ? ' pv-big-sm' : ''}" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
+    <div class="pv-big" style="color:${label};font-variant-numeric:tabular-nums;${days === 0 ? `font-size:${todayEm(false).toFixed(3)}em;` : ''}">${days === 0 ? TODAY : days}</div>
     ${days === 0 || tightH ? '' : html`<div class="pv-sub" style="color:${label3}">${isZh ? '天后' : 'days left'}</div>`}
     <div class="pv-row2 pv-cd-name" style="color:${theme}">${name}</div>
     ${sub && !tightH ? html`<div class="pv-sub" style="color:${label3}">${sub}</div>` : ''}
@@ -888,7 +892,7 @@ function renderInfoBlockInner(o) {
   /** 倒数单元·宽扁双栏（v1.40 需求 2）：左列数字 + 右列名称/说明，横向并排 */
   const countdownFlat = (name, days, sub) => html`<div class="pv-center pv-flat">
     <div class="pv-fnum">
-      <div class="pv-big${days === 0 && tinyToday ? ' pv-big-sm' : ''}" style="color:${label};font-variant-numeric:tabular-nums;">${days === 0 ? TODAY : days}</div>
+      <div class="pv-big" style="color:${label};font-variant-numeric:tabular-nums;${days === 0 ? `font-size:${todayEm(true).toFixed(3)}em;` : ''}">${days === 0 ? TODAY : days}</div>
       ${days === 0 ? '' : html`<div class="pv-sub" style="color:${label3}">${isZh ? '天后' : 'days left'}</div>`}
     </div>
     <div class="pv-ftext">
