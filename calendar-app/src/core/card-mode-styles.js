@@ -895,6 +895,13 @@ export const CARD_MODE_CSS = `
 .pv-mm-c, .pv-c, .pv-wk-cell, .pv-wkv-cell { position: relative; }
 /* 休息日的颜色由渲染层按主题色内联给出（.rest 只作语义标记，避免写死色值） */
 .pv-dots { position: absolute; left: 0; right: 0; bottom: 0.06em; display: flex; gap: 2px; justify-content: center; pointer-events: none; }
+/* v3.87：日期条（月历单行 / 周日历）的日程点改**占据独立一行**。
+   原来绝对定位钉在单元格底部正中（bottom:0.06em），而单元格高度恰好只装得下
+   「数字行 + 星期行」→ 点被居中的星期字盖住，看起来像「没有显示点」。
+   （试过移到右下角：容器被撑到 14px 宽、仍与星期字重叠 5.4px，19px 窄格放不下。）
+   改 static 后在列尾自然排一行；这行的高度已计入 SINGLE_H_EM / week.h（2.38 → 2.6）。
+   日期条每格只有 19~30px 宽，渲染层只输出 1 个点。 */
+.pv-wk-cell .pv-dots { position: static; inset: auto; margin-top: 0.02em; height: 0.22em; }
 .pv-dot { width: 3.5px; height: 3.5px; border-radius: 50%; flex: 0 0 auto; }
 
 /* ===== v3.41：1×FULL 单独模式字号 / 布局微调（用户指定 px） =====
