@@ -204,7 +204,13 @@ const rows = JSON.parse(decode(m[1]));
 
 const verdict = (r) => {
   if (r.overflowX > 1 || r.overflowY > 1 || r.clipped > 0) return 'CLIP';
-  if (r.minPrimary > 0 && r.minPrimary < 9) return 'TINY';
+  if (r.minPrimary > 0 && r.minPrimary < 9) {
+    // v3.74 产品决策（用户明确要求「2×1 多日程的日程名再缩 1」）：2×1 卡上的「多日程」
+    // 要在 96px 宽里同时放 2 行日程 + 元信息，9px 会挤爆，故日程名下限降到 8px（实测落到 8.2）。
+    // 归档门禁要求 TINY=0，这里对这一组合按 8px 阈值放行；其它样式/尺寸仍按 9px 判定。
+    if (r.c === 'schedule' && r.s === 'multiple' && r.size === '2x1' && r.minPrimary >= 8) return 'OK';
+    return 'TINY';
+  }
   if (r.minSecondary > 0 && r.minSecondary < 5.5) {
     // v3.80：月历格阵是「7 列 × 6 行」的信息密集排布，小块上必然出现 <5.5px 的小字
     // （日格数字 + 星期表头）。这是内容形态决定的、不可避免的密度，不是排版缺陷 ——
