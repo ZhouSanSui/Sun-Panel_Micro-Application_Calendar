@@ -1920,6 +1920,12 @@ function renderInfoBlockInner(o) {
         </div>`;
       }
       // 非 1×FULL：维持原结构（左=天数组，右=标题 + 目标日/时分）
+      // v3.85：1×2 宽扁卡把「目标日 + 时分」并到**同一行** —— 原来 pv-tg-date 是块级 div，
+      // 时间 span 跟在其后必然换行（截图：日期一行、06:58 另一行）。宽扁卡横向空间富余，
+      // 该并列而不是再占一行。2×1 仍保持「日期拆两排（年/月日）+ 时间在下」的竖排结构。
+      const dtRow = o.size === '1x2' && schedTime
+        ? html`<div class="pv-tg-dt"><span class="pv-tg-date" style="color:${label3}">${iso}</span>${timeNode}</div>`
+        : null;
       return html`<div class="pv-col pv-tg">
         <div class="pv-tg-left">
           <div class="pv-center">
@@ -1930,7 +1936,7 @@ function renderInfoBlockInner(o) {
         </div>
         <div class="pv-tg-right">
           <div class="pv-tg-title" style="color:${label2}">${title}</div>
-          <div class="pv-tg-date" style="color:${label3}">${date2x1}</div>${timeNode}
+          ${dtRow || html`<div class="pv-tg-date" style="color:${label3}">${date2x1}</div>${timeNode}`}
         </div>
       </div>`;
     }

@@ -278,6 +278,9 @@ export const CARD_MODE_CSS = `
 .pv-tg-pre, .pv-tg-unit { font-size: 0.5em; }
 .pv-tg-days { font-size: 2.5em; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .pv-tg-date { font-size: 0.66em; letter-spacing: 0.03em; white-space: nowrap; }
+/* v3.85：1×2 卡的目标日 + 时分并排一行（原来日期是块级 div，时间被挤到下一行）。
+   baseline 对齐让「2026-10-31」和「06:58」坐在同一条基线上。 */
+.pv-tg-dt { display: flex; align-items: baseline; justify-content: center; gap: 0.28em; white-space: nowrap; }
 .pv-tg-time { font-size: 0.66em; opacity: 0.82; font-variant-numeric: tabular-nums; white-space: nowrap; }  /* v3.62：时分基础字号 = 日期（0.66em），原 0.5em 偏小 */
 /* v3.63 targetDay 日程名行数限制：超出范围的内容不再显示
    1×2 / 2×1 / 2×4 / 1×FULL：单行；2×2：2 行；4×4：4 行。
